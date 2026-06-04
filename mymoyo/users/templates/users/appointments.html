@@ -1,0 +1,469 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Appointment Scheduler{% endblock %}
+
+{% block content %}
+<style>
+    .appointments-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 2rem;
+    }
+    .appointments-title h1 {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    .appointments-title p {
+        color: #6b7280;
+        font-size: 0.95rem;
+    }
+    .book-appointment-btn {
+        background: var(--theme-primary);
+        color: white;
+        border: none;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s ease;
+    }
+    .book-appointment-btn:hover {
+        background: var(--theme-primary-hover);
+        color: white;
+        text-decoration: none;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    .stat-card {
+        background: white;
+        border-radius: 16px;
+        padding: 1.5rem;
+        border: 1px solid rgba(15, 23, 42, 0.06);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .stat-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+    .stat-card-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: #6b7280;
+        font-weight: 600;
+    }
+    .stat-card-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+    }
+    .stat-card-icon.teal {
+        background: var(--theme-soft);
+    }
+    .stat-card-icon.blue {
+        background: rgba(59, 130, 246, 0.1);
+    }
+    .stat-card-icon.green {
+        background: rgba(34, 197, 94, 0.1);
+    }
+    .stat-card-icon.gray {
+        background: rgba(107, 114, 128, 0.1);
+    }
+    .stat-card-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    .stat-card-subtext {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+    .stat-card-subtext a {
+        color: var(--theme-primary);
+        text-decoration: none;
+        font-weight: 600;
+    }
+    .appointments-tabs {
+        display: flex;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .appointments-tab {
+        padding: 0.75rem 0;
+        border: none;
+        background: none;
+        font-size: 0.85rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #9ca3af;
+        cursor: pointer;
+        position: relative;
+        transition: color 0.2s ease;
+    }
+    .appointments-tab:hover {
+        color: #374151;
+    }
+    .appointments-tab.active {
+        color: var(--theme-primary);
+    }
+    .appointments-tab.active::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--theme-primary);
+    }
+    .appointments-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        gap: 1rem;
+    }
+    .appointments-search {
+        flex: 1;
+        max-width: 400px;
+    }
+    .appointments-search input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-radius: 12px;
+        font-size: 0.9rem;
+        background: white;
+    }
+    .appointments-search input:focus {
+        outline: none;
+        border-color: var(--theme-primary);
+        box-shadow: 0 0 0 3px var(--theme-focus);
+    }
+    .filter-btn {
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-radius: 12px;
+        background: white;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #374151;
+        transition: background 0.2s ease;
+    }
+    .filter-btn:hover {
+        background: #f9fafb;
+    }
+    .appointments-table {
+        background: white;
+        border-radius: 16px;
+        border: 1px solid rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+    }
+    .appointments-table-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 1rem;
+    }
+    .appointments-table-header-cell {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.14em;
+        color: #6b7280;
+        font-weight: 600;
+    }
+    .appointments-empty-state {
+        padding: 4rem 2rem;
+        text-align: center;
+    }
+    .appointments-empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.3;
+    }
+    .appointments-empty-state-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 0.5rem;
+    }
+    .appointments-empty-state-text {
+        color: #6b7280;
+        font-size: 0.95rem;
+    }
+</style>
+
+<div class="appointments-hero">
+    <div class="appointments-title">
+        <h1>Appointment Scheduler</h1>
+        <p>Manage upcoming clinical visits, refills, and lab collections.</p>
+    </div>
+    <button class="book-appointment-btn" data-bs-toggle="modal" data-bs-target="#bookAppointmentModal">
+        + BOOK APPOINTMENT
+    </button>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <div class="stat-card-label">Total Bookings</div>
+            <div class="stat-card-icon teal">📋</div>
+        </div>
+        <div class="stat-card-value">{{ stats.total }}</div>
+        <div class="stat-card-subtext">All-time scheduler queue</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <div class="stat-card-label">Active Queue</div>
+            <div class="stat-card-icon blue">🕐</div>
+        </div>
+        <div class="stat-card-value">{{ stats.upcoming }}</div>
+        <div class="stat-card-subtext"><a href="{% url 'appointment_list' %}?status=upcoming">Visits pending</a></div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <div class="stat-card-label">Completed Visits</div>
+            <div class="stat-card-icon green">✔</div>
+        </div>
+        <div class="stat-card-value">{{ stats.completed }}</div>
+        <div class="stat-card-subtext">Registered confirmations</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-card-header">
+            <div class="stat-card-label">Missed Visits</div>
+            <div class="stat-card-icon gray">⚡</div>
+        </div>
+        <div class="stat-card-value">{{ stats.missed }}</div>
+        <div class="stat-card-subtext">Requires client follow-up</div>
+    </div>
+</div>
+
+<div class="appointments-tabs">
+    <a href="?status=upcoming{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="appointments-tab {% if selected_status == 'upcoming' %}active{% endif %}">UPCOMING</a>
+    <a href="?status=completed{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="appointments-tab {% if selected_status == 'completed' %}active{% endif %}">COMPLETED</a>
+    <a href="?status=missed{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="appointments-tab {% if selected_status == 'missed' %}active{% endif %}">MISSED</a>
+</div>
+
+<div class="appointments-controls">
+    <div class="appointments-search">
+        <form method="get" style="display:flex; gap:0.5rem;">
+            <input type="hidden" name="status" value="{{ selected_status }}">
+            <input type="text" name="q" value="{{ search_term }}" placeholder="Search records...">
+            <button type="submit" class="filter-btn">Search</button>
+        </form>
+    </div>
+</div>
+
+<div class="appointments-table">
+    <div class="appointments-table-header">
+        <div class="appointments-table-header-cell">Beneficiary</div>
+        <div class="appointments-table-header-cell">Visit Type</div>
+        <div class="appointments-table-header-cell">Time / Date</div>
+        <div class="appointments-table-header-cell">Status</div>
+    </div>
+    {% if appointments.exists %}
+        {% for appointment in appointments %}
+            <div class="appointments-table-row" style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:1rem; padding:1rem 1.5rem; border-top:1px solid rgba(15, 23, 42, 0.06);">
+                <div>
+                    <div style="font-weight:700; color:#111827;">{{ appointment.beneficiary.get_full_name|default:appointment.beneficiary.username }}</div>
+                    <div style="font-size:0.85rem; color:#6b7280; margin-top:0.25rem;">{{ appointment.facility.name }}, {{ appointment.district.name }}, {{ appointment.province.name }}</div>
+                </div>
+                <div style="font-weight:600; color:#374151;">{{ appointment.get_visit_purpose_display }}</div>
+                <div style="color:#374151; font-weight:600;">{{ appointment.appointment_date }}<br>{{ appointment.appointment_time }}</div>
+                <div style="font-weight:700; color:{% if appointment.status == 'completed' %}green{% elif appointment.status == 'upcoming' %}var(--theme-primary){% else %}#f97316{% endif %}; text-transform: uppercase;">{{ appointment.get_status_display }}</div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="appointments-empty-state">
+            <div class="appointments-empty-state-icon">📭</div>
+            <div class="appointments-empty-state-title">No records found</div>
+            <div class="appointments-empty-state-text">Try adjusting your filters or search terms.</div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Book Appointment Modal -->
+<div class="modal fade" id="bookAppointmentModal" tabindex="-1" aria-labelledby="bookAppointmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 380px;">
+        <div class="modal-content" style="border-radius: 20px;">
+            <div class="modal-header" style="background: transparent; border: none; padding: 1.5rem 1.5rem 0;">
+                <h5 class="modal-title" id="bookAppointmentModalLabel" style="font-weight: 700; color: #1f2937;">Book Appointment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <form method="post" class="js-confirm-form" data-confirm-title="Book this appointment?" data-confirm-text="Please confirm the beneficiary, visit purpose, date, and location." data-confirm-button="Book Appointment">
+                    {% csrf_token %}
+                    {{ form.non_field_errors }}
+                    <div class="mb-4">
+                        <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Beneficiary</label>
+                        {{ form.beneficiary }}
+                        {% if form.beneficiary.errors %}
+                            <div class="text-danger" style="font-size:0.85rem;">{{ form.beneficiary.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Visit Purpose</label>
+                        {{ form.visit_purpose }}
+                        {% if form.visit_purpose.errors %}
+                            <div class="text-danger" style="font-size:0.85rem;">{{ form.visit_purpose.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Date</label>
+                            {{ form.appointment_date }}
+                            {% if form.appointment_date.errors %}
+                                <div class="text-danger" style="font-size:0.85rem;">{{ form.appointment_date.errors }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-6">
+                            <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Time</label>
+                            {{ form.appointment_time }}
+                            {% if form.appointment_time.errors %}
+                                <div class="text-danger" style="font-size:0.85rem;">{{ form.appointment_time.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; margin-bottom: 1rem;">Location Selection</div>
+                        <div class="row g-3 mb-3">
+                            <div class="col-6">
+                                <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; font-weight: 600; display: block; margin-bottom: 0.5rem;">Province</label>
+                                <select name="province" id="id_province" class="form-select" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem;">
+                                    <option value="">Select Province</option>
+                                    {% for province in provinces %}
+                                        <option value="{{ province.id }}" {% if province.id|stringformat:"s" == form.province.value %}selected{% endif %}>{{ province.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% if form.province.errors %}
+                                    <div class="text-danger" style="font-size:0.85rem;">{{ form.province.errors }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-6">
+                                <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; font-weight: 600; display: block; margin-bottom: 0.5rem;">District</label>
+                                <select name="district" id="id_district" class="form-select" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem;">
+                                    <option value="">Select District</option>
+                                    {% for district in districts %}
+                                        <option value="{{ district.id }}" data-province="{{ district.province.id }}" {% if district.id|stringformat:"s" == form.district.value %}selected{% endif %}>{{ district.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                {% if form.district.errors %}
+                                    <div class="text-danger" style="font-size:0.85rem;">{{ form.district.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Preferred Facility</label>
+                        <select name="facility" id="id_facility" class="form-select" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem;">
+                            <option value="">Select Healthcare Facility</option>
+                            {% for facility in facilities %}
+                                <option value="{{ facility.id }}" data-district="{{ facility.district.id }}" {% if facility.id|stringformat:"s" == form.facility.value %}selected{% endif %}>{{ facility.name }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.facility.errors %}
+                            <div class="text-danger" style="font-size:0.85rem;">{{ form.facility.errors }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Notes</label>
+                        {{ form.notes }}
+                    </div>
+
+                    <button type="submit" class="btn w-100" style="background: var(--theme-primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; cursor: pointer; transition: background 0.2s ease;">
+                        Confirm Appointment
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const provinceSelect = document.getElementById('id_province');
+    const districtSelect = document.getElementById('id_district');
+    const facilitySelect = document.getElementById('id_facility');
+
+    const districtOptions = Array.from(districtSelect.options).map(option => ({
+        value: option.value,
+        label: option.text,
+        province: option.dataset.province,
+        selected: option.selected
+    }));
+
+    const facilityOptions = Array.from(facilitySelect.options).map(option => ({
+        value: option.value,
+        label: option.text,
+        district: option.dataset.district,
+        selected: option.selected
+    }));
+
+    function filterOptions(selectElement, options, valueKey, parentValue, selectedValue = '') {
+        selectElement.innerHTML = '';
+        const placeholder = document.createElement('option');
+        placeholder.value = '';
+        placeholder.text = 'Select';
+        selectElement.appendChild(placeholder);
+
+        options.filter(opt => opt[valueKey] === parentValue).forEach(opt => {
+            const option = document.createElement('option');
+            option.value = opt.value;
+            option.text = opt.label;
+            option.selected = opt.value === selectedValue;
+            selectElement.appendChild(option);
+        });
+    }
+
+    if (provinceSelect && districtSelect && facilitySelect) {
+        provinceSelect.addEventListener('change', () => {
+            filterOptions(districtSelect, districtOptions, 'province', provinceSelect.value);
+            filterOptions(facilitySelect, facilityOptions, 'district', '');
+        });
+
+        districtSelect.addEventListener('change', () => {
+            filterOptions(facilitySelect, facilityOptions, 'district', districtSelect.value);
+        });
+
+        const selectedProvince = provinceSelect.value;
+        const selectedDistrict = districtSelect.value;
+        const selectedFacility = facilitySelect.value;
+        if (selectedProvince) {
+            filterOptions(districtSelect, districtOptions, 'province', selectedProvince, selectedDistrict);
+        }
+        if (selectedDistrict) {
+            filterOptions(facilitySelect, facilityOptions, 'district', selectedDistrict, selectedFacility);
+        }
+    }
+
+    {% if form_has_errors %}
+        document.addEventListener('DOMContentLoaded', () => {
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('bookAppointmentModal')).show();
+        });
+    {% endif %}
+</script>
+{% endblock %}

@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}User Management{% endblock %}</title>
+    <link href="{% static 'vendor/fonts/inter/inter.css' %}" rel="stylesheet">
+    <link href="{% static 'vendor/fonts/material-symbols/material-symbols.css' %}" rel="stylesheet">
+    <link href="{% static 'vendor/bootstrap/5.3.2/css/bootstrap.min.css' %}" rel="stylesheet">
+    <style>
+        :root {
+            --theme-nav: #073f3a;
+            --theme-nav-rgb: 7, 63, 58;
+            --theme-primary: #087568;
+            --theme-primary-rgb: 8, 117, 104;
+            --theme-primary-hover: #04584f;
+            --theme-accent: #9be7c9;
+            --theme-accent-rgb: 155, 231, 201;
+            --theme-highlight: #ffd166;
+            --theme-highlight-rgb: 255, 209, 102;
+            --theme-focus: rgba(8, 117, 104, 0.18);
+            --theme-soft: #e7f7f0;
+            --theme-surface: #fffdf7;
+            --theme-life: #2fbf71;
+            --theme-life-rgb: 47, 191, 113;
+            --theme-page-start: #f6fbf8;
+            --theme-page-mid: #edf6f2;
+            --theme-page-end: #e8f0ed;
+            --theme-text: #123c35;
+            --theme-text-strong: #062d28;
+            --theme-text-muted: #5f7b73;
+            --theme-surface-text: #173b35;
+            --theme-surface-muted: #607d76;
+            --theme-on-nav: #f3fffb;
+            --theme-on-nav-muted: #bdebdc;
+            --theme-on-brand: #08332f;
+        }
+        body.theme-teal {
+            --theme-nav: #064e45;
+            --theme-nav-rgb: 6, 78, 69;
+            --theme-primary: #00897b;
+            --theme-primary-rgb: 0, 137, 123;
+            --theme-primary-hover: #00695c;
+            --theme-accent: #a7f3d0;
+            --theme-accent-rgb: 167, 243, 208;
+            --theme-highlight: #ffd166;
+            --theme-highlight-rgb: 255, 209, 102;
+            --theme-focus: rgba(0, 105, 92, 0.16);
+            --theme-soft: #e0f7ef;
+            --theme-surface: #fffdf7;
+            --theme-life: #22c55e;
+            --theme-life-rgb: 34, 197, 94;
+            --theme-page-start: #f4fbf7;
+            --theme-page-mid: #e8f8f0;
+            --theme-page-end: #dff2eb;
+            --theme-text: #123d38;
+            --theme-text-strong: #06322d;
+            --theme-text-muted: #607f77;
+            --theme-surface-text: #173d37;
+            --theme-surface-muted: #607f77;
+            --theme-on-nav: #f3fffb;
+            --theme-on-nav-muted: #c7f3e2;
+            --theme-on-brand: #07352f;
+        }
+        body.theme-indigo {
+            --theme-nav: #303f9f;
+            --theme-nav-rgb: 48, 63, 159;
+            --theme-primary: #303f9f;
+            --theme-primary-rgb: 48, 63, 159;
+            --theme-primary-hover: #283593;
+            --theme-accent: #c5cae9;
+            --theme-accent-rgb: 197, 202, 233;
+            --theme-highlight: #ffd166;
+            --theme-highlight-rgb: 255, 209, 102;
+            --theme-focus: rgba(48, 63, 159, 0.16);
+            --theme-soft: #e8eaf6;
+            --theme-surface: #fffefe;
+            --theme-life: #38bdf8;
+            --theme-life-rgb: 56, 189, 248;
+            --theme-page-start: #f7f8ff;
+            --theme-page-mid: #eef1ff;
+            --theme-page-end: #e8eaf6;
+            --theme-text: #202858;
+            --theme-text-strong: #171d47;
+            --theme-text-muted: #5f6692;
+            --theme-surface-text: #202858;
+            --theme-surface-muted: #626991;
+            --theme-on-nav: #f7f8ff;
+            --theme-on-nav-muted: #d8dcff;
+            --theme-on-brand: #172047;
+        }
+        body.theme-rose {
+            --theme-nav: #ad1457;
+            --theme-nav-rgb: 173, 20, 87;
+            --theme-primary: #ad1457;
+            --theme-primary-rgb: 173, 20, 87;
+            --theme-primary-hover: #880e4f;
+            --theme-accent: #f8bbd0;
+            --theme-accent-rgb: 248, 187, 208;
+            --theme-highlight: #ffd166;
+            --theme-highlight-rgb: 255, 209, 102;
+            --theme-focus: rgba(173, 20, 87, 0.16);
+            --theme-soft: #fce4ec;
+            --theme-surface: #fffafb;
+            --theme-life: #fb7185;
+            --theme-life-rgb: 251, 113, 133;
+            --theme-page-start: #fff8fb;
+            --theme-page-mid: #fdf0f6;
+            --theme-page-end: #fce4ec;
+            --theme-text: #5a1835;
+            --theme-text-strong: #421027;
+            --theme-text-muted: #8a5d70;
+            --theme-surface-text: #5a1835;
+            --theme-surface-muted: #8a5d70;
+            --theme-on-nav: #fff8fb;
+            --theme-on-nav-muted: #ffd6e5;
+            --theme-on-brand: #4a1029;
+        }
+        body.theme-amber {
+            --theme-nav: #7c3f00;
+            --theme-nav-rgb: 124, 63, 0;
+            --theme-primary: #b45309;
+            --theme-primary-rgb: 180, 83, 9;
+            --theme-primary-hover: #92400e;
+            --theme-accent: #fde68a;
+            --theme-accent-rgb: 253, 230, 138;
+            --theme-highlight: #facc15;
+            --theme-highlight-rgb: 250, 204, 21;
+            --theme-focus: rgba(180, 83, 9, 0.16);
+            --theme-soft: #fff7ed;
+            --theme-surface: #fffdf7;
+            --theme-life: #f97316;
+            --theme-life-rgb: 249, 115, 22;
+            --theme-page-start: #fffaf0;
+            --theme-page-mid: #fff3d6;
+            --theme-page-end: #ffedd5;
+            --theme-text: #5a2e0c;
+            --theme-text-strong: #3f1f06;
+            --theme-text-muted: #8a6a3f;
+            --theme-surface-text: #5a2e0c;
+            --theme-surface-muted: #8a6a3f;
+            --theme-on-nav: #fffaf0;
+            --theme-on-nav-muted: #fde68a;
+            --theme-on-brand: #3f1f06;
+        }
+        body.theme-sky {
+            --theme-nav: #075985;
+            --theme-nav-rgb: 7, 89, 133;
+            --theme-primary: #0284c7;
+            --theme-primary-rgb: 2, 132, 199;
+            --theme-primary-hover: #0369a1;
+            --theme-accent: #bae6fd;
+            --theme-accent-rgb: 186, 230, 253;
+            --theme-highlight: #facc15;
+            --theme-highlight-rgb: 250, 204, 21;
+            --theme-focus: rgba(2, 132, 199, 0.16);
+            --theme-soft: #e0f2fe;
+            --theme-surface: #fafdff;
+            --theme-life: #0ea5e9;
+            --theme-life-rgb: 14, 165, 233;
+            --theme-page-start: #f5fbff;
+            --theme-page-mid: #eaf7ff;
+            --theme-page-end: #e0f2fe;
+            --theme-text: #123d5a;
+            --theme-text-strong: #082f49;
+            --theme-text-muted: #5f7d92;
+            --theme-surface-text: #123d5a;
+            --theme-surface-muted: #5f7d92;
+            --theme-on-nav: #f5fbff;
+            --theme-on-nav-muted: #bae6fd;
+            --theme-on-brand: #082f49;
+        }
+        body.theme-light {
+            --theme-nav: #f8fafc;
+            --theme-nav-rgb: 248, 250, 252;
+            --theme-primary: #475569;
+            --theme-primary-rgb: 71, 85, 105;
+            --theme-primary-hover: #334155;
+            --theme-accent: #e2e8f0;
+            --theme-accent-rgb: 226, 232, 240;
+            --theme-highlight: #facc15;
+            --theme-highlight-rgb: 250, 204, 21;
+            --theme-focus: rgba(71, 85, 105, 0.16);
+            --theme-soft: #f1f5f9;
+            --theme-surface: #ffffff;
+            --theme-life: #64748b;
+            --theme-life-rgb: 100, 116, 139;
+            --theme-page-start: #ffffff;
+            --theme-page-mid: #f8fafc;
+            --theme-page-end: #eef2f7;
+            --theme-text: #1e293b;
+            --theme-text-strong: #0f172a;
+            --theme-text-muted: #64748b;
+            --theme-surface-text: #1e293b;
+            --theme-surface-muted: #64748b;
+            --theme-on-nav: #0f172a;
+            --theme-on-nav-muted: #475569;
+            --theme-on-brand: #0f172a;
+        }
+        body.theme-dark {
+            --theme-nav: #020617;
+            --theme-nav-rgb: 2, 6, 23;
+            --theme-primary: #38bdf8;
+            --theme-primary-rgb: 56, 189, 248;
+            --theme-primary-hover: #0ea5e9;
+            --theme-accent: #7dd3fc;
+            --theme-accent-rgb: 125, 211, 252;
+            --theme-highlight: #facc15;
+            --theme-highlight-rgb: 250, 204, 21;
+            --theme-focus: rgba(56, 189, 248, 0.22);
+            --theme-soft: #1e293b;
+            --theme-surface: #0f172a;
+            --theme-life: #22c55e;
+            --theme-life-rgb: 34, 197, 94;
+            --theme-page-start: #020617;
+            --theme-page-mid: #0f172a;
+            --theme-page-end: #111827;
+            --theme-text: #e5edf7;
+            --theme-text-strong: #f8fafc;
+            --theme-text-muted: #94a3b8;
+            --theme-surface-text: #e5edf7;
+            --theme-surface-muted: #94a3b8;
+            --theme-on-nav: #f8fafc;
+            --theme-on-nav-muted: #94a3b8;
+            --theme-on-brand: #052e16;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background:
+                radial-gradient(circle at 12% 10%, rgba(var(--theme-accent-rgb), 0.38), transparent 28rem),
+                radial-gradient(circle at 92% 6%, rgba(var(--theme-highlight-rgb), 0.28), transparent 26rem),
+                linear-gradient(180deg, var(--theme-page-start) 0%, var(--theme-page-mid) 45%, var(--theme-page-end) 100%);
+            color: var(--theme-text);
+        }
+        .swal2-container {
+            z-index: 3000 !important;
+        }
+        .sidebar {
+            position: fixed;
+            top: 7.75rem;
+            bottom: 4.75rem;
+            left: 1.25rem;
+            width: 300px;
+            height: auto;
+            box-sizing: border-box;
+            padding: 1.5rem 1.3rem 2rem;
+            border-radius: 24px;
+            background:
+                linear-gradient(180deg, rgba(var(--theme-nav-rgb), 0.98), rgba(var(--theme-primary-rgb), 0.9)),
+                var(--theme-nav);
+            color: var(--theme-on-nav);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            box-shadow: 0 24px 40px rgba(0, 0, 0, 0.12);
+            transition: transform 0.25s ease;
+        }
+        .sidebar-overlay {
+            display: none;
+        }
+        .sidebar .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            margin-bottom: 1.75rem;
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            color: var(--theme-on-nav);
+            text-decoration: none;
+        }
+        .sidebar .brand-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--theme-highlight), var(--theme-life));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+            color: var(--theme-on-brand);
+            box-shadow: 0 14px 28px rgba(var(--theme-life-rgb), 0.26);
+        }
+        .sidebar .brand-name {
+            line-height: 1.1;
+        }
+        .sidebar .brand small {
+            display: block;
+            font-size: 0.72rem;
+            color: var(--theme-accent);
+            margin-top: 0.28rem;
+            letter-spacing: 0.04em;
+            font-weight: 600;
+        }
+        .sidebar .nav-section {
+            margin-top: 1.5rem;
+        }
+        .sidebar > .nav-section:first-of-type {
+            margin-top: 0;
+        }
+        .sidebar .nav-section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            font-size: 0.75rem;
+            text-transform: capitalize;
+            letter-spacing: 0.14em;
+            color: var(--theme-on-nav-muted);
+            margin-bottom: 0.85rem;
+            cursor: pointer;
+            font-family: inherit;
+            text-align: left;
+        }
+        .sidebar .nav-section-title .material-symbols-outlined {
+            font-size: 1rem;
+            transition: transform 0.2s ease;
+        }
+        .sidebar .nav-section.collapsed .nav-section-title .material-symbols-outlined {
+            transform: rotate(-90deg);
+        }
+        .sidebar .nav-section.collapsed .nav-section-items {
+            display: none;
+        }
+        .sidebar .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 0.95rem;
+            color: var(--theme-on-nav-muted);
+            padding: 0.75rem 0.85rem;
+            margin-bottom: 0.45rem;
+            border-radius: 16px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-transform: capitalize;
+            white-space: nowrap;
+            transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+            text-decoration: none;
+        }
+        .sidebar .nav-link:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--theme-on-nav);
+            transform: translateX(2px);
+        }
+        .sidebar .nav-link.active {
+            background: rgba(var(--theme-highlight-rgb), 0.18);
+            color: var(--theme-on-nav);
+        }
+        .sidebar .nav-icon {
+            font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
+            font-size: 1.15rem;
+            color: var(--theme-accent);
+            min-width: 1.35rem;
+            display: inline-flex;
+            justify-content: center;
+        }
+        .sidebar .nav-link.active .nav-icon {
+            color: var(--theme-highlight);
+        }
+        .sidebar .sidebar-footer {
+            margin-top: auto;
+            padding-top: 1.5rem;
+            padding-bottom: 0.25rem;
+            position: sticky;
+            bottom: 0;
+        }
+        .sidebar .user-pill {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.85rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            color: var(--theme-on-nav);
+            margin-bottom: 0.75rem;
+        }
+        .sidebar .user-pill small {
+            display: block;
+            color: var(--theme-on-nav-muted);
+        }
+        .sidebar .life-dot {
+            color: var(--theme-life);
+            text-shadow: 0 0 12px rgba(var(--theme-life-rgb), 0.8);
+        }
+        .app-shell {
+            margin-left: 320px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 950;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 1.25rem 1.5rem;
+            background:
+                linear-gradient(135deg, rgba(var(--theme-primary-rgb), 0.96), rgba(var(--theme-nav-rgb), 0.96)),
+                var(--theme-nav);
+            border-radius: 24px;
+            box-shadow: 0 18px 42px rgba(16, 32, 48, 0.08);
+            margin: 1.25rem;
+        }
+        .topbar-life {
+            display: flex;
+            align-items: center;
+            gap: 0.7rem;
+            color: var(--theme-on-nav);
+            min-width: 0;
+        }
+        .topbar .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            color: var(--theme-on-nav);
+            font-size: 1.2rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            text-decoration: none;
+        }
+        .topbar .brand-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--theme-highlight), var(--theme-life));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.35rem;
+            color: var(--theme-on-brand);
+            box-shadow: 0 14px 28px rgba(var(--theme-life-rgb), 0.26);
+        }
+        .topbar .brand-name {
+            line-height: 1.1;
+        }
+        .topbar .brand small {
+            display: block;
+            color: var(--theme-accent);
+            font-size: 0.72rem;
+            font-weight: 600;
+            letter-spacing: 0.04em;
+            margin-top: 0.28rem;
+        }
+        .topbar-life-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 14px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.14);
+            color: var(--theme-highlight);
+        }
+        .topbar-life strong {
+            display: block;
+            line-height: 1.1;
+        }
+        .topbar-life small {
+            display: block;
+            color: var(--theme-accent);
+            font-size: 0.76rem;
+            margin-top: 0.15rem;
+        }
+        .topbar-brand {
+            color: var(--theme-on-nav);
+            font-size: 1.05rem;
+            font-weight: 800;
+            text-decoration: none;
+        }
+        .menu-toggle {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            border: 1px solid rgba(226, 232, 240, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--theme-on-nav);
+            cursor: pointer;
+        }
+        .menu-toggle:hover,
+        .menu-toggle[aria-expanded="true"] {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .menu-toggle .material-symbols-outlined {
+            font-size: 1.4rem;
+        }
+        .topbar-links {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex: 1;
+        }
+        .topbar-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.65rem 0.8rem;
+            border-radius: 10px;
+            color: var(--theme-on-nav-muted);
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .topbar-link:hover {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--theme-on-nav);
+        }
+        .topbar-link .material-symbols-outlined {
+            font-size: 1.1rem;
+        }
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-left: auto;
+        }
+        .account-menu {
+            position: relative;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .account-menu-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.65rem 0.8rem;
+            border-radius: 10px;
+            border: 1px solid rgba(226, 232, 240, 0.2);
+            color: var(--theme-on-nav);
+            background: rgba(255, 255, 255, 0.05);
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.88rem;
+            font-weight: 600;
+        }
+        .account-menu-button:hover,
+        .account-menu-button[aria-expanded="true"] {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .account-menu-button .material-symbols-outlined {
+            font-size: 1.1rem;
+        }
+        .account-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.6rem);
+            right: 0;
+            left: auto;
+            z-index: 1100;
+            min-width: 180px;
+            padding: 0.4rem;
+            border: 1px solid rgba(var(--theme-primary-rgb), 0.14);
+            border-radius: 12px;
+            background: var(--theme-surface);
+            box-shadow: 0 12px 28px rgba(16, 32, 48, 0.16);
+        }
+        .account-dropdown.open {
+            display: block;
+        }
+        .account-dropdown a,
+        .account-dropdown button {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            width: 100%;
+            padding: 0.7rem 0.75rem;
+            border: 0;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--theme-surface-text);
+            cursor: pointer;
+            font: inherit;
+            font-size: 0.88rem;
+            font-weight: 600;
+            text-align: left;
+            text-decoration: none;
+        }
+        .account-dropdown a:hover,
+        .account-dropdown button:hover {
+            background: var(--theme-soft);
+            color: var(--theme-primary);
+        }
+        .account-dropdown .material-symbols-outlined {
+            font-size: 1.1rem;
+        }
+        .theme-picker {
+            display: flex;
+            gap: 0.45rem;
+            padding: 0.65rem 0.75rem;
+            border-top: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+            border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        }
+        .theme-picker .theme-swatch {
+            width: 24px;
+            height: 24px;
+            min-width: 24px;
+            padding: 0;
+            border: 2px solid transparent;
+            border-radius: 999px;
+            box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.12);
+        }
+        .theme-picker .theme-swatch:hover,
+        .theme-picker .theme-swatch.is-selected {
+            border-color: var(--theme-surface);
+            box-shadow: 0 0 0 2px var(--theme-primary);
+        }
+        .theme-picker .theme-swatch-slate {
+            background: #073f3a;
+        }
+        .theme-picker .theme-swatch-teal {
+            background: #00897b;
+        }
+        .theme-picker .theme-swatch-indigo {
+            background: #303f9f;
+        }
+        .theme-picker .theme-swatch-rose {
+            background: #ad1457;
+        }
+        .theme-picker .theme-swatch-amber {
+            background: #b45309;
+        }
+        .theme-picker .theme-swatch-sky {
+            background: #0284c7;
+        }
+        .theme-picker .theme-swatch-light {
+            background: #f8fafc;
+        }
+        .theme-picker .theme-swatch-dark {
+            background: #020617;
+        }
+        .content-wrapper {
+            padding: 1.5rem 1.5rem 5rem;
+            flex: 1 0 auto;
+        }
+        .hero-card {
+            border-radius: 24px;
+            padding: 1.5rem;
+            min-height: 160px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            border: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+            background: var(--theme-surface);
+            transition: transform 0.2s ease;
+            color: var(--theme-surface-text);
+        }
+        .hero-card:hover {
+            transform: translateY(-4px);
+        }
+        .hero-card h6 {
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+            color: var(--theme-surface-text);
+            margin-bottom: 0.75rem;
+        }
+        .hero-card p {
+            color: var(--theme-surface-muted);
+            margin-bottom: 0.9rem;
+        }
+        .hero-card .cta-link {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--theme-primary);
+        }
+        .hero-card.border-teal { border-color: #0f766e; }
+        .hero-card.border-green { border-color: #15803d; }
+        .hero-card.border-red { border-color: #dc2626; }
+        .hero-card.border-indigo { border-color: #4338ca; }
+        .hero-card.border-orange { border-color: #ea580c; }
+        .hero-card.border-slate { border-color: #334155; }
+        footer {
+            position: fixed;
+            left: calc(320px + 1.25rem);
+            right: 1.25rem;
+            bottom: 1.25rem;
+            z-index: 900;
+            flex-shrink: 0;
+            padding: 0.85rem 1.5rem;
+            border-radius: 24px 24px 0 0;
+            background: rgba(var(--theme-primary-rgb), 0.08);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+            color: var(--theme-text-muted);
+            text-align: center;
+        }
+        @media (max-width: 991.98px) {
+            .sidebar {
+                width: min(82vw, 280px);
+                transform: translateX(-100%);
+                z-index: 1200;
+            }
+            body.nav-open .sidebar {
+                transform: translateX(0);
+            }
+            .sidebar-overlay {
+                position: fixed;
+                inset: 0;
+                z-index: 1190;
+                background: rgba(15, 23, 42, 0.45);
+            }
+            body.nav-open .sidebar-overlay {
+                display: block;
+            }
+            .app-shell {
+                margin-left: 0;
+            }
+            footer {
+                left: 1.25rem;
+                right: 1.25rem;
+            }
+            .topbar {
+                align-items: center;
+                border-radius: 16px;
+                padding: 0.85rem 1rem;
+            }
+            .menu-toggle {
+                display: inline-flex;
+            }
+            .topbar-brand {
+                display: inline-flex;
+                flex: 1;
+            }
+            .topbar-links,
+            .topbar-actions {
+                flex-wrap: wrap;
+            }
+            .topbar-actions {
+                justify-content: flex-end;
+                margin-left: 0;
+            }
+        }
+    </style>
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="theme-{{ request.user.profile.theme_color|default:'slate' }}">
+<div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+<div class="sidebar d-flex flex-column" id="sidebar">
+    {% if request.user.is_superuser or request.user.profile.role == 'admin' %}
+        <div class="nav-section collapsed">
+            <button class="nav-section-title" type="button" aria-expanded="false">
+                Admin
+                <span class="material-symbols-outlined">expand_more</span>
+            </button>
+            <nav class="nav flex-column nav-section-items">
+                
+                <a class="nav-link" href="{% url 'user_list' %}">
+                    <span class="nav-icon material-symbols-outlined">manage_accounts</span>
+                    Manage Users
+                </a>
+            </nav>
+        </div>
+    {% endif %}
+    <div class="nav-section collapsed">
+        <button class="nav-section-title" type="button" aria-expanded="false">
+            Main
+            <span class="material-symbols-outlined">expand_more</span>
+        </button>
+        <nav class="nav flex-column nav-section-items">
+            {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'supervisor' %}
+                <a class="nav-link" href="{% url 'user_dashboard' %}">
+                    <span class="nav-icon material-symbols-outlined">home</span>
+                    Command Center
+                </a>
+            {% endif %}
+            {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'supervisor' or request.user.profile.role == 'provider' or request.user.profile.role == 'chw' or request.user.profile.role == 'mobiliser' %}
+                <a class="nav-link" href="{% url 'appointment_list' %}">
+                    <span class="nav-icon material-symbols-outlined">calendar_month</span>
+                    Appointments
+                </a>
+            {% endif %}
+            <a class="nav-link" href="{% url 'user_detail' pk=request.user.pk %}">
+                <span class="nav-icon material-symbols-outlined">account_circle</span>
+                My Profile
+            </a>
+            {% if request.user.is_staff %}
+                <a class="nav-link" href="{% url 'admin:index' %}">
+                    <span class="nav-icon material-symbols-outlined">admin_panel_settings</span>
+                    Admin Panel
+                </a>
+            {% endif %}
+            <a class="nav-link" href="#">
+                <span class="nav-icon material-symbols-outlined">medical_services</span>
+                Medication Reminders
+            </a>
+        </nav>
+    </div>
+    {% if request.user.is_staff %}
+        <div class="nav-section collapsed">
+            <button class="nav-section-title" type="button" aria-expanded="false">
+                Admin
+                <span class="material-symbols-outlined">expand_more</span>
+            </button>
+            <nav class="nav flex-column nav-section-items">
+                <a class="nav-link" href="{% url 'admin:auth_user_changelist' %}">
+                    <span class="nav-icon material-symbols-outlined">people</span>
+                    Users
+                </a>
+                <a class="nav-link" href="{% url 'admin:locations_province_changelist' %}">
+                    <span class="nav-icon material-symbols-outlined">location_on</span>
+                    Provinces
+                </a>
+                <a class="nav-link" href="{% url 'admin:locations_district_changelist' %}">
+                    <span class="nav-icon material-symbols-outlined">public</span>
+                    Districts
+                </a>
+                <a class="nav-link" href="{% url 'admin:locations_facility_changelist' %}">
+                    <span class="nav-icon material-symbols-outlined">local_hospital</span>
+                    Facilities
+                </a>
+            </nav>
+        </div>
+    {% endif %}
+    <div class="nav-section collapsed">
+        <button class="nav-section-title" type="button" aria-expanded="false">
+            Services
+            <span class="material-symbols-outlined">expand_more</span>
+        </button>
+        <nav class="nav flex-column nav-section-items">
+            <a class="nav-link" href="#">
+                <span class="nav-icon material-symbols-outlined">science</span>
+                Recent Self-Test
+            </a>
+            <a class="nav-link" href="#">
+                <span class="nav-icon material-symbols-outlined">health_metrics</span>
+                Self-Risk Screening
+            </a>
+            <a class="nav-link" href="#">
+                <span class="nav-icon material-symbols-outlined">warning</span>
+                Report Side Effects
+            </a>
+            <a class="nav-link" href="#">
+                <span class="nav-icon material-symbols-outlined">hotel_class</span>
+                Rate Clinic Services
+            </a>
+        </nav>
+    </div>
+    <div class="nav-section collapsed">
+        <button class="nav-section-title" type="button" aria-expanded="false">
+            Information
+            <span class="material-symbols-outlined">expand_more</span>
+        </button>
+        <nav class="nav flex-column nav-section-items">
+            <a class="nav-link" href="#">
+                <span class="nav-icon material-symbols-outlined">menu_book</span>
+                Health Education
+            </a>
+            <a class="nav-link" href="{% url 'facility_map' %}">
+                <span class="nav-icon material-symbols-outlined">map</span>
+                Find a Clinic
+            </a>
+            <a class="nav-link" href="#">
+                <span class="nav-icon material-symbols-outlined">help</span>
+                Help & Support
+            </a>
+        </nav>
+    </div>
+    <div class="sidebar-footer">
+        <div class="user-pill">
+            <a class="topbar-life topbar-brand" href="{% url 'portal_home' %}">
+            <span class="topbar-life-icon material-symbols-outlined">health_and_safety</span>
+            <span>
+                {% comment %} <strong>MyMoyo</strong> {% endcomment %}
+                <small>my life, cared for</small>
+            </span>
+        </a>
+            {% comment %} <div>
+                <div class="fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
+                <small>{{ request.user.profile.get_role_display|default:"Portal User" }}</small>
+            </div>
+            <span class="life-dot">●</span> {% endcomment %}
+        </div>
+    </div>
+</div>
+<div class="app-shell">
+    <div class="topbar">
+        <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="sidebar">
+            <span class="material-symbols-outlined">menu</span>
+        </button>
+        
+        <a class="brand" href="{% url 'portal_home' %}">
+            <div class="brand-icon material-symbols-outlined">health_and_safety</div>
+            <div class="brand-name">
+                MyMoyo
+                <small>My life. My care.</small>
+            </div>
+            <div class="topbar-actions">
+        </a>
+            <div class="account-menu">
+                <button class="account-menu-button" id="accountMenuButton" type="button" aria-expanded="false" aria-controls="accountDropdown">
+                    <span class="material-symbols-outlined">account_circle</span>
+                    {{ request.user.get_full_name|default:request.user.username }}
+                    <span class="material-symbols-outlined">expand_more</span>
+                </button>
+                <div class="account-dropdown" id="accountDropdown">
+                    <a href="{% url 'user_detail' pk=request.user.pk %}">
+                        <span class="material-symbols-outlined">person</span>
+                        My Profile
+                    </a>
+                    <form class="theme-picker" method="post" action="{% url 'update_theme' %}">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        {% for theme_value, theme_label in request.user.profile.THEME_CHOICES %}
+                            <button
+                                type="submit"
+                                name="theme_color"
+                                value="{{ theme_value }}"
+                                class="theme-swatch theme-swatch-{{ theme_value }}{% if request.user.profile.theme_color == theme_value %} is-selected{% endif %}"
+                                title="{{ theme_label }}"
+                                aria-label="{{ theme_label }} theme"
+                            ></button>
+                        {% endfor %}
+                    </form>
+                    <form method="post" action="{% url 'logout' %}">
+                        {% csrf_token %}
+                        <button type="submit">
+                            <span class="material-symbols-outlined">logout</span>
+                            Logout
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <main class="content-wrapper">
+        {% for message in messages %}
+            <div class="sweetalert-message d-none" data-tag="{{ message.tags }}" data-text="{{ message }}"></div>
+        {% endfor %}
+        {% block content %}{% endblock %}
+    </main>
+    <footer>
+        <small>MyMoyo means my life. Keep it cared for, connected, and within reach.</small>
+    </footer>
+</div>
+{% include "chatbot/widget.html" %}
+<script src="{% static 'vendor/bootstrap/5.3.2/js/bootstrap.bundle.min.js' %}"></script>
+<script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
+<script>
+    function showProcessingAlert() {
+        Swal.fire({
+            title: 'Processing',
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            didOpen: () => Swal.showLoading(),
+        });
+    }
+
+    function getThemePrimaryColor() {
+        return getComputedStyle(document.body).getPropertyValue('--theme-primary').trim() || '#087568';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const idleLogoutAfterMs = 5 * 60 * 1000;
+        let idleLogoutTimer = null;
+        let autoLogoutInProgress = false;
+
+        function getCsrfToken() {
+            const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+            return csrfInput ? csrfInput.value : '';
+        }
+
+        function currentReturnPath() {
+            return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        }
+
+        function idleLoginUrl() {
+            const params = new URLSearchParams({
+                next: currentReturnPath(),
+                idle_timeout: '1',
+            });
+            return `{% url "login" %}?${params.toString()}`;
+        }
+
+        async function autoLogoutForIdleSession() {
+            if (autoLogoutInProgress) return;
+            autoLogoutInProgress = true;
+
+            try {
+                const body = new URLSearchParams({
+                    next: currentReturnPath(),
+                });
+                const response = await fetch('{% url "auto_logout" %}', {
+                    method: 'POST',
+                    cache: 'no-store',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    body,
+                });
+                const data = await response.json();
+                window.location.href = data.login_url || idleLoginUrl();
+            } catch (error) {
+                console.error('Idle auto logout failed:', error);
+                window.location.href = idleLoginUrl();
+            }
+        }
+
+        function resetIdleLogoutTimer() {
+            if (autoLogoutInProgress) return;
+            window.clearTimeout(idleLogoutTimer);
+            idleLogoutTimer = window.setTimeout(autoLogoutForIdleSession, idleLogoutAfterMs);
+        }
+
+        ['click', 'keydown', 'mousemove', 'pointerdown', 'touchstart', 'scroll'].forEach(function (eventName) {
+            document.addEventListener(eventName, resetIdleLogoutTimer, { passive: true });
+        });
+        resetIdleLogoutTimer();
+
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+        function setMobileNavOpen(isOpen) {
+            document.body.classList.toggle('nav-open', isOpen);
+            if (menuToggle) {
+                menuToggle.setAttribute('aria-expanded', String(isOpen));
+            }
+            if (sidebarOverlay) {
+                sidebarOverlay.hidden = !isOpen;
+            }
+        }
+
+        if (menuToggle && sidebarOverlay) {
+            menuToggle.addEventListener('click', function () {
+                setMobileNavOpen(!document.body.classList.contains('nav-open'));
+            });
+
+            sidebarOverlay.addEventListener('click', function () {
+                setMobileNavOpen(false);
+            });
+
+            document.querySelectorAll('#sidebar a').forEach(function (link) {
+                link.addEventListener('click', function () {
+                    setMobileNavOpen(false);
+                });
+            });
+        }
+
+        const accountMenuButton = document.getElementById('accountMenuButton');
+        const accountDropdown = document.getElementById('accountDropdown');
+        if (accountMenuButton && accountDropdown) {
+            accountMenuButton.addEventListener('click', function () {
+                const isOpen = accountDropdown.classList.toggle('open');
+                accountMenuButton.setAttribute('aria-expanded', isOpen);
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!event.target.closest('.account-menu')) {
+                    accountDropdown.classList.remove('open');
+                    accountMenuButton.setAttribute('aria-expanded', 'false');
+                }
+            });
+        }
+
+        document.querySelectorAll('.sidebar .nav-section').forEach(function (section, index) {
+            const toggle = section.querySelector('.nav-section-title');
+            if (!toggle) return;
+
+            const storageKey = `sidebar-section-${index}`;
+            const isCollapsed = localStorage.getItem(storageKey) !== 'expanded';
+            section.classList.toggle('collapsed', isCollapsed);
+            toggle.setAttribute('aria-expanded', String(!isCollapsed));
+
+            toggle.addEventListener('click', function () {
+                const willExpand = section.classList.contains('collapsed');
+                if (willExpand) {
+                    document.querySelectorAll('.sidebar .nav-section').forEach(function (otherSection, otherIndex) {
+                        if (otherSection === section) return;
+
+                        const otherToggle = otherSection.querySelector('.nav-section-title');
+                        otherSection.classList.add('collapsed');
+                        if (otherToggle) {
+                            otherToggle.setAttribute('aria-expanded', 'false');
+                        }
+                        localStorage.setItem(`sidebar-section-${otherIndex}`, 'collapsed');
+                    });
+                }
+
+                const collapsed = section.classList.toggle('collapsed');
+                toggle.setAttribute('aria-expanded', String(!collapsed));
+                localStorage.setItem(storageKey, collapsed ? 'collapsed' : 'expanded');
+            });
+        });
+
+        document.querySelectorAll('.sweetalert-message').forEach(function (message) {
+            const icon = message.dataset.tag === 'error' ? 'error' : 'success';
+            Swal.fire({
+                icon,
+                title: message.dataset.text,
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+            });
+        });
+
+        async function checkSessionStatus() {
+            if (autoLogoutInProgress) return;
+
+            try {
+                const response = await fetch('{% url "session_status" %}', {
+                    cache: 'no-store',
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                });
+
+                if (response.status === 401) {
+                    const data = await response.json();
+                    if (data.login_url) {
+                        window.location.href = data.login_url;
+                    }
+                }
+            } catch (error) {
+                console.error('Session status check failed:', error);
+            }
+        }
+
+        setInterval(checkSessionStatus, 3000);
+
+        document.querySelectorAll('.js-confirm-form').forEach(function (form) {
+            form.addEventListener('submit', function (event) {
+                if (form.dataset.confirmed === 'true') {
+                    return;
+                }
+
+                event.preventDefault();
+                Swal.fire({
+                    icon: form.dataset.confirmIcon || 'question',
+                    title: form.dataset.confirmTitle || 'Are you sure?',
+                    text: form.dataset.confirmText || '',
+                    showCancelButton: true,
+                    confirmButtonText: form.dataset.confirmButton || 'Continue',
+                    cancelButtonText: 'Cancel',
+                    confirmButtonColor: getThemePrimaryColor(),
+                }).then(function (result) {
+                    if (result.isConfirmed) {
+                        form.dataset.confirmed = 'true';
+                        showProcessingAlert();
+                        form.requestSubmit();
+                    }
+                });
+            });
+        });
+
+        document.querySelectorAll('form:not(.js-confirm-form):not(.js-ajax-form)').forEach(function (form) {
+            form.addEventListener('submit', function () {
+                showProcessingAlert();
+            });
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                setMobileNavOpen(false);
+            }
+        });
+    });
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

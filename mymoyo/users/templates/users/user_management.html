@@ -1,0 +1,1933 @@
+{% extends "users/base.html" %}
+
+{% block title %}Manage Users{% endblock %}
+
+{% block extra_head %}
+<style>
+    .management-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        gap: 1rem;
+    }
+    .app-shell > .content-wrapper {
+        min-height: 0;
+        overflow: hidden;
+    }
+    .users-management-page {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .management-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex: 0 0 auto;
+        margin-bottom: 1.5rem;
+        color: var(--theme-text-muted);
+        font-size: 0.92rem;
+        font-weight: 700;
+    }
+    .management-breadcrumb a {
+        color: var(--theme-primary);
+        text-decoration: none;
+    }
+    .management-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+    .management-breadcrumb .material-symbols-outlined {
+        color: var(--theme-text-muted);
+        font-size: 1rem;
+    }
+    .management-breadcrumb [aria-current="page"] {
+        color: var(--theme-text-strong);
+    }
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    .stat-card {
+        background: var(--theme-surface);
+        border-radius: 12px;
+        padding: 1.25rem;
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+        text-align: center;
+    }
+    .stat-card .number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--theme-primary);
+    }
+    .stat-card.loading .number {
+        color: var(--theme-surface-muted);
+    }
+    .stat-card .label {
+        font-size: 0.85rem;
+        color: var(--theme-surface-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 0.5rem;
+    }
+    .stat-card-error {
+        margin-top: 0.55rem;
+        color: #b71c1c;
+        font-size: 0.75rem;
+    }
+    .search-bar {
+        flex: 0 1 360px;
+        max-width: 360px;
+        min-width: min(100%, 280px);
+    }
+    .search-bar form {
+        display: flex;
+        width: 100%;
+    }
+    .search-bar input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        background: var(--theme-surface);
+        color: var(--theme-surface-text);
+    }
+    .search-bar input:focus {
+        outline: none;
+        border-color: var(--theme-primary);
+        box-shadow: 0 0 0 3px var(--theme-focus);
+    }
+    .users-table-wrapper {
+        flex: 1 1 auto;
+        min-height: 0;
+        background: var(--theme-surface);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    .users-table {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: 100%;
+        min-width: 980px;
+        border-collapse: collapse;
+    }
+    .users-table thead {
+        display: block;
+        flex: 0 0 auto;
+        background: var(--theme-soft);
+        border-bottom: 2px solid rgba(var(--theme-primary-rgb), 0.16);
+    }
+    .users-table tbody {
+        display: block;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
+    .users-table thead tr,
+    .users-table tbody tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+    .users-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--theme-surface-text);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .users-table th:nth-child(1),
+    .users-table td:nth-child(1) {
+        width: 15%;
+    }
+    .users-table th:nth-child(2),
+    .users-table td:nth-child(2) {
+        width: 13%;
+    }
+    .users-table th:nth-child(3),
+    .users-table td:nth-child(3) {
+        width: 22%;
+    }
+    .users-table th:nth-child(4),
+    .users-table td:nth-child(4) {
+        width: 12%;
+    }
+    .users-table th:nth-child(5),
+    .users-table td:nth-child(5) {
+        width: 10%;
+    }
+    .users-table th:nth-child(6),
+    .users-table td:nth-child(6) {
+        width: 10%;
+    }
+    .users-table th:nth-child(7),
+    .users-table td:nth-child(7) {
+        width: 18%;
+    }
+    .sort-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+        text-transform: inherit;
+        letter-spacing: inherit;
+    }
+    .sort-button:hover {
+        color: var(--theme-primary);
+    }
+    .sort-icon {
+        width: 1rem;
+        color: var(--theme-surface-muted);
+        font-size: 0.85rem;
+        line-height: 1;
+    }
+    .sort-button[aria-sort="ascending"] .sort-icon,
+    .sort-button[aria-sort="descending"] .sort-icon {
+        color: var(--theme-primary);
+    }
+    .users-table td {
+        padding: 1rem;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        color: var(--theme-surface-muted);
+        font-size: 0.95rem;
+    }
+    .users-table tbody tr:hover {
+        background: rgba(var(--theme-primary-rgb), 0.04);
+    }
+    .user-name {
+        font-weight: 600;
+        color: var(--theme-surface-text);
+    }
+    .search-highlight {
+        background: #fff176;
+        color: inherit;
+        border-radius: 3px;
+        padding: 0 0.12rem;
+    }
+    .user-role {
+        display: inline-block;
+        padding: 0.3rem 0.75rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.16);
+        background: rgba(var(--theme-primary-rgb), 0.1);
+        color: var(--theme-primary);
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .user-status {
+        display: inline-block;
+        padding: 0.3rem 0.75rem;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .user-status.active {
+        border-color: rgba(var(--theme-life-rgb), 0.28);
+        background: rgba(var(--theme-life-rgb), 0.16);
+        color: var(--theme-text-strong);
+    }
+    .user-status.inactive {
+        border-color: rgba(var(--theme-primary-rgb), 0.14);
+        background: rgba(var(--theme-primary-rgb), 0.08);
+        color: var(--theme-surface-muted);
+    }
+    .login-status {
+        display: inline-block;
+        padding: 0.3rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .login-status.online {
+        border: 1px solid rgba(var(--theme-life-rgb), 0.3);
+        background: rgba(var(--theme-life-rgb), 0.16);
+        color: var(--theme-primary);
+    }
+    .login-status.offline {
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        background: rgba(var(--theme-primary-rgb), 0.08);
+        color: var(--theme-surface-muted);
+    }
+    .login-status-details {
+        display: inline-flex;
+        align-items: center;
+    }
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: nowrap;
+    }
+    .btn-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        font-size: 1.1rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: var(--theme-surface-muted);
+        background: transparent;
+    }
+    .btn-edit {
+        background: #e1f5fe;
+        color: #01579b;
+    }
+    .btn-edit:hover {
+        background: #01579b;
+        color: #ffffff;
+    }
+    .btn-delete {
+        background: #ffebee;
+        color: #c62828;
+    }
+    .btn-delete:hover {
+        background: #c62828;
+        color: #ffffff;
+    }
+    .btn-history {
+        background: #fff8e1;
+        color: #795548;
+    }
+    .btn-history:hover {
+        background: #795548;
+        color: #ffffff;
+    }
+    .btn-reset {
+        background: #ede7f6;
+        color: #4527a0;
+    }
+    .btn-reset:hover {
+        background: #4527a0;
+        color: #ffffff;
+    }
+    .no-users {
+        padding: 2rem;
+        text-align: center;
+        color: var(--theme-surface-muted);
+    }
+    .table-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 1rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        border-radius: 12px;
+        background: var(--theme-surface);
+        color: var(--theme-surface-muted);
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.06);
+    }
+    .table-pagination-controls,
+    .table-page-size {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+    .table-page-size label {
+        font-weight: 700;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .table-page-size select {
+        padding: 0.45rem 0.7rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        background: var(--theme-surface);
+        color: var(--theme-surface-text);
+        font: inherit;
+    }
+    .pagination-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        background: var(--theme-soft);
+        color: var(--theme-surface-text);
+        cursor: pointer;
+    }
+    .pagination-button:hover:not(:disabled) {
+        background: var(--theme-primary);
+        color: var(--theme-on-nav);
+    }
+    .pagination-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+    }
+    .create-btn {
+        padding: 0.75rem 1.5rem;
+        background: var(--theme-primary);
+        color: var(--theme-on-nav);
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        transition: background 0.2s ease;
+    }
+    .create-btn:hover {
+        background: var(--theme-primary-hover);
+        text-decoration: none;
+        color: var(--theme-on-nav);
+    }
+    @media (max-width: 991.98px) {
+        .management-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .users-management-page {
+            height: auto;
+            overflow: visible;
+        }
+        .management-modal-dialog,
+        .compact-modal-dialog,
+        .delete-modal-dialog,
+        .history-modal-dialog {
+            max-width: calc(100vw - 1.5rem);
+            width: calc(100vw - 1.5rem);
+        }
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+        .search-bar input {
+            width: 100%;
+        }
+        .table-pagination {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .table-pagination-controls {
+            justify-content: space-between;
+        }
+        .users-table-wrapper {
+            overflow: visible;
+            background: transparent;
+            box-shadow: none;
+        }
+        .users-table {
+            display: table;
+            height: auto;
+        }
+        .users-table,
+        .users-table tbody,
+        .users-table tr,
+        .users-table td {
+            display: block;
+            width: 100%;
+        }
+        .users-table th,
+        .users-table td {
+            width: 100%;
+        }
+        .users-table {
+            min-width: 0;
+            border-collapse: separate;
+            border-spacing: 0 0.85rem;
+        }
+        .users-table thead {
+            display: none;
+        }
+        .users-table tbody tr {
+            display: block;
+            padding: 0.35rem 0;
+            border: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+            border-radius: 12px;
+            background: var(--theme-surface);
+            box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+            overflow: hidden;
+        }
+        .users-table tbody tr:hover {
+            background: var(--theme-surface);
+        }
+        .users-table tbody {
+            overflow-y: visible;
+        }
+        .users-table td {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+            text-align: right;
+            word-break: break-word;
+        }
+        .users-table td:last-child {
+            border-bottom: 0;
+        }
+        .users-table td::before {
+            content: attr(data-label);
+            flex: 0 0 7.5rem;
+            color: var(--theme-surface-muted);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-align: left;
+            text-transform: uppercase;
+        }
+        .users-table td[colspan] {
+            display: block;
+            text-align: center;
+        }
+        .users-table td[colspan]::before {
+            content: none;
+        }
+        .login-status-details {
+            align-items: flex-end;
+        }
+        .action-buttons {
+            justify-content: flex-end;
+        }
+    }
+    @media (max-width: 575.98px) {
+        .users-table td {
+            align-items: stretch;
+            flex-direction: column;
+            text-align: left;
+        }
+        .users-table td::before {
+            flex-basis: auto;
+        }
+        .login-status-details {
+            align-items: flex-start;
+        }
+        .action-buttons {
+            justify-content: flex-start;
+        }
+    }
+    
+    /* Modal Styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        animation: fadeIn 0.2s ease;
+    }
+    .modal-overlay.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    .management-modal-dialog {
+        background: var(--theme-surface);
+        border-radius: 16px;
+        box-shadow: 0 24px 48px rgba(0, 0, 0, 0.15);
+        max-width: min(920px, calc(100vw - 3rem));
+        width: 90%;
+        max-height: 96vh;
+        overflow-y: auto;
+        animation: slideUp 0.3s ease;
+    }
+    .compact-modal-dialog {
+        max-width: min(560px, calc(100vw - 3rem));
+    }
+    .delete-modal-dialog {
+        max-width: min(420px, calc(100vw - 3rem));
+    }
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-header {
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .modal-header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: var(--theme-surface-text);
+    }
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: var(--theme-surface-muted);
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-close:hover {
+        color: var(--theme-surface-text);
+    }
+    .modal-body {
+        padding: 1.5rem;
+    }
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 1rem;
+    }
+    .form-grid .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+    .modal-footer {
+        padding: 1.5rem;
+        border-top: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+    }
+    .modal-footer button {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.2s ease;
+    }
+    .btn-primary {
+        background: var(--theme-primary);
+        color: var(--theme-on-nav);
+    }
+    .btn-primary:hover {
+        background: var(--theme-primary-hover);
+    }
+    .btn-secondary {
+        background: var(--theme-soft);
+        color: var(--theme-surface-text);
+    }
+    .btn-secondary:hover {
+        background: rgba(var(--theme-primary-rgb), 0.14);
+    }
+    .btn-danger {
+        background: #f44336;
+        color: var(--theme-on-nav);
+    }
+    .btn-danger:hover {
+        background: #d32f2f;
+    }
+    
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    .form-group label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--theme-surface-text);
+        font-size: 0.95rem;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-family: inherit;
+        box-sizing: border-box;
+        background: var(--theme-surface);
+        color: var(--theme-surface-text);
+    }
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--theme-primary);
+        box-shadow: 0 0 0 3px var(--theme-focus);
+    }
+    .form-error {
+        color: #c62828;
+        font-size: 0.85rem;
+        margin-top: 0.5rem;
+    }
+    
+    .delete-warning {
+        padding: 1rem;
+        background: #ffebee;
+        border-radius: 8px;
+        color: #c62828;
+        border-left: 4px solid #f44336;
+        margin-bottom: 1rem;
+    }
+    .history-modal-dialog {
+        max-width: min(1120px, calc(100vw - 3rem));
+    }
+    .history-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        flex-wrap: wrap;
+    }
+    .history-date-search {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        color: var(--theme-surface-text);
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+    .history-date-search input {
+        min-width: 210px;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        background: var(--theme-surface);
+        color: var(--theme-surface-text);
+        font: inherit;
+    }
+    .history-date-search input:focus {
+        outline: none;
+        border-color: var(--theme-primary);
+        box-shadow: 0 0 0 3px var(--theme-focus);
+    }
+    .history-table-wrapper {
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        border-radius: 10px;
+        overflow: auto;
+    }
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .history-table th,
+    .history-table td {
+        padding: 0.8rem;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        text-align: left;
+        vertical-align: top;
+        font-size: 0.9rem;
+        color: var(--theme-surface-muted);
+    }
+    .history-table th {
+        background: var(--theme-soft);
+        color: var(--theme-surface-text);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .history-table tr:last-child td {
+        border-bottom: 0;
+    }
+    .history-action {
+        display: inline-flex;
+        padding: 0.3rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+    .history-action.create {
+        background: #c8e6c9;
+        color: #1b5e20;
+    }
+    .history-action.update {
+        background: #fff3cd;
+        color: #795548;
+    }
+    .history-action.delete {
+        background: #ffebee;
+        color: #b71c1c;
+    }
+    .history-empty,
+    .history-loading {
+        padding: 1.25rem;
+        color: var(--theme-surface-muted);
+        text-align: center;
+    }
+    .history-changes {
+        margin: 0;
+        padding-left: 1rem;
+        color: var(--theme-surface-muted);
+    }
+    .history-changes li + li {
+        margin-top: 0.25rem;
+    }
+    .history-actor {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 0.15rem;
+    }
+    .history-actor sub {
+        color: var(--theme-surface-muted);
+        font-size: 0.72rem;
+        line-height: 1.2;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="users-management-page">
+    <nav class="management-breadcrumb" aria-label="Breadcrumb">
+        <a href="{% url 'portal_home' %}">Home</a>
+        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+        <span aria-current="page">Users</span>
+    </nav>
+    <div class="management-header">
+        <div class="search-bar">
+            <form id="userSearchForm" method="GET">
+                <input type="text" name="q" placeholder="Search by name, username, or email..." value="{{ search_term }}">
+            </form>
+        </div>
+        <button class="create-btn" onclick="openCreateModal()">
+            <span class="material-symbols-outlined" style="font-size: 1.2rem;">person_add</span>
+            Add User
+        </button>
+    </div>
+
+    {% comment %} <div class="stats-row">
+        <div class="stat-card loading" data-stat-card>
+            <div class="number" data-stat-value="total">...</div>
+            <div class="label">Total Users</div>
+        </div>
+        <div class="stat-card loading" data-stat-card>
+            <div class="number" data-stat-value="active" style="color: #4caf50;">...</div>
+            <div class="label">Active</div>
+        </div>
+        <div class="stat-card loading" data-stat-card>
+            <div class="number" data-stat-value="inactive" style="color: #f44336;">...</div>
+            <div class="label">Inactive</div>
+        </div>
+        <div class="stat-card loading" data-stat-card>
+            <div class="number" data-stat-value="logged_in">...</div>
+            <div class="label">Logged In</div>
+        </div>
+    </div> {% endcomment %}
+
+    <div class="users-table-wrapper">
+        <table class="users-table" id="usersTable">
+            <thead>
+                <tr>
+                    <th>
+                        <button type="button" class="sort-button" data-sort-key="name" data-sort-type="text" aria-sort="none">
+                            Name <span class="sort-icon" aria-hidden="true">↕</span>
+                        </button>
+                    </th>
+                    <th>
+                        <button type="button" class="sort-button" data-sort-key="username" data-sort-type="text" aria-sort="none">
+                            Username <span class="sort-icon" aria-hidden="true">↕</span>
+                        </button>
+                    </th>
+                    <th>
+                        <button type="button" class="sort-button" data-sort-key="email" data-sort-type="text" aria-sort="none">
+                            Email <span class="sort-icon" aria-hidden="true">↕</span>
+                        </button>
+                    </th>
+                    <th>
+                        <button type="button" class="sort-button" data-sort-key="role" data-sort-type="text" aria-sort="none">
+                            Role <span class="sort-icon" aria-hidden="true">↕</span>
+                        </button>
+                    </th>
+                    <th>
+                        <button type="button" class="sort-button" data-sort-key="status" data-sort-type="text" aria-sort="none">
+                            Status <span class="sort-icon" aria-hidden="true">↕</span>
+                        </button>
+                    </th>
+                    <th>
+                        <button type="button" class="sort-button" data-sort-key="login" data-sort-type="number" aria-sort="none">
+                            Login Status <span class="sort-icon" aria-hidden="true">↕</span>
+                        </button>
+                    </th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="usersTableBody">
+                {% include "users/_user_management_rows.html" %}
+            </tbody>
+        </table>
+    </div>
+    <div class="table-pagination" id="usersTablePagination">
+        <div class="table-page-size">
+            <label for="usersPageSize">Rows</label>
+            <select id="usersPageSize" aria-label="Rows per page">
+                <option value="5" selected>5</option>
+                <option value="10">10</option>
+                <option value="20">20</option>
+                <option value="50">50</option>
+                <option value="all">All</option>
+            </select>
+        </div>
+        <div class="table-pagination-summary" id="usersPaginationSummary" aria-live="polite"></div>
+        <div class="table-pagination-controls">
+            <button type="button" class="pagination-button" id="usersPrevPage" aria-label="Previous page">
+                <span class="material-symbols-outlined">chevron_left</span>
+            </button>
+            <span id="usersPaginationPage"></span>
+            <button type="button" class="pagination-button" id="usersNextPage" aria-label="Next page">
+                <span class="material-symbols-outlined">chevron_right</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- User History Modal -->
+<div class="modal-overlay" id="historyModal">
+    <div class="management-modal-dialog history-modal-dialog">
+        <div class="modal-header">
+            <h2 id="historyTitle">User History</h2>
+            <button class="modal-close" onclick="closeHistoryModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="history-toolbar">
+                <label class="history-date-search" for="historyDateSearch">
+                    Search by date
+                    <input type="date" id="historyDateSearch">
+                </label>
+            </div>
+            <div id="historyContent" class="history-loading">Loading history...</div>
+            <div class="table-pagination" id="historyPagination" hidden>
+                <div class="table-page-size">
+                    <label for="historyPageSize">Rows</label>
+                    <select id="historyPageSize" aria-label="History rows per page">
+                        <option value="5" selected>5</option>
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="all">All</option>
+                    </select>
+                </div>
+                <div class="table-pagination-summary" id="historyPaginationSummary" aria-live="polite"></div>
+                <div class="table-pagination-controls">
+                    <button type="button" class="pagination-button" id="historyPrevPage" aria-label="Previous history page">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </button>
+                    <span id="historyPageLabel">Page 1 of 1</span>
+                    <button type="button" class="pagination-button" id="historyNextPage" aria-label="Next history page">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn-secondary" onclick="closeHistoryModal()">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Create User Modal -->
+<div class="modal-overlay" id="createModal">
+    <div class="management-modal-dialog">
+        <div class="modal-header">
+            <h2>Add New User</h2>
+            <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+        </div>
+        <form id="createForm" class="js-ajax-form">
+            {% csrf_token %}
+            <div class="modal-body form-grid" id="createBody">
+                <div class="form-group">
+                    <label for="username">Username *</label>
+                    <input type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password *</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="password_confirm">Confirm Password *</label>
+                    <input type="password" id="password_confirm" name="password_confirm" required>
+                </div>
+                <div class="form-group">
+                    <label for="first_name">First Name</label>
+                    <input type="text" id="first_name" name="first_name">
+                </div>
+                <div class="form-group">
+                    <label for="last_name">Last Name</label>
+                    <input type="text" id="last_name" name="last_name">
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="role">Role *</label>
+                    <select id="role" name="role" required>
+                        <option value="">Select a role</option>
+                        {% for role_key, role_label in role_choices %}
+                            <option value="{{ role_key }}">{{ role_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <label for="must_change_password">
+                        <input type="checkbox" id="must_change_password" name="must_change_password" value="on">
+                        Ask user to change password on first login
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeCreateModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Create User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="management-modal-dialog">
+        <div class="modal-header">
+            <h2>Edit User</h2>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <form id="editForm" class="js-ajax-form">
+            {% csrf_token %}
+            <div class="modal-body form-grid" id="editBody">
+                <div class="form-group">
+                    <label for="edit_username">Username</label>
+                    <input type="text" id="edit_username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit_first_name">First Name</label>
+                    <input type="text" id="edit_first_name" name="first_name">
+                </div>
+                <div class="form-group">
+                    <label for="edit_last_name">Last Name</label>
+                    <input type="text" id="edit_last_name" name="last_name">
+                </div>
+                <div class="form-group">
+                    <label for="edit_email">Email</label>
+                    <input type="email" id="edit_email" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="edit_role">Role</label>
+                    <select id="edit_role" name="role">
+                        {% for role_key, role_label in role_choices %}
+                            <option value="{{ role_key }}">{{ role_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group full-width">
+                    <label for="edit_is_active">
+                        <input type="checkbox" id="edit_is_active" name="is_active" value="on">
+                        Active
+                    </label>
+                </div>
+                <div class="form-group full-width">
+                    <label for="edit_must_change_password">
+                        <input type="checkbox" id="edit_must_change_password" name="must_change_password" value="on">
+                        Ask user to change password on next login
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Reset Password Modal -->
+<div class="modal-overlay" id="resetPasswordModal">
+    <div class="management-modal-dialog compact-modal-dialog">
+        <div class="modal-header">
+            <h2 id="resetPasswordTitle">Reset Password</h2>
+            <button class="modal-close" onclick="closeResetPasswordModal()">&times;</button>
+        </div>
+        <form id="resetPasswordForm" class="js-ajax-form">
+            {% csrf_token %}
+            <div class="modal-body" id="resetPasswordBody">
+                <p style="color: var(--theme-surface-muted); margin-top: 0;">
+                    A temporary password will be generated and emailed to this user.
+                </p>
+                <div class="form-group">
+                    <label for="reset_must_change_password">
+                        <input type="checkbox" id="reset_must_change_password" name="must_change_password" value="on" checked>
+                        Ask user to change this password on next login
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeResetPasswordModal()">Cancel</button>
+                <button type="submit" class="btn-primary">Reset Password</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete User Modal -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="management-modal-dialog delete-modal-dialog">
+        <div class="modal-header">
+            <h2>Delete User</h2>
+            <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+        </div>
+        <form id="deleteForm" class="js-ajax-form">
+            {% csrf_token %}
+            <div class="modal-body">
+                <div class="delete-warning">
+                    ⚠️ This action cannot be undone.
+                </div>
+                <p>Are you sure you want to delete <strong id="deleteUsername"></strong>? All associated data will be permanently removed.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button type="submit" class="btn-danger">Delete User</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentEditUserId = null;
+    let currentDeleteUserId = null;
+    let currentResetPasswordUserId = null;
+    let currentHistoryState = {
+        userId: null,
+        username: '',
+        page: 1,
+        perPage: 5,
+        date: '',
+    };
+
+    async function loadManagementStats() {
+        const statCards = document.querySelectorAll('[data-stat-card]');
+        const statValues = document.querySelectorAll('[data-stat-value]');
+
+        try {
+            const response = await fetch(`{% url "user_management_stats" %}?_=${Date.now()}`, {
+                cache: 'no-store',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Unable to load user stats.');
+            }
+
+            const stats = await response.json();
+            statValues.forEach((element) => {
+                const key = element.dataset.statValue;
+                element.textContent = stats[key] ?? 0;
+            });
+            statCards.forEach((card) => {
+                card.classList.remove('loading');
+                card.querySelector('.stat-card-error')?.remove();
+            });
+        } catch (error) {
+            console.error('Stats error:', error);
+            statValues.forEach((element) => {
+                element.textContent = '-';
+            });
+            statCards.forEach((card) => {
+                card.classList.remove('loading');
+                if (!card.querySelector('.stat-card-error')) {
+                    const errorMessage = document.createElement('div');
+                    errorMessage.className = 'stat-card-error';
+                    errorMessage.textContent = 'Could not load';
+                    card.appendChild(errorMessage);
+                }
+            });
+        }
+    }
+
+    loadManagementStats();
+    const managementStatsInterval = window.setInterval(function () {
+        if (!document.hidden) {
+            loadManagementStats();
+        }
+    }, 5000);
+
+    function assignUserRowSortIndexes() {
+        const table = document.getElementById('usersTable');
+        if (!table) return;
+
+        [...table.querySelectorAll('tbody tr')].forEach((row, index) => {
+            row.dataset.sortIndex = index;
+        });
+    }
+
+    const usersPaginationState = {
+        page: 1,
+        pageSize: 5,
+    };
+
+    function getUserDataRows() {
+        const tableBody = document.getElementById('usersTableBody');
+        if (!tableBody) return [];
+
+        return [...tableBody.querySelectorAll('tr')].filter((row) => row.hasAttribute('data-sort-name'));
+    }
+
+    function applyUserTablePagination() {
+        const rows = getUserDataRows();
+        const pageSizeSelect = document.getElementById('usersPageSize');
+        const summary = document.getElementById('usersPaginationSummary');
+        const pageLabel = document.getElementById('usersPaginationPage');
+        const prevButton = document.getElementById('usersPrevPage');
+        const nextButton = document.getElementById('usersNextPage');
+        if (!pageSizeSelect || !summary || !pageLabel || !prevButton || !nextButton) return;
+
+        const selectedSize = pageSizeSelect.value;
+        const pageSize = selectedSize === 'all' ? rows.length || 1 : Number(selectedSize) || 5;
+        const totalPages = selectedSize === 'all' ? 1 : Math.max(1, Math.ceil(rows.length / pageSize));
+
+        usersPaginationState.page = Math.min(Math.max(usersPaginationState.page, 1), totalPages);
+        usersPaginationState.pageSize = selectedSize === 'all' ? 'all' : pageSize;
+
+        const startIndex = selectedSize === 'all' ? 0 : (usersPaginationState.page - 1) * pageSize;
+        const endIndex = selectedSize === 'all' ? rows.length : startIndex + pageSize;
+
+        rows.forEach((row, index) => {
+            row.style.display = index >= startIndex && index < endIndex ? '' : 'none';
+        });
+
+        if (!rows.length) {
+            summary.textContent = 'No users to show';
+            pageLabel.textContent = 'Page 0 of 0';
+            prevButton.disabled = true;
+            nextButton.disabled = true;
+            return;
+        }
+
+        summary.textContent = `Showing ${startIndex + 1}-${Math.min(endIndex, rows.length)} of ${rows.length} users`;
+        pageLabel.textContent = `Page ${usersPaginationState.page} of ${totalPages}`;
+        prevButton.disabled = usersPaginationState.page <= 1 || selectedSize === 'all';
+        nextButton.disabled = usersPaginationState.page >= totalPages || selectedSize === 'all';
+    }
+
+    function initUserTablePagination() {
+        const pageSizeSelect = document.getElementById('usersPageSize');
+        const prevButton = document.getElementById('usersPrevPage');
+        const nextButton = document.getElementById('usersNextPage');
+        if (!pageSizeSelect || !prevButton || !nextButton) return;
+
+        pageSizeSelect.addEventListener('change', function () {
+            usersPaginationState.page = 1;
+            applyUserTablePagination();
+        });
+
+        prevButton.addEventListener('click', function () {
+            usersPaginationState.page -= 1;
+            applyUserTablePagination();
+        });
+
+        nextButton.addEventListener('click', function () {
+            usersPaginationState.page += 1;
+            applyUserTablePagination();
+        });
+
+        applyUserTablePagination();
+    }
+
+    async function loadUserRows(params) {
+        const tableBody = document.getElementById('usersTableBody');
+        tableBody.innerHTML = '<tr><td colspan="7"><div class="history-loading">Loading users...</div></td></tr>';
+
+        try {
+            params.set('_', Date.now());
+            const response = await fetch(`{% url "user_management_rows" %}?${params.toString()}`, {
+                cache: 'no-store',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Unable to load users.');
+            }
+
+            const data = await response.json();
+            tableBody.innerHTML = data.html;
+            assignUserRowSortIndexes();
+            usersPaginationState.page = 1;
+            applyUserTablePagination();
+
+            params.delete('_');
+            const nextUrl = `${window.location.pathname}?${params.toString()}`;
+            window.history.replaceState({}, '', nextUrl);
+        } catch (error) {
+            console.error('Search error:', error);
+            tableBody.innerHTML = '<tr><td colspan="7"><div class="history-empty">Could not load users. Please try again.</div></td></tr>';
+            usersPaginationState.page = 1;
+            applyUserTablePagination();
+        }
+    }
+
+    function initAsyncUserSearch() {
+        const form = document.getElementById('userSearchForm');
+        const searchInput = form.querySelector('[name="q"]');
+        let searchTimer;
+
+        async function runSearch() {
+            const params = new URLSearchParams(new FormData(form));
+            await loadUserRows(params);
+        }
+
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            window.clearTimeout(searchTimer);
+            runSearch();
+        });
+
+        searchInput.addEventListener('input', function () {
+            window.clearTimeout(searchTimer);
+            searchTimer = window.setTimeout(runSearch, 300);
+        });
+
+    }
+
+    function initUsersTableSorting() {
+        const table = document.getElementById('usersTable');
+        if (!table) return;
+
+        const tbody = table.querySelector('tbody');
+        const sortButtons = [...table.querySelectorAll('[data-sort-key]')];
+        const sortState = [];
+
+        assignUserRowSortIndexes();
+
+        function getSortValue(row, key, type) {
+            const value = row.dataset[`sort${key.charAt(0).toUpperCase()}${key.slice(1)}`] || '';
+            if (type === 'number') {
+                return Number(value) || 0;
+            }
+            return value.trim().toLocaleLowerCase();
+        }
+
+        function updateSortIndicators() {
+            sortButtons.forEach((button) => {
+                const activeSort = sortState.find((item) => item.key === button.dataset.sortKey);
+                const icon = button.querySelector('.sort-icon');
+                button.setAttribute('aria-sort', activeSort ? activeSort.direction : 'none');
+                icon.textContent = activeSort ? (activeSort.direction === 'ascending' ? '↑' : '↓') : '↕';
+            });
+        }
+
+        function sortRows() {
+            const rows = [...tbody.querySelectorAll('tr')];
+            rows.sort((firstRow, secondRow) => {
+                for (const sort of sortState) {
+                    const firstValue = getSortValue(firstRow, sort.key, sort.type);
+                    const secondValue = getSortValue(secondRow, sort.key, sort.type);
+                    let comparison = 0;
+
+                    if (sort.type === 'number') {
+                        comparison = firstValue - secondValue;
+                    } else {
+                        comparison = firstValue.localeCompare(secondValue);
+                    }
+
+                    if (comparison !== 0) {
+                        return sort.direction === 'ascending' ? comparison : -comparison;
+                    }
+                }
+
+                return Number(firstRow.dataset.sortIndex) - Number(secondRow.dataset.sortIndex);
+            });
+
+            rows.forEach((row) => tbody.appendChild(row));
+        }
+
+        sortButtons.forEach((button) => {
+            button.addEventListener('click', function (event) {
+                const key = this.dataset.sortKey;
+                const type = this.dataset.sortType || 'text';
+                const existingDirection = sortState.find((item) => item.key === key)?.direction;
+
+                if (!event.shiftKey) {
+                    sortState.splice(0, sortState.length);
+                }
+
+                const existingSort = sortState.find((item) => item.key === key);
+                if (existingSort) {
+                    existingSort.direction = existingSort.direction === 'ascending' ? 'descending' : 'ascending';
+                    existingSort.type = type;
+                } else {
+                    sortState.push({
+                        key,
+                        type,
+                        direction: existingDirection === 'ascending' ? 'descending' : 'ascending',
+                    });
+                }
+
+                updateSortIndicators();
+                sortRows();
+                applyUserTablePagination();
+            });
+        });
+    }
+
+    initUsersTableSorting();
+    initUserTablePagination();
+    initAsyncUserSearch();
+
+    function openCreateModal() {
+        document.getElementById('createModal').classList.add('active');
+    }
+    
+    function closeCreateModal() {
+        document.getElementById('createModal').classList.remove('active');
+        document.getElementById('createForm').reset();
+    }
+    
+    function openEditModal(userId, username, firstName, lastName, email, role, isActive, mustChangePassword) {
+        currentEditUserId = userId;
+        document.getElementById('edit_username').value = username;
+        document.getElementById('edit_first_name').value = firstName;
+        document.getElementById('edit_last_name').value = lastName;
+        document.getElementById('edit_email').value = email;
+        document.getElementById('edit_role').value = role;
+        document.getElementById('edit_is_active').checked = isActive;
+        document.getElementById('edit_must_change_password').checked = mustChangePassword;
+        document.getElementById('editModal').classList.add('active');
+    }
+    
+    function closeEditModal() {
+        document.getElementById('editModal').classList.remove('active');
+        document.getElementById('editForm').reset();
+        currentEditUserId = null;
+    }
+
+    function openResetPasswordModal(userId, username) {
+        currentResetPasswordUserId = userId;
+        document.getElementById('resetPasswordTitle').textContent = `Reset ${username} Password`;
+        document.getElementById('resetPasswordModal').classList.add('active');
+    }
+
+    function closeResetPasswordModal() {
+        document.getElementById('resetPasswordModal').classList.remove('active');
+        document.getElementById('resetPasswordForm').reset();
+        document.getElementById('resetPasswordBody').querySelectorAll('.form-error').forEach(el => el.remove());
+        currentResetPasswordUserId = null;
+    }
+    
+    function openDeleteModal(userId, username) {
+        currentDeleteUserId = userId;
+        document.getElementById('deleteUsername').textContent = username;
+        document.getElementById('deleteModal').classList.add('active');
+    }
+    
+    function closeDeleteModal() {
+        document.getElementById('deleteModal').classList.remove('active');
+        currentDeleteUserId = null;
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, function (character) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;',
+            }[character];
+        });
+    }
+
+    function formatHistoryValue(value) {
+        if (!value) return '';
+
+        const stringValue = String(value);
+        const isoDatePattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+        if (!isoDatePattern.test(stringValue)) {
+            return stringValue;
+        }
+
+        const date = new Date(stringValue);
+        if (Number.isNaN(date.getTime())) {
+            return stringValue;
+        }
+
+        const datePart = new Intl.DateTimeFormat(undefined, {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric',
+        }).format(date);
+        const timePart = new Intl.DateTimeFormat(undefined, {
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+        }).format(date);
+
+        return `${datePart} ${timePart}`;
+    }
+
+    function renderHistoryChanges(changes) {
+        if (!changes.length) {
+            return '<span style="color:var(--theme-surface-muted);">-</span>';
+        }
+
+        return `
+            <ul class="history-changes">
+                ${changes.map((change) => `
+                    <li>
+                        <strong>${escapeHtml(change.field)}</strong>:
+                        ${escapeHtml(formatHistoryValue(change.old)) || '-'} → ${escapeHtml(formatHistoryValue(change.new)) || '-'}
+                    </li>
+                `).join('')}
+            </ul>
+        `;
+    }
+
+    function updateHistoryPagination(pagination, visibleCount) {
+        const historyPagination = document.getElementById('historyPagination');
+        const historyPageSize = document.getElementById('historyPageSize');
+        const historySummary = document.getElementById('historyPaginationSummary');
+        const historyPageLabel = document.getElementById('historyPageLabel');
+        const historyPrevPage = document.getElementById('historyPrevPage');
+        const historyNextPage = document.getElementById('historyNextPage');
+
+        if (!pagination) {
+            historyPagination.hidden = true;
+            return;
+        }
+
+        historyPagination.hidden = false;
+
+        if (!pagination.total_count) {
+            historySummary.textContent = 'No history records to show';
+            historyPageLabel.textContent = 'Page 0 of 0';
+            historyPrevPage.disabled = true;
+            historyNextPage.disabled = true;
+            return;
+        }
+
+        const selectedSize = historyPageSize.value;
+        const pageSize = selectedSize === 'all' ? pagination.total_count : Number(pagination.per_page) || 5;
+        const startIndex = selectedSize === 'all' ? 1 : ((pagination.page - 1) * pageSize) + 1;
+        const endIndex = selectedSize === 'all'
+            ? pagination.total_count
+            : Math.min(startIndex + visibleCount - 1, pagination.total_count);
+
+        historySummary.textContent = `Showing ${startIndex}-${endIndex} of ${pagination.total_count} history records`;
+        historyPageLabel.textContent = `Page ${pagination.page} of ${pagination.total_pages}`;
+        historyPrevPage.disabled = !pagination.has_previous || selectedSize === 'all';
+        historyNextPage.disabled = !pagination.has_next || selectedSize === 'all';
+    }
+
+    function renderHistoryEvents(events) {
+        if (!events.length) {
+            return '';
+        }
+
+        return `
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Action</th>
+                        <th>Actor</th>
+                        <th>Date</th>
+                        <th>Changes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${events.map((event) => `
+                        <tr>
+                            <td>
+                                <span class="history-action ${escapeHtml(event.action)}">
+                                    ${escapeHtml(event.action_label)}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="history-actor">
+                                    <span>${escapeHtml(event.actor)}</span>
+                                    ${event.actor_full_name ? `<sub>${escapeHtml(event.actor_full_name)}</sub>` : ''}
+                                </span>
+                            </td>
+                            <td>${escapeHtml(event.created_at)}</td>
+                            <td>${renderHistoryChanges(event.changes)}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    async function loadHistoryEvents(page = currentHistoryState.page) {
+        const historyContent = document.getElementById('historyContent');
+        const params = new URLSearchParams({
+            page,
+            per_page: currentHistoryState.perPage,
+        });
+
+        if (currentHistoryState.date) {
+            params.set('date', currentHistoryState.date);
+        }
+
+        historyContent.className = 'history-loading';
+        historyContent.textContent = 'Loading history...';
+
+        try {
+            const response = await fetch(`/users/history/auth/user/${currentHistoryState.userId}/events/?${params.toString()}`, {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Unable to load history.');
+            }
+
+            const data = await response.json();
+            currentHistoryState.page = data.pagination.page;
+            updateHistoryPagination(data.pagination, data.events.length);
+
+            if (!data.events.length) {
+                historyContent.className = 'history-empty';
+                historyContent.textContent = currentHistoryState.date
+                    ? 'No history records match that date.'
+                    : 'No history has been recorded for this user yet.';
+                return;
+            }
+
+            historyContent.className = 'history-table-wrapper';
+            historyContent.innerHTML = renderHistoryEvents(data.events);
+        } catch (error) {
+            console.error('History error:', error);
+            document.getElementById('historyPagination').hidden = true;
+            historyContent.className = 'history-empty';
+            historyContent.textContent = 'Could not load history. Please try again.';
+        }
+    }
+
+    async function openHistoryModal(userId, username) {
+        const historyModal = document.getElementById('historyModal');
+        const historyTitle = document.getElementById('historyTitle');
+        const historyDateSearch = document.getElementById('historyDateSearch');
+        const historyPageSize = document.getElementById('historyPageSize');
+
+        currentHistoryState = {
+            userId,
+            username,
+            page: 1,
+            perPage: 5,
+            date: '',
+        };
+
+        historyTitle.textContent = `${username} History`;
+        historyDateSearch.value = '';
+        historyPageSize.value = '5';
+        historyModal.classList.add('active');
+        await loadHistoryEvents(1);
+    }
+
+    function closeHistoryModal() {
+        document.getElementById('historyModal').classList.remove('active');
+        currentHistoryState.userId = null;
+    }
+
+    document.getElementById('historyDateSearch').addEventListener('change', function () {
+        if (!currentHistoryState.userId) return;
+
+        currentHistoryState.date = this.value;
+        currentHistoryState.page = 1;
+        loadHistoryEvents(1);
+    });
+
+    document.getElementById('historyPageSize').addEventListener('change', function () {
+        if (!currentHistoryState.userId) return;
+
+        currentHistoryState.perPage = this.value;
+        currentHistoryState.page = 1;
+        loadHistoryEvents(1);
+    });
+
+    document.getElementById('historyPrevPage').addEventListener('click', function () {
+        if (!currentHistoryState.userId || currentHistoryState.page <= 1) return;
+
+        loadHistoryEvents(currentHistoryState.page - 1);
+    });
+
+    document.getElementById('historyNextPage').addEventListener('click', function () {
+        if (!currentHistoryState.userId) return;
+
+        loadHistoryEvents(currentHistoryState.page + 1);
+    });
+    
+    // Handle Create User form submission
+    document.getElementById('createForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const formData = new FormData(this);
+        showProcessingAlert();
+        
+        try {
+            const response = await fetch('{% url "user_create" %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    closeCreateModal();
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'User created',
+                        text: 'The new user has been added successfully.',
+                        timer: 1800,
+                        showConfirmButton: false,
+                    });
+                    location.reload();
+                } else {
+                    showFormErrors('createBody', data.errors);
+                    showValidationAlert(data.errors);
+                }
+            } else {
+                showRequestError();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showRequestError();
+        }
+    });
+    
+    // Handle Edit User form submission
+    document.getElementById('editForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const confirmation = await Swal.fire({
+            icon: 'question',
+            title: 'Update this user?',
+            text: 'Please confirm the changes before saving.',
+            showCancelButton: true,
+            confirmButtonText: 'Update User',
+            confirmButtonColor: getThemePrimaryColor(),
+        });
+        if (!confirmation.isConfirmed) return;
+
+        const formData = new FormData(this);
+        showProcessingAlert();
+        
+        try {
+            const response = await fetch(`/users/${currentEditUserId}/edit/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    closeEditModal();
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'User updated',
+                        text: 'The user details have been saved.',
+                        timer: 1800,
+                        showConfirmButton: false,
+                    });
+                    location.reload();
+                } else {
+                    showFormErrors('editBody', data.errors);
+                    showValidationAlert(data.errors);
+                }
+            } else {
+                showRequestError();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showRequestError();
+        }
+    });
+
+    document.getElementById('resetPasswordForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const confirmation = await Swal.fire({
+            icon: 'question',
+            title: 'Reset this password?',
+            text: 'A temporary password will be generated and emailed to the user.',
+            showCancelButton: true,
+            confirmButtonText: 'Reset Password',
+            confirmButtonColor: getThemePrimaryColor(),
+        });
+        if (!confirmation.isConfirmed) return;
+
+        const formData = new FormData(this);
+        showProcessingAlert();
+
+        try {
+            const response = await fetch(`/users/${currentResetPasswordUserId}/reset-password/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+            const data = await response.json();
+
+            if (response.ok && data.success) {
+                closeResetPasswordModal();
+                const rowParams = new URLSearchParams(new FormData(document.getElementById('userSearchForm')));
+                await Promise.all([
+                    loadManagementStats(),
+                    loadUserRows(rowParams),
+                ]);
+
+                const sessionMessage = data.sessions_invalidated
+                    ? `${data.sessions_invalidated} active session(s) were logged out.`
+                    : 'No active sessions needed to be logged out.';
+                const email = escapeHtml(data.email);
+                await Swal.fire({
+                    icon: 'success',
+                    title: 'Password reset',
+                    html: `
+                        <p>A temporary password has been emailed to <a href="mailto:${email}">${email}</a>.</p>
+                        <p>It is valid for ${escapeHtml(data.expires_in_minutes)} minutes.</p>
+                        <p>${sessionMessage}</p>
+                    `,
+                    confirmButtonText: 'Done',
+                    confirmButtonColor: getThemePrimaryColor(),
+                });
+            } else {
+                showFormErrors('resetPasswordBody', data.errors || {});
+                showValidationAlert(data.errors || {password: ['Please check the password.']});
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showRequestError();
+        }
+    });
+    
+    // Handle Delete User form submission
+    document.getElementById('deleteForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const confirmation = await Swal.fire({
+            icon: 'warning',
+            title: 'Delete this user?',
+            text: 'This action cannot be undone.',
+            showCancelButton: true,
+            confirmButtonText: 'Delete User',
+            confirmButtonColor: '#d32f2f',
+        });
+        if (!confirmation.isConfirmed) return;
+
+        const formData = new FormData(this);
+        showProcessingAlert();
+        
+        try {
+            const response = await fetch(`/users/${currentDeleteUserId}/delete/`, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    closeDeleteModal();
+                    await Swal.fire({
+                        icon: 'success',
+                        title: 'User deleted',
+                        timer: 1600,
+                        showConfirmButton: false,
+                    });
+                    location.reload();
+                }
+            } else {
+                showRequestError();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showRequestError();
+        }
+    });
+    
+    function showFormErrors(containerId, errors) {
+        const container = document.getElementById(containerId);
+        // Clear previous errors
+        container.querySelectorAll('.form-error').forEach(el => el.remove());
+        
+        // Show new errors
+        for (const [field, messages] of Object.entries(errors)) {
+            const fieldElement = container.querySelector(`[name="${field}"]`);
+            if (fieldElement) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'form-error';
+                errorDiv.textContent = messages.join(', ');
+                fieldElement.parentNode.appendChild(errorDiv);
+            }
+        }
+    }
+
+    function showValidationAlert(errors) {
+        const messages = Object.values(errors).flat().join(' ');
+        Swal.fire({
+            icon: 'error',
+            title: 'Please check the form',
+            text: messages,
+        });
+    }
+
+    function showRequestError() {
+        Swal.fire({
+            icon: 'error',
+            title: 'Something went wrong',
+            text: 'Please try again.',
+        });
+    }
+    
+    // Close modals when clicking outside
+    document.addEventListener('click', function(e) {
+        const createModal = document.getElementById('createModal');
+        const historyModal = document.getElementById('historyModal');
+        const editModal = document.getElementById('editModal');
+        const resetPasswordModal = document.getElementById('resetPasswordModal');
+        const deleteModal = document.getElementById('deleteModal');
+        
+        if (e.target === createModal) closeCreateModal();
+        if (e.target === historyModal) closeHistoryModal();
+        if (e.target === editModal) closeEditModal();
+        if (e.target === resetPasswordModal) closeResetPasswordModal();
+        if (e.target === deleteModal) closeDeleteModal();
+    });
+    
+    // Close modals on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeCreateModal();
+            closeHistoryModal();
+            closeEditModal();
+            closeResetPasswordModal();
+            closeDeleteModal();
+        }
+    });
+</script>
+{% endblock %}

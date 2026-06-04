@@ -1,0 +1,19 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Confirm Delete - {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="card border-danger">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0">Confirm Delete</h5>
+    </div>
+    <div class="card-body">
+        <p>Are you sure you want to delete user <strong>{{ user.username }}</strong>?</p>
+        <form method="post" class="js-confirm-form" data-confirm-icon="warning" data-confirm-title="Delete this user?" data-confirm-text="This action cannot be undone." data-confirm-button="Delete User">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Yes, delete</button>
+            <a href="{% url 'user_detail' user.pk %}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

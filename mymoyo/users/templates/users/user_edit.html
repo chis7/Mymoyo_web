@@ -1,0 +1,46 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Edit {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Edit user details</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" class="js-confirm-form" data-confirm-title="Update this user?" data-confirm-button="Update User">
+            {% csrf_token %}
+            <div class="row">
+                <div class="col-md-6">
+                    <h6 class="mb-3">Account Info</h6>
+                    {% for field in user_form %}
+                        <div class="mb-3 form-floating">
+                            {{ field }}
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {% for error in field.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-6">
+                    <h6 class="mb-3">Profile</h6>
+                    {% for field in profile_form %}
+                        <div class="mb-3 form-floating">
+                            {{ field }}
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {% for error in field.errors %}
+                                <div class="invalid-feedback d-block">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">Update User</button>
+                <a href="{% url 'user_detail' user.pk %}" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

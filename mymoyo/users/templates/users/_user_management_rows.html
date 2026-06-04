@@ -1,0 +1,76 @@
+{% load search_highlight %}
+
+{% for item in users %}
+    <tr
+        data-sort-name="{% if item.user.first_name or item.user.last_name %}{{ item.user.first_name }} {{ item.user.last_name }}{% endif %}"
+        data-sort-username="{{ item.user.username }}"
+        data-sort-email="{{ item.user.email }}"
+        data-sort-role="{{ item.profile.get_role_display }}"
+        data-sort-status="{% if item.user.is_active %}Active{% else %}Inactive{% endif %}"
+        data-sort-login="{% if item.is_logged_in %}1{% else %}0{% endif %}"
+    >
+        <td data-label="Name">
+            <div class="user-name">
+                {% if item.user.first_name or item.user.last_name %}
+                    {{ item.user.first_name|add:" "|add:item.user.last_name|highlight_match:search_term }}
+                {% else %}
+                    <em>—</em>
+                {% endif %}
+            </div>
+        </td>
+        <td data-label="Username">{{ item.user.username|highlight_match:search_term }}</td>
+        <td data-label="Email">
+            {% if item.user.email %}
+                {{ item.user.email|highlight_match:search_term }}
+            {% else %}
+                <em style="color: var(--theme-surface-muted);">—</em>
+            {% endif %}
+        </td>
+        <td data-label="Role">
+            <span class="user-role">{{ item.profile.get_role_display }}</span>
+        </td>
+        <td data-label="Status">
+            <span class="user-status {% if item.user.is_active %}active{% else %}inactive{% endif %}">
+                {% if item.user.is_active %}Active{% else %}Inactive{% endif %}
+            </span>
+        </td>
+        <td data-label="Login Status">
+            <span class="login-status-details">
+                <span class="login-status {% if item.is_logged_in %}online{% else %}offline{% endif %}">
+                    {% if item.is_logged_in %}Logged In{% else %}Logged Out{% endif %}
+                </span>
+            </span>
+        </td>
+        <td data-label="Actions">
+            <div class="action-buttons">
+                <button class="btn-icon btn-history" onclick="openHistoryModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="View history">
+                    <span class="material-symbols-outlined">history</span>
+                </button>
+                <button class="btn-icon btn-reset" onclick="openResetPasswordModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="Reset password">
+                    <span class="material-symbols-outlined">key</span>
+                </button>
+                <button class="btn-icon btn-edit" onclick="openEditModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}', '{{ item.user.first_name|escapejs }}', '{{ item.user.last_name|escapejs }}', '{{ item.user.email|escapejs }}', '{{ item.profile.role }}', {{ item.user.is_active|lower }}, {{ item.profile.must_change_password|lower }})" title="Edit user">
+                    <span class="material-symbols-outlined">edit</span>
+                </button>
+                <button class="btn-icon btn-delete" onclick="openDeleteModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="Delete user">
+                    <span class="material-symbols-outlined">delete</span>
+                </button>
+            </div>
+        </td>
+    </tr>
+{% empty %}
+    <tr>
+        <td colspan="7">
+            <div class="no-users">
+                <p style="font-size: 1.1rem; margin-bottom: 1rem;">No users found</p>
+                <p>
+                    {% if search_term or role_filter %}
+                        Try adjusting your search filters.
+                    {% else %}
+                        <button onclick="openCreateModal()" style="color: var(--theme-primary); font-weight: 600; cursor: pointer; border: none; background: none; text-decoration: underline;">Create the first user</button>
+                    {% endif %}
+                </p>
+            </div>
+        </td>
+    </tr>
+{% endfor %}

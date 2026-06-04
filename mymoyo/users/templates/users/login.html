@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - MyMoyo</title>
+    <link href="{% static 'vendor/fonts/inter/inter.css' %}" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            min-height: 100vh;
+            margin: 0;
+            display: grid;
+            place-items: center;
+            padding: 1.5rem;
+            background:
+                radial-gradient(circle at 14% 12%, rgba(155, 231, 201, 0.42), transparent 26rem),
+                radial-gradient(circle at 88% 6%, rgba(255, 209, 102, 0.28), transparent 24rem),
+                linear-gradient(180deg, #f6fbf8 0%, #e8f0ed 100%);
+            color: #102027;
+            font-family: 'Inter', sans-serif;
+        }
+        .login-card {
+            width: min(100%, 420px);
+            padding: 2rem;
+            border-radius: 20px;
+            background: #fffdf7;
+            border: 1px solid rgba(8, 117, 104, 0.08);
+            box-shadow: 0 24px 48px rgba(16, 32, 48, 0.12);
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            margin-bottom: 2rem;
+        }
+        .brand-icon {
+            width: 48px;
+            height: 48px;
+            display: grid;
+            place-items: center;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #ffd166, #2fbf71);
+            color: #08332f;
+            font-size: 1.5rem;
+            font-weight: 700;
+            box-shadow: 0 14px 28px rgba(47, 191, 113, 0.22);
+        }
+        h1 {
+            margin: 0;
+            font-size: 1.65rem;
+        }
+        .subtitle {
+            margin: 0.4rem 0 1.75rem;
+            color: #607d8b;
+            font-size: 0.95rem;
+        }
+        label {
+            display: block;
+            margin: 1rem 0 0.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            padding: 0.8rem;
+            border: 1px solid #cfd8dc;
+            border-radius: 8px;
+            font: inherit;
+        }
+        input:focus {
+            outline: none;
+            border-color: #087568;
+            box-shadow: 0 0 0 3px rgba(8, 117, 104, 0.16);
+        }
+        button {
+            width: 100%;
+            margin-top: 1.5rem;
+            padding: 0.85rem;
+            border: 0;
+            border-radius: 8px;
+            background: #087568;
+            color: #ffffff;
+            cursor: pointer;
+            font: inherit;
+            font-weight: 700;
+        }
+        button:hover {
+            background: #04584f;
+        }
+        .error-list {
+            margin: 0 0 1rem;
+            padding: 0.85rem 1rem;
+            border-left: 4px solid #c62828;
+            border-radius: 8px;
+            background: #ffebee;
+            color: #b71c1c;
+            font-size: 0.9rem;
+            list-style: none;
+        }
+        .info-message {
+            margin: 0 0 1rem;
+            padding: 0.85rem 1rem;
+            border-left: 4px solid #087568;
+            border-radius: 8px;
+            background: #e7f7f0;
+            color: #04584f;
+            font-size: 0.9rem;
+        }
+        .auth-link {
+            margin: 1.25rem 0 0;
+            color: #607d8b;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        .auth-link a {
+            color: #087568;
+            font-weight: 700;
+            text-decoration: none;
+        }
+        .auth-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <main class="login-card">
+        <div class="brand">
+            <div class="brand-icon">M</div>
+            <div>
+                <strong>MyMoyo</strong>
+                <div style="color:#087568; font-size:0.8rem; font-weight:600;">My life. My care.</div>
+            </div>
+        </div>
+        <h1>Welcome back</h1>
+        <p class="subtitle">Sign in to stay connected to your care, appointments, and health journey.</p>
+
+        {% if request.GET.password_reset %}
+            <div class="info-message">
+                Your password has been reset. Please check your email for the temporary password. It is valid for 10 minutes.
+            </div>
+        {% endif %}
+        {% if request.GET.idle_timeout %}
+            <div class="info-message">
+                You were logged out after 5 minutes of inactivity. Sign in to continue where you left off.
+            </div>
+        {% endif %}
+
+        {% if form.non_field_errors %}
+            <ul class="error-list">
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="{{ next }}">
+            <label for="{{ form.username.id_for_label }}">Username</label>
+            {{ form.username }}
+            <label for="{{ form.password.id_for_label }}">Password</label>
+            {{ form.password }}
+            <button type="submit">Sign In</button>
+        </form>
+        <p class="auth-link"><a href="{% url 'password_reset' %}">Forgot password?</a></p>
+        <p class="auth-link">Need an account? <a href="{% url 'register' %}">Create one</a></p>
+    </main>
+    <script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
+    <script>
+        document.querySelector('form').addEventListener('submit', function () {
+            Swal.fire({
+                title: 'Processing',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading(),
+            });
+        });
+    </script>
+    {% if form.non_field_errors %}
+        <script>
+            Swal.fire({
+                icon: 'error',
+                title: 'Unable to sign in',
+                text: '{{ form.non_field_errors|striptags|escapejs }}',
+            });
+        </script>
+    {% endif %}
+    {% if request.GET.password_reset %}
+        <script>
+            Swal.fire({
+                icon: 'info',
+                title: 'Password reset',
+                text: 'Your password has been reset. Please check your email for the temporary password. It is valid for 10 minutes.',
+                confirmButtonColor: '#087568',
+            });
+        </script>
+    {% endif %}
+    {% if request.GET.idle_timeout %}
+        <script>
+            Swal.fire({
+                icon: 'info',
+                title: 'Session expired',
+                text: 'You were logged out after 5 minutes of inactivity. Sign in to continue where you left off.',
+                confirmButtonColor: '#087568',
+            });
+        </script>
+    {% endif %}
+</body>
+</html>

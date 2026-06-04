@@ -1,0 +1,62 @@
+{% extends 'users/base.html' %}
+
+{% block title %}{{ user.username }} - User Details{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">{{ user.username }} Details</h5>
+        {% if request.user.is_superuser or request.user.profile.role == 'admin' %}
+            <div>
+                <a href="{% url 'user_edit' user.pk %}" class="btn btn-sm btn-outline-secondary">Edit Profile</a>
+                <a href="{% url 'user_delete' user.pk %}" class="btn btn-sm btn-danger">Delete</a>
+            </div>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <dl class="row">
+                    <dt class="col-sm-4">Full name</dt>
+                    <dd class="col-sm-8">{{ user.get_full_name }}</dd>
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8">{{ user.email }}</dd>
+                    <dt class="col-sm-4">Joined</dt>
+                    <dd class="col-sm-8">{{ user.date_joined|date:'M d, Y' }}</dd>
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">
+                        {% if user.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+            <div class="col-md-6">
+                <dl class="row">
+                    <dt class="col-sm-4">Role</dt>
+                    <dd class="col-sm-8">{{ profile.get_role_display }}</dd>
+                    <dt class="col-sm-4">Phone</dt>
+                    <dd class="col-sm-8">{{ profile.phone|default:'—' }}</dd>
+                    <dt class="col-sm-4">Birthday</dt>
+                    <dd class="col-sm-8">{{ profile.date_of_birth|date:'M d, Y'|default:'—' }}</dd>
+                    <dt class="col-sm-4">Bio</dt>
+                    <dd class="col-sm-8">{{ profile.bio|default:'No biography added.' }}</dd>
+                </dl>
+            </div>
+        </div>
+        <div class="mt-4">
+            <h6>Role responsibilities</h6>
+            <ul class="list-group list-group-flush">
+                {% for responsibility in profile.get_role_responsibilities %}
+                <li class="list-group-item">{{ responsibility }}</li>
+                {% empty %}
+                <li class="list-group-item text-muted">No role details available.</li>
+                {% endfor %}
+            </ul>
+        </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
