@@ -5,8 +5,6 @@
 
 {% block extra_head %}
 <link rel="stylesheet" href="{% static 'vendor/leaflet/1.9.4/leaflet.css' %}">
-<link rel="stylesheet" href="{% static 'vendor/leaflet.markercluster/1.5.3/MarkerCluster.css' %}">
-<link rel="stylesheet" href="{% static 'vendor/leaflet.markercluster/1.5.3/MarkerCluster.Default.css' %}">
 <style>
     .app-shell > .content-wrapper {
         flex: 1 1 auto;
@@ -95,7 +93,7 @@
     .clinic-filters input,
     .clinic-filters select {
         width: 100%;
-        padding: 0.7rem 0.8rem;
+        padding: 0.7rem 2.25rem 0.7rem 0.8rem;
         border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
         border-radius: 8px;
         background: var(--theme-surface);
@@ -108,6 +106,37 @@
         outline: none;
         border-color: var(--theme-primary);
         box-shadow: 0 0 0 3px var(--theme-focus);
+    }
+    .clinic-filter-field {
+        position: relative;
+        min-width: 0;
+    }
+    .clinic-filter-clear {
+        position: absolute;
+        top: 50%;
+        right: 0.45rem;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        width: 1.55rem;
+        height: 1.55rem;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: rgba(var(--theme-primary-rgb), 0.12);
+        color: var(--theme-surface-text);
+        cursor: pointer;
+        font: inherit;
+        font-size: 1rem;
+        line-height: 1;
+        transform: translateY(-50%);
+    }
+    .clinic-filter-clear:hover {
+        background: var(--theme-primary);
+        color: var(--theme-on-nav);
+    }
+    .clinic-filter-field.has-value .clinic-filter-clear {
+        display: inline-flex;
     }
     .clinic-filter-button,
     .clinic-location-button,
@@ -168,6 +197,17 @@
         border-radius: 10px;
         background: var(--theme-soft);
     }
+    .clinic-map-stage {
+        position: relative;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        border-radius: 10px;
+    }
+    .clinic-map-stage .clinic-map {
+        position: absolute;
+        inset: 0;
+    }
     .clinic-kanban {
         display: flex;
         flex-direction: column;
@@ -202,17 +242,37 @@
         border: 0;
         box-shadow: 0 2px 8px rgba(16, 32, 48, 0.18);
     }
-    .clinic-map .marker-cluster-small,
-    .clinic-map .marker-cluster-medium,
-    .clinic-map .marker-cluster-large {
-        background-color: rgba(var(--theme-primary-rgb), 0.25);
+    .device-location-marker {
+        position: relative;
+        width: 18px;
+        height: 18px;
+        border: 3px solid #ffffff;
+        border-radius: 50%;
+        background: #1565c0;
+        box-shadow: 0 2px 6px rgba(16, 32, 48, 0.35);
     }
-    .clinic-map .marker-cluster-small div,
-    .clinic-map .marker-cluster-medium div,
-    .clinic-map .marker-cluster-large div {
-        background-color: rgba(var(--theme-primary-rgb), 0.82);
-        color: var(--theme-on-nav);
-        font-weight: 700;
+    .device-location-marker::before {
+        position: absolute;
+        inset: -9px;
+        border: 3px solid rgba(21, 101, 192, 0.65);
+        border-radius: 50%;
+        content: "";
+        animation: device-location-pulse 1.5s ease-out infinite;
+    }
+    @keyframes device-location-pulse {
+        0% {
+            opacity: 1;
+            transform: scale(0.45);
+        }
+        100% {
+            opacity: 0;
+            transform: scale(1.35);
+        }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .device-location-marker::before {
+            animation: none;
+        }
     }
     .clinic-map-summary {
         flex: 0 0 auto;
@@ -221,19 +281,46 @@
         font-size: 0.8rem;
     }
     .clinic-route-summary {
-        display: grid;
-        flex: 0 0 auto;
-        gap: 0.3rem;
-        margin-top: 0.85rem;
-        padding: 0.85rem;
+        position: absolute;
+        z-index: 800;
+        bottom: 1rem;
+        left: 1rem;
+        width: min(300px, calc(100% - 2rem));
+        max-height: calc(100% - 2rem);
+        padding: 0.85rem 2.5rem 0.85rem 0.85rem;
+        overflow-y: auto;
         border: 1px solid rgba(var(--theme-primary-rgb), 0.16);
         border-radius: 10px;
-        background: rgba(var(--theme-primary-rgb), 0.06);
+        background: var(--theme-surface);
+        box-shadow: 0 4px 16px rgba(16, 32, 48, 0.22);
         color: var(--theme-surface-muted);
         font-size: 0.84rem;
     }
-    .clinic-route-summary strong {
+    .clinic-route-summary[hidden] {
+        display: none;
+    }
+    .clinic-route-summary-content {
+        display: grid;
+        gap: 0.3rem;
+    }
+    .clinic-route-summary-content strong {
         color: var(--theme-surface-text);
+    }
+    .clinic-route-summary-close {
+        position: absolute;
+        top: 0.45rem;
+        right: 0.45rem;
+        width: 1.75rem;
+        height: 1.75rem;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: var(--theme-soft);
+        color: var(--theme-surface-text);
+        cursor: pointer;
+        font: inherit;
+        font-size: 1.1rem;
+        line-height: 1;
     }
     .clinic-location-tools {
         display: flex;
@@ -507,25 +594,37 @@
               data-results-url="{% url 'facility_map_results' %}"
               data-road-distances-url="{% url 'facility_road_distances' %}"
               data-directions-url="{% url 'facility_directions' %}">
-            <input type="search" name="q" value="{{ search_term }}" placeholder="Search clinic, district, province, or MFL code">
-            <select name="province" id="clinicProvince">
-                <option value="">All provinces</option>
-                {% for province in provinces %}
-                    <option value="{{ province.id }}" {% if selected_province == province.id|stringformat:"s" %}selected{% endif %}>{{ province.name }}</option>
-                {% endfor %}
-            </select>
-            <select name="district" id="clinicDistrict">
-                <option value="">All districts</option>
-                {% for district in districts %}
-                    <option value="{{ district.id }}" {% if selected_district == district.id|stringformat:"s" %}selected{% endif %}>{{ district.name }}</option>
-                {% endfor %}
-            </select>
-            <select name="level">
-                <option value="">All facility types</option>
-                {% for level in level_choices %}
-                    <option value="{{ level }}" {% if selected_level == level %}selected{% endif %}>{{ level }}</option>
-                {% endfor %}
-            </select>
+            <div class="clinic-filter-field">
+                <input type="search" name="q" value="{{ search_term }}" placeholder="Search clinic, district, province, or MFL code">
+                <button class="clinic-filter-clear" type="button" data-clear-filter="q" aria-label="Clear search">&times;</button>
+            </div>
+            <div class="clinic-filter-field">
+                <select name="province" id="clinicProvince">
+                    <option value="">All provinces</option>
+                    {% for province in provinces %}
+                        <option value="{{ province.id }}" {% if selected_province == province.id|stringformat:"s" %}selected{% endif %}>{{ province.name }}</option>
+                    {% endfor %}
+                </select>
+                <button class="clinic-filter-clear" type="button" data-clear-filter="province" aria-label="Clear province">&times;</button>
+            </div>
+            <div class="clinic-filter-field">
+                <select name="district" id="clinicDistrict">
+                    <option value="">All districts</option>
+                    {% for district in districts %}
+                        <option value="{{ district.id }}" {% if selected_district == district.id|stringformat:"s" %}selected{% endif %}>{{ district.name }}</option>
+                    {% endfor %}
+                </select>
+                <button class="clinic-filter-clear" type="button" data-clear-filter="district" aria-label="Clear district">&times;</button>
+            </div>
+            <div class="clinic-filter-field">
+                <select name="level">
+                    <option value="">All facility types</option>
+                    {% for level in level_choices %}
+                        <option value="{{ level }}" {% if selected_level == level %}selected{% endif %}>{{ level }}</option>
+                    {% endfor %}
+                </select>
+                <button class="clinic-filter-clear" type="button" data-clear-filter="level" aria-label="Clear facility type">&times;</button>
+            </div>
             <button class="clinic-filter-button" type="submit">Search</button>
             <div class="clinic-filter-status" id="clinicFilterStatus" role="status" aria-live="polite"></div>
         </form>
@@ -533,22 +632,26 @@
             <section class="clinic-map-section" id="mapPanel" aria-label="Facility map and nearest clinics">
                 <div class="clinic-panel clinic-map-panel">
                     <div class="clinic-map-workspace">
-                        <div id="clinicMap" class="clinic-map" aria-label="Interactive map of healthcare facilities in Zambia"></div>
+                        <div class="clinic-map-stage">
+                            <div id="clinicMap" class="clinic-map" aria-label="Interactive map of healthcare facilities in Zambia"></div>
+                            <div class="clinic-route-summary" id="routeSummary" role="dialog" aria-label="Route information" hidden>
+                                <button class="clinic-route-summary-close" id="routeSummaryClose" type="button" aria-label="Close route information">&times;</button>
+                                <div class="clinic-route-summary-content" id="routeSummaryContent" role="status" aria-live="polite"></div>
+                            </div>
+                        </div>
                         <aside class="clinic-kanban" id="topFacilitiesPanel" aria-live="polite">
-                            <h2>Top 3 nearest clinics</h2>
+                            <h2 id="topFacilitiesHeading">Top 3 clinics within 5 km</h2>
                             <div class="clinic-kanban-list" id="topFacilitiesList">
                                 <article class="facility-card kanban nearest clinic-nearest" id="nearestFacility">
                                     <strong>Nearest clinic from your device location</strong>
                                     <span class="clinic-location-status" id="locationStatus" role="status" aria-live="polite">
                                         Finding your device location and calculating road distances...
                                     </span>
-                                                        <div class="clinic-route-summary" id="routeSummary" role="status" aria-live="polite" hidden></div>
-
                                 </article>
                             </div>
                         </aside>
                     </div>
-                    <p class="clinic-map-summary"><span id="mappedCount">{{ mapped_count }}</span> facilities with coordinates shown on the map.</p>
+                    <p class="clinic-map-summary"><span id="mappedCount">0</span> facilities within 5 km of your device location shown on the map.</p>
                 </div>
             </section>
     </div>
@@ -560,7 +663,6 @@
 {{ all_mapped_facilities|json_script:"all-facility-map-data" }}
 {{ result_facilities|json_script:"facility-result-data" }}
 <script src="{% static 'vendor/leaflet/1.9.4/leaflet.js' %}"></script>
-<script src="{% static 'vendor/leaflet.markercluster/1.5.3/leaflet.markercluster.js' %}"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const map = L.map('clinicMap', {
@@ -625,14 +727,6 @@
             return `${Math.round(km)} km away`;
         }
 
-        function formatDuration(seconds) {
-            const minutes = Math.max(1, Math.round(seconds / 60));
-            if (minutes < 60) return `${minutes} min`;
-            const hours = Math.floor(minutes / 60);
-            const remainingMinutes = minutes % 60;
-            return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
-        }
-
         function getFacilityKey(facility) {
             return [
                 facility.name,
@@ -659,20 +753,21 @@
             return formatDistance(distance);
         }
 
-        function getRoutableCandidates(facilities, limit) {
-            if (!userLocation) return [];
-            return facilities
-                .filter(facility => facility.latitude !== null && facility.longitude !== null)
-                .slice()
-                .sort((left, right) => distanceInKm(userLocation, left) - distanceInKm(userLocation, right))
-                .slice(0, limit);
+        function getFacilitiesWithinRadius(facilities) {
+            if (!userLocation) return facilities;
+            return facilities.filter(function (facility) {
+                return (
+                    facility.latitude !== null &&
+                    facility.longitude !== null &&
+                    distanceInKm(userLocation, facility) <= facilityRadiusKm
+                );
+            });
         }
 
         function getTopResultFacilities() {
-            const candidates = resultFacilities.filter(function (facility) {
+            const candidates = getFacilitiesWithinRadius(visibleFacilities).filter(function (facility) {
                 return facility.latitude !== null && facility.longitude !== null;
             });
-            if (!userLocation) return candidates.slice(0, 3);
             return candidates
                 .filter(facility => roadDistanceByKey.has(getFacilityKey(facility)))
                 .slice()
@@ -682,13 +777,7 @@
                 .slice(0, 3);
         }
 
-        const markerLayer = L.markerClusterGroup({
-            chunkedLoading: true,
-            maxClusterRadius: 48,
-            showCoverageOnHover: false,
-            spiderfyOnMaxZoom: true,
-        }).addTo(map);
-        const allMappedFacilities = JSON.parse(document.getElementById('all-facility-map-data').textContent);
+        const markerLayer = L.layerGroup().addTo(map);
         let visibleFacilities = JSON.parse(document.getElementById('facility-map-data').textContent);
         let resultFacilities = JSON.parse(document.getElementById('facility-result-data').textContent);
         const filterForm = document.getElementById('clinicFilters');
@@ -696,6 +785,8 @@
         const filterStatus = document.getElementById('clinicFilterStatus');
         const locationStatus = document.getElementById('locationStatus');
         const routeSummary = document.getElementById('routeSummary');
+        const routeSummaryContent = document.getElementById('routeSummaryContent');
+        const routeSummaryClose = document.getElementById('routeSummaryClose');
         const nearestPanel = document.getElementById('nearestFacility');
         const topFacilitiesPanel = document.getElementById('topFacilitiesPanel');
         const topFacilitiesList = document.getElementById('topFacilitiesList');
@@ -709,7 +800,7 @@
         let roadDistanceByKey = new Map();
         let routeInfoByKey = new Map();
         let selectedFacilityKey = null;
-        const roadDistanceCandidateLimit = 99;
+        const facilityRadiusKm = 5;
 
         function renderMarkers(facilities, fitVisibleMarkers) {
             markerLayer.clearLayers();
@@ -735,6 +826,9 @@
                     `<button class="facility-directions-button" type="button" data-facility-key="${escapeHtml(getFacilityKey(facility))}" data-latitude="${facility.latitude}" data-longitude="${facility.longitude}" data-name="${escapeHtml(facility.name)}">Get directions</button>` +
                     `<button class="facility-google-maps-button" type="button" data-latitude="${facility.latitude}" data-longitude="${facility.longitude}">Open in Google Maps</button>`
                 );
+                marker.on('click', function () {
+                    routeToFacility(facility);
+                });
                 bounds.push([facility.latitude, facility.longitude]);
             });
             if (fitVisibleMarkers) {
@@ -759,7 +853,6 @@
                 '<div class="facility-route">' +
                     '<strong>Route from your location</strong>' +
                     `<span>${formatDistance(routeInfo.distanceKm)} by road</span>` +
-                    `<span>${formatDuration(routeInfo.durationSeconds)} estimated travel time</span>` +
                 '</div>'
             );
         }
@@ -771,7 +864,11 @@
             return '';
         }
 
-        function getFacilityCardMarkup(facility, extraClass = '', rankIndex = null) {
+        function hasActiveFilters() {
+            return Array.from(new FormData(filterForm).values()).some(value => String(value).trim());
+        }
+
+        function getFacilityCardMarkup(facility, extraClass = '', rankIndex = null, showDistance = true) {
             const details = [facility.level, facility.code ? `MFL ${facility.code}` : ''].filter(Boolean);
             const detailSup = details.length ? `<sup>${escapeHtml(details.join(' | '))}</sup>` : '';
             const isNearest = getFacilityKey(facility) === nearestFacilityKey;
@@ -790,7 +887,7 @@
                     rankBadge +
                     `<h3><span>${escapeHtml(facility.name)}</span>${detailSup}</h3>` +
                     `<sub class="facility-subline">${escapeHtml(facility.district)}, ${escapeHtml(facility.province)}</sub>` +
-                    distance +
+                    (showDistance ? distance : '') +
                     getRouteInfoMarkup(facility) +
                     '<div class="facility-actions">' +
                         `<button class="facility-map-button" type="button" data-facility-key="${facilityKey}" data-latitude="${facility.latitude}" data-longitude="${facility.longitude}">Map</button>` +
@@ -810,81 +907,101 @@
         }
 
         function renderTopFacilitiesPanel() {
-            const secondaryFacilities = getTopResultFacilities().slice(1, 3);
+            const heading = document.getElementById('topFacilitiesHeading');
             topFacilitiesList
-                .querySelectorAll('.js-secondary-facility, .js-secondary-empty')
+                .querySelectorAll('.js-secondary-facility, .js-secondary-empty, .js-search-facility, .js-search-empty')
                 .forEach(element => element.remove());
+
+            if (hasActiveFilters()) {
+                heading.textContent = 'Search results';
+                nearestPanel.hidden = true;
+                topFacilitiesList.insertAdjacentHTML(
+                    'beforeend',
+                    resultFacilities.length
+                        ? resultFacilities.map(facility => getFacilityCardMarkup(facility, 'kanban js-search-facility', null, false)).join('')
+                        : '<div class="clinic-kanban-empty js-search-empty">No clinics match the current search.</div>'
+                );
+                return;
+            }
+
+            heading.textContent = 'Top 3 clinics within 5 km';
+            nearestPanel.hidden = false;
+            const secondaryFacilities = getTopResultFacilities().slice(1, 3);
             topFacilitiesList.insertAdjacentHTML(
                 'beforeend',
                 secondaryFacilities.length
                     ? secondaryFacilities.map((facility, index) => getFacilityCardMarkup(facility, 'kanban js-secondary-facility', index + 1)).join('')
-                    : `<div class="clinic-kanban-empty js-secondary-empty">${userLocation ? 'No second or third nearest searched clinic is available yet.' : 'Calculating road distances from your device location...'}</div>`
+                    : `<div class="clinic-kanban-empty js-secondary-empty">${userLocation ? 'No additional clinics were found within 5 km.' : 'Calculating road distances from your device location...'}</div>`
             );
         }
 
-        async function requestRoadDistances(candidates) {
-            if (!userLocation || !candidates.length) return;
-            const response = await fetch(filterForm.dataset.roadDistancesUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': decodeURIComponent(getCookie('csrftoken')),
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({
-                    origin: userLocation,
-                    candidates: candidates.map(function (facility) {
-                        return {
-                            latitude: facility.latitude,
-                            longitude: facility.longitude,
-                        };
-                    }),
-                }),
-            });
-            if (!response.ok) throw new Error('Road distance service unavailable.');
-
-            const data = await response.json();
-            data.distances.forEach(function (route) {
-                const facility = candidates[route.index];
-                if (!facility) return;
-                roadDistanceByKey.set(getFacilityKey(facility), route.distance_km);
-            });
-        }
-
-        async function refreshRoadDistances(resultFacilities) {
+        async function refreshFacilityRoutesWithinRadius() {
             if (!userLocation) return;
-            locationStatus.textContent = 'Calculating road distances...';
+            locationStatus.textContent = 'Calculating road routes within 5 km...';
             roadDistanceByKey = new Map();
-            const nearestCandidates = getRoutableCandidates(allMappedFacilities, roadDistanceCandidateLimit);
-            const visibleCandidates = getRoutableCandidates(resultFacilities || visibleFacilities, roadDistanceCandidateLimit);
-            const candidatesByKey = new Map();
-            visibleCandidates.concat(nearestCandidates).forEach(function (facility) {
-                candidatesByKey.set(getFacilityKey(facility), facility);
-            });
+            routeInfoByKey = new Map();
+            const candidates = getFacilitiesWithinRadius(visibleFacilities);
 
-            try {
-                await requestRoadDistances(Array.from(candidatesByKey.values()));
-                locationStatus.textContent = 'Road distances calculated from your device location.';
-                renderTopFacilitiesPanel();
-            } catch (error) {
-                locationStatus.textContent = 'Road distance service is unavailable. Start local OSRM and try again.';
-                renderTopFacilitiesPanel();
-            }
+            await Promise.all(candidates.map(async function (facility) {
+                const facilityKey = getFacilityKey(facility);
+                routeInfoByKey.set(facilityKey, { status: 'loading' });
+                try {
+                    const response = await fetch(filterForm.dataset.directionsUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': decodeURIComponent(getCookie('csrftoken')),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body: JSON.stringify({
+                            origin: userLocation,
+                            destination: {
+                                latitude: facility.latitude,
+                                longitude: facility.longitude,
+                            },
+                        }),
+                    });
+                    if (!response.ok) throw new Error('Directions service unavailable.');
+
+                    const route = await response.json();
+                    roadDistanceByKey.set(facilityKey, route.distance_km);
+                    routeInfoByKey.set(facilityKey, {
+                        status: 'success',
+                        distanceKm: route.distance_km,
+                    });
+                } catch (error) {
+                    routeInfoByKey.set(facilityKey, { status: 'error' });
+                }
+            }));
+
+            locationStatus.textContent = roadDistanceByKey.size
+                ? 'Road routes calculated for the nearest clinics.'
+                : 'Road routes are unavailable. Start local OSRM and try again.';
+            renderTopFacilitiesPanel();
         }
 
         function renderUserLocation() {
             if (!userLocation) return;
             if (userMarker) map.removeLayer(userMarker);
-            userMarker = L.circleMarker([userLocation.latitude, userLocation.longitude], {
-                radius: 7,
-                color: '#ffffff',
-                weight: 2,
-                fillColor: '#1565c0',
-                fillOpacity: 0.9,
+            userMarker = L.marker([userLocation.latitude, userLocation.longitude], {
+                icon: L.divIcon({
+                    className: '',
+                    html: '<div class="device-location-marker" aria-hidden="true"></div>',
+                    iconSize: [18, 18],
+                    iconAnchor: [9, 9],
+                }),
+                zIndexOffset: 1000,
             }).addTo(map).bindPopup('Your device location');
         }
 
         function renderNearestFacility() {
+            if (hasActiveFilters()) {
+                nearestFacilityKey = null;
+                nearestPanel.hidden = true;
+                renderMarkers(visibleFacilities, false);
+                return;
+            }
+
             const facility = getTopResultFacilities()[0] || null;
             const distanceKm = facility ? roadDistanceByKey.get(getFacilityKey(facility)) : null;
             if (!facility || distanceKm === undefined || distanceKm === null) {
@@ -892,7 +1009,9 @@
                 nearestPanel.hidden = false;
                 nearestPanel.innerHTML =
                     '<strong>Nearest facility from your device location</strong>' +
-                    '<span class="clinic-location-status">Road distances are not available yet.</span>';
+                    `<span class="clinic-location-status">${userLocation && !visibleFacilities.length
+                        ? 'No facilities were found within 5 km of your device location.'
+                        : 'Road distances are not available yet.'}</span>`;
                 if (nearestMarker) {
                     map.removeLayer(nearestMarker);
                     nearestMarker = null;
@@ -930,16 +1049,10 @@
                 `${escapeHtml(facility.name)}<br>` +
                 `${formatDistance(distanceKm)} by road`
             );
+            nearestMarker.on('click', function () {
+                routeToFacility(facility);
+            });
             renderMarkers(visibleFacilities, false);
-        }
-
-        function fitUserAndNearest() {
-            const nearest = getTopResultFacilities()[0] || null;
-            if (!userLocation || !nearest) return;
-            map.fitBounds([
-                [userLocation.latitude, userLocation.longitude],
-                [nearest.latitude, nearest.longitude],
-            ], { padding: [36, 36], maxZoom: 13 });
         }
 
         function showFacilityOnMap(button) {
@@ -958,7 +1071,7 @@
             }
             routeInfoByKey = new Map();
             routeSummary.hidden = true;
-            routeSummary.innerHTML = '';
+            routeSummaryContent.innerHTML = '';
             renderNearestFacility();
             renderTopFacilitiesPanel();
         }
@@ -977,7 +1090,7 @@
                 renderTopFacilitiesPanel();
             }
             routeSummary.hidden = false;
-            routeSummary.innerHTML = `<strong>Getting directions to ${escapeHtml(facilityName)}...</strong>`;
+            routeSummaryContent.innerHTML = `<strong>Getting directions to ${escapeHtml(facilityName)}...</strong>`;
 
             try {
                 const response = await fetch(filterForm.dataset.directionsUrl, {
@@ -1002,7 +1115,6 @@
                     routeInfoByKey.set(facilityKey, {
                         status: 'success',
                         distanceKm: route.distance_km,
-                        durationSeconds: route.duration_seconds,
                     });
                     renderNearestFacility();
                     renderTopFacilitiesPanel();
@@ -1017,24 +1129,34 @@
                 }).addTo(map);
                 routeLayer.bindPopup(
                     `<strong>Route to ${escapeHtml(facilityName)}</strong><br>` +
-                    `${formatDistance(route.distance_km)} by road<br>` +
-                    `${formatDuration(route.duration_seconds)} estimated`
+                    `${formatDistance(route.distance_km)} by road`
                 );
                 if (options.activateMap) {
                     map.fitBounds(routeLayer.getBounds(), { padding: [36, 36], maxZoom: 15 });
                 }
-                routeSummary.innerHTML =
+                routeSummaryContent.innerHTML =
                     `<strong>Route to ${escapeHtml(facilityName)}</strong>` +
-                    `<span>${formatDistance(route.distance_km)} by road</span>` +
-                    `<span>${formatDuration(route.duration_seconds)} estimated travel time</span>`;
+                    `<span>${formatDistance(route.distance_km)} by road</span>`;
             } catch (error) {
                 if (facilityKey) {
                     routeInfoByKey.set(facilityKey, { status: 'error' });
                     renderNearestFacility();
                     renderTopFacilitiesPanel();
                 }
-                routeSummary.innerHTML = '<strong>Could not get directions.</strong><span>Start local OSRM and try again.</span>';
+                routeSummaryContent.innerHTML = '<strong>Could not get directions.</strong><span>Start local OSRM and try again.</span>';
             }
+        }
+
+        function routeToFacility(facility) {
+            selectedFacilityKey = getFacilityKey(facility);
+            getDirections({
+                dataset: {
+                    facilityKey: selectedFacilityKey,
+                    latitude: facility.latitude,
+                    longitude: facility.longitude,
+                    name: facility.name,
+                },
+            }, { activateMap: true });
         }
 
         function openInGoogleMaps(button) {
@@ -1055,11 +1177,18 @@
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
             };
+            if (!hasActiveFilters()) {
+                visibleFacilities = getFacilitiesWithinRadius(visibleFacilities);
+            }
+            document.getElementById('mappedCount').textContent = visibleFacilities.length;
             renderUserLocation();
-            await refreshRoadDistances(resultFacilities);
+            await refreshFacilityRoutesWithinRadius();
             renderMarkers(visibleFacilities, false);
             renderNearestFacility();
-            fitUserAndNearest();
+            if (!hasActiveFilters() && !visibleFacilities.length) {
+                locationStatus.textContent = 'No facilities were found within 5 km of your device location.';
+            }
+            map.setView([userLocation.latitude, userLocation.longitude], 14);
         }
 
         function showLocationError(error) {
@@ -1070,6 +1199,8 @@
             };
             locationStatus.textContent = messages[error.code] || 'Could not read your device location.';
             nearestPanel.hidden = false;
+            document.getElementById('mappedCount').textContent = visibleFacilities.length;
+            renderMarkers(visibleFacilities, true);
         }
 
         async function updateFacilities() {
@@ -1088,15 +1219,18 @@
                 if (!response.ok) throw new Error('Unable to load facilities.');
 
                 const data = await response.json();
-                visibleFacilities = data.mapped_facilities;
+                visibleFacilities = hasActiveFilters()
+                    ? data.mapped_facilities
+                    : getFacilitiesWithinRadius(data.mapped_facilities);
                 resultFacilities = data.facilities;
                 selectedFacilityKey = null;
                 clearRoute();
-                await refreshRoadDistances(resultFacilities);
+                await refreshFacilityRoutesWithinRadius();
                 renderMarkers(visibleFacilities, true);
                 renderNearestFacility();
                 renderDistricts(data.districts);
-                document.getElementById('mappedCount').textContent = data.mapped_facilities.length;
+                updateFilterClearButtons();
+                document.getElementById('mappedCount').textContent = visibleFacilities.length;
                 filterStatus.textContent = 'Facilities updated.';
                 window.history.replaceState({}, '', `${window.location.pathname}?${query}`);
             } catch (error) {
@@ -1109,7 +1243,25 @@
             }
         }
 
-        renderMarkers(visibleFacilities, false);
+        function clearClinicFilters() {
+            const fieldName = this.dataset.clearFilter;
+            const field = filterForm.querySelector(`[name="${fieldName}"]`);
+            if (!field) return;
+            field.value = '';
+            if (fieldName === 'province') districtSelect.value = '';
+            selectedFacilityKey = null;
+            updateFilterClearButtons();
+            updateFacilities();
+        }
+
+        function updateFilterClearButtons() {
+            filterForm.querySelectorAll('.clinic-filter-field').forEach(function (wrapper) {
+                const field = wrapper.querySelector('input, select');
+                wrapper.classList.toggle('has-value', Boolean(field && field.value));
+            });
+        }
+
+        renderMarkers([], false);
         renderTopFacilitiesPanel();
 
         function requestDeviceLocation() {
@@ -1125,21 +1277,30 @@
             });
         }
         requestDeviceLocation();
+        routeSummaryClose.addEventListener('click', function () {
+            routeSummary.hidden = true;
+        });
 
         filterForm.addEventListener('submit', function (event) {
             event.preventDefault();
             updateFacilities();
         });
+        filterForm.querySelectorAll('.clinic-filter-clear').forEach(function (button) {
+            button.addEventListener('click', clearClinicFilters);
+        });
         filterForm.querySelector('input[name="q"]').addEventListener('input', function () {
             clearTimeout(searchTimeout);
+            updateFilterClearButtons();
             searchTimeout = setTimeout(updateFacilities, 300);
         });
         filterForm.querySelectorAll('select').forEach(function (select) {
             select.addEventListener('change', function () {
                 if (select.name === 'province') districtSelect.value = '';
+                updateFilterClearButtons();
                 updateFacilities();
             });
         });
+        updateFilterClearButtons();
         topFacilitiesPanel.addEventListener('click', function (event) {
             const button = event.target.closest('.facility-map-button');
             if (button) showFacilityOnMap(button);

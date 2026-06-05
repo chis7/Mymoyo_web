@@ -42,7 +42,7 @@ SECRET_KEY = '***REMOVED_SECRET_KEY***'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -60,14 +60,14 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
-    'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
-    'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'users.middleware.AuditUserMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",  # Must be directly below SecurityMiddleware
+    "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.common.CommonMiddleware",
+    "django.middleware.csrf.CsrfViewMiddleware",
+    "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
 ROOT_URLCONF = 'mymoyo.urls'
@@ -103,7 +103,7 @@ POSTGRES_USER = os.environ.get('POSTGRES_USER', 'postgres')
 # keep the default password here in sync with your .env; .env should be used in development
 POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'p@sswOrd')
 # default to localhost so when using host port mapping the app connects to the host
-POSTGRES_HOST = os.environ.get('POSTGRES_HOST', '127.0.0.1')
+POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'db')
 POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '55432')
 
 DATABASES = {
@@ -154,6 +154,11 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+
+# If you store custom assets in a top-level 'static' folder
+STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'portal_home'
 
@@ -172,6 +177,9 @@ EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'false').lower() == 'true'
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 OPENAI_CHATBOT_MODEL = os.environ.get('OPENAI_CHATBOT_MODEL', 'gpt-5-mini')
 
-OSRM_BASE_URL = os.environ.get('OSRM_BASE_URL', 'http://127.0.0.1:5000').rstrip('/')
+OSRM_BASE_URL = os.environ.get('OSRM_BASE_URL', 'http://osrm-zambia:5000').rstrip('/')
 OSRM_ROUTE_PROFILE = os.environ.get('OSRM_ROUTE_PROFILE', 'driving')
 OSRM_DISTANCE_CANDIDATE_LIMIT = int(os.environ.get('OSRM_DISTANCE_CANDIDATE_LIMIT', '99'))
+
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+

@@ -269,6 +269,46 @@ def portal_home(request):
     return redirect('user_detail', pk=request.user.pk)
 
 
+@active_login_required
+def medication_reminders(request):
+    prevention_methods = [
+        {
+            'name': 'Oral PrEP (Daily Pill)',
+            'schedule': 'Daily',
+            'icon': 'pill',
+            'status': 'Available',
+        },
+        {
+            'name': 'CAB-LA Injectable',
+            'schedule': 'Every 2 months',
+            'icon': 'vaccines',
+            'status': 'Available',
+        },
+        {
+            'name': 'Dapivirine Ring',
+            'schedule': 'Monthly',
+            'icon': 'radio_button_unchecked',
+            'status': 'Available',
+        },
+        {
+            'name': 'Lenacapavir Injectable (LEN)',
+            'schedule': 'Every 6 months',
+            'icon': 'vaccines',
+            'status': 'Available',
+        },
+        {
+            'name': 'Event-Driven PrEP',
+            'schedule': 'Before and after sex',
+            'icon': 'bolt',
+            'status': 'Available',
+        },
+    ]
+
+    return render(request, 'users/medication_reminders.html', {
+        'prevention_methods': prevention_methods,
+    })
+
+
 @role_required(*USER_ADMIN_ROLES)
 def user_list(request):
     """Display users management list with edit/delete options"""

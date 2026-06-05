@@ -17,10 +17,12 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import RedirectView
+from users import views as user_views
 
 urlpatterns = [
     path('', RedirectView.as_view(pattern_name='portal_home', permanent=False)),
     path('admin/', admin.site.urls),
+    path('reminders/', user_views.medication_reminders, name='medication_reminders'),
     path('chatbot/', include('chatbot.urls')),
     path('facilities/', include('locations.urls')),
     path('users/', include('users.urls')),

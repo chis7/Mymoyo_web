@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: mymoyo
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ***REMOVED_POSTGRES_PASSWORD***
+    ports:
+      - "55432:5432"
+    volumes:
+      - mymoyo-db-data:/var/lib/postgresql/data
+    networks:
+      - mymoyo-network
+
+  web:
+    build: .
+    command: [
+      "sh", "-c", 
+      "python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 mymoyo.wsgi"
+    ]
+    # Removed external ports here. Gunicorn is now protected behind Nginx.
+    env_file:
+      - .env 
+    depends_on:
+      - db
+    volumes:
+      - static_volume:/app/staticfiles
+    networks:
+      - mymoyo-network
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "7000:443"  # Maps your local machine's port 7000 to HTTPS port 443
+      - "80:80"    # Handles HTTP traffic to redirect it
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - static_volume:/app/staticfiles:ro
+    depends_on:
+      - web
+    networks:
+      - mymoyo-network
+
+networks:
+  mymoyo-network:
+    driver: bridge
+
+volumes:
+  mymoyo-db-data:
+  static_volume:

@@ -10,7 +10,7 @@
             "cwd": "${workspaceFolder}",
             "args": [
                 "runserver",
-                "127.0.0.1:7000"
+                "0.0.0.0:7000"
             ],
             "django": true,
             "justMyCode": true,
