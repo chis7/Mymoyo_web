@@ -1,4 +1,5 @@
 from datetime import timedelta
+from datetime import date
 
 from django.core import mail
 from django.test import TestCase
@@ -9,6 +10,7 @@ from django.test import Client
 from django.utils import timezone
 
 from .models import AuditLog
+from locations.models import District, Facility, Province
 
 
 class PortalAccessTests(TestCase):
@@ -70,6 +72,244 @@ class PortalAccessTests(TestCase):
         self.assertRedirects(
             response,
             f"{reverse('login')}?next={reverse('medication_reminders')}",
+        )
+
+    def test_authenticated_user_can_view_self_risk_assessment(self):
+        user = self.create_user('screening-user', 'client')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('self_risk_assessment'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Self-Risk Screening')
+        self.assertContains(response, 'When was your most recent HIV test?')
+        self.assertContains(response, 'Find a Clinic')
+        self.assertContains(response, 'data-wizard-page')
+
+    def test_self_risk_assessment_returns_guidance(self):
+        user = self.create_user('high-risk-screening-user', 'client')
+        self.client.force_login(user)
+
+        response = self.client.post(reverse('self_risk_assessment'), {
+            'recent_test': 'never',
+            'partners': '5_plus',
+            'condom_use': 'rarely',
+            'partner_status': 'yes',
+            'sti_symptoms': 'yes',
+            'prep_use': 'no',
+            'pregnancy_or_breastfeeding': 'no',
+            'safety_concerns': 'no',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Higher risk')
+        self.assertContains(response, 'Recommended next steps')
+        self.assertContains(response, 'Book or visit a clinic')
+
+    def test_anonymous_user_is_redirected_from_self_risk_assessment(self):
+        response = self.client.get(reverse('self_risk_assessment'))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('self_risk_assessment')}",
+        )
+
+    def test_authenticated_user_can_view_self_test_report(self):
+        user = self.create_user('self-test-user', 'client')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('self_test_report'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Recent Self-Test')
+        self.assertContains(response, 'What type of self-test did you use?')
+        self.assertContains(response, 'Find a Clinic')
+        self.assertContains(response, 'data-wizard-page')
+
+    def test_self_test_report_returns_positive_result_guidance(self):
+        user = self.create_user('reactive-self-test-user', 'client')
+        self.client.force_login(user)
+
+        response = self.client.post(reverse('self_test_report'), {
+            'test_type': 'oral_fluid',
+            'kit_source': 'clinic',
+            'test_date': date.today().isoformat(),
+            'result': 'positive',
+            'followed_instructions': 'yes',
+            'confirmatory_test': 'no',
+            'support_needed': 'yes',
+            'notes': '',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Confirm at clinic')
+        self.assertContains(response, 'Confirmatory testing is still needed')
+        self.assertContains(response, 'Recommended next steps')
+
+    def test_self_test_report_rejects_future_test_date(self):
+        user = self.create_user('future-self-test-user', 'client')
+        self.client.force_login(user)
+
+        future_date = timezone.localdate() + timedelta(days=1)
+        response = self.client.post(reverse('self_test_report'), {
+            'test_type': 'finger_prick',
+            'kit_source': 'chw',
+            'test_date': future_date.isoformat(),
+            'result': 'negative',
+            'followed_instructions': 'yes',
+            'confirmatory_test': 'no',
+            'support_needed': 'no',
+            'notes': '',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Test date cannot be in the future.')
+
+    def test_anonymous_user_is_redirected_from_self_test_report(self):
+        response = self.client.get(reverse('self_test_report'))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('self_test_report')}",
+        )
+
+    def test_authenticated_user_can_view_side_effect_report(self):
+        user = self.create_user('side-effect-user', 'client')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('side_effect_report'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Report Side Effects')
+        self.assertContains(response, 'Which prevention medicine or product are you using?')
+        self.assertContains(response, 'Find a Clinic')
+        self.assertContains(response, 'data-wizard-page')
+
+    def test_side_effect_report_returns_urgent_guidance(self):
+        user = self.create_user('urgent-side-effect-user', 'client')
+        self.client.force_login(user)
+
+        response = self.client.post(reverse('side_effect_report'), {
+            'prevention_method': 'lenacapavir',
+            'symptom_start_date': timezone.localdate().isoformat(),
+            'symptoms': 'Severe rash and swelling',
+            'severity': 'severe',
+            'status': 'worse',
+            'urgent_symptoms': 'yes',
+            'stopped_medicine': 'yes',
+            'facility_visit': 'no',
+            'support_needed': 'yes',
+            'contact_preference': 'Phone',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Urgent care')
+        self.assertContains(response, 'Seek urgent care now')
+        self.assertContains(response, 'Tell a provider you stopped or missed medicine')
+
+    def test_side_effect_report_rejects_future_symptom_date(self):
+        user = self.create_user('future-side-effect-user', 'client')
+        self.client.force_login(user)
+
+        future_date = timezone.localdate() + timedelta(days=1)
+        response = self.client.post(reverse('side_effect_report'), {
+            'prevention_method': 'oral_prep',
+            'symptom_start_date': future_date.isoformat(),
+            'symptoms': 'Nausea',
+            'severity': 'mild',
+            'status': 'ongoing',
+            'urgent_symptoms': 'no',
+            'stopped_medicine': 'no',
+            'facility_visit': 'no',
+            'support_needed': 'no',
+            'contact_preference': '',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Symptom start date cannot be in the future.')
+
+    def test_anonymous_user_is_redirected_from_side_effect_report(self):
+        response = self.client.get(reverse('side_effect_report'))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('side_effect_report')}",
+        )
+
+    def create_facility(self):
+        province = Province.objects.create(name='Lusaka')
+        district = District.objects.create(name='Lusaka', province=province)
+        return Facility.objects.create(
+            name='Central Clinic',
+            district=district,
+            level='Primary',
+        )
+
+    def test_authenticated_user_can_view_clinic_feedback(self):
+        user = self.create_user('feedback-user', 'client')
+        facility = self.create_facility()
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('clinic_feedback'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Rate Clinic Services')
+        self.assertContains(response, 'Which clinic did you visit?')
+        self.assertContains(response, facility.name)
+        self.assertContains(response, 'data-wizard-page')
+        self.assertContains(response, 'data-star-rating')
+
+    def test_clinic_feedback_returns_review_guidance(self):
+        user = self.create_user('low-feedback-user', 'client')
+        facility = self.create_facility()
+        self.client.force_login(user)
+
+        response = self.client.post(reverse('clinic_feedback'), {
+            'facility': facility.pk,
+            'visit_date': timezone.localdate().isoformat(),
+            'visit_reason': 'prep',
+            'overall_rating': '2',
+            'wait_time_rating': '1',
+            'staff_respect_rating': '2',
+            'medicine_availability': 'no',
+            'would_recommend': 'no',
+            'follow_up_needed': 'yes',
+            'comments': 'Long wait and no medicine available.',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Needs review')
+        self.assertContains(response, 'Waiting time was rated low')
+        self.assertContains(response, 'Follow-up was requested')
+
+    def test_clinic_feedback_rejects_future_visit_date(self):
+        user = self.create_user('future-feedback-user', 'client')
+        facility = self.create_facility()
+        self.client.force_login(user)
+
+        future_date = timezone.localdate() + timedelta(days=1)
+        response = self.client.post(reverse('clinic_feedback'), {
+            'facility': facility.pk,
+            'visit_date': future_date.isoformat(),
+            'visit_reason': 'testing',
+            'overall_rating': '5',
+            'wait_time_rating': '5',
+            'staff_respect_rating': '5',
+            'medicine_availability': 'yes',
+            'would_recommend': 'yes',
+            'follow_up_needed': 'no',
+            'comments': '',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Visit date cannot be in the future.')
+
+    def test_anonymous_user_is_redirected_from_clinic_feedback(self):
+        response = self.client.get(reverse('clinic_feedback'))
+
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('clinic_feedback')}",
         )
 
     def test_profile_inactive_user_cannot_log_in(self):

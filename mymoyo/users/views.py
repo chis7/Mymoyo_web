@@ -27,7 +27,11 @@ from .models import Appointment, AuditLog, UserProfile
 from .audit import should_audit_model
 from .forms import (
     AppointmentForm,
+    ClinicFeedbackForm,
     PublicRegistrationForm,
+    SideEffectReportForm,
+    SelfRiskAssessmentForm,
+    SelfTestReportForm,
     UserForm,
     UserProfileForm,
     UserCreationForm,
@@ -306,6 +310,310 @@ def medication_reminders(request):
 
     return render(request, 'users/medication_reminders.html', {
         'prevention_methods': prevention_methods,
+    })
+
+
+def calculate_self_risk_assessment(cleaned_data):
+    score = 0
+    risk_factors = []
+
+    if cleaned_data.get('recent_test') in {'over_12_months', 'never'}:
+        score += 2
+        risk_factors.append('HIV testing may be overdue.')
+    elif cleaned_data.get('recent_test') == '12_months':
+        score += 1
+
+    partner_scores = {'2_4': 2, '5_plus': 3}
+    score += partner_scores.get(cleaned_data.get('partners'), 0)
+    if cleaned_data.get('partners') in partner_scores:
+        risk_factors.append('Multiple recent partners can increase exposure risk.')
+
+    condom_scores = {'sometimes': 1, 'rarely': 2}
+    score += condom_scores.get(cleaned_data.get('condom_use'), 0)
+    if cleaned_data.get('condom_use') in condom_scores:
+        risk_factors.append('Condom use has not been consistent.')
+
+    if cleaned_data.get('partner_status') in {'yes', 'unsure'}:
+        score += 2
+        risk_factors.append('A partner has positive or unknown HIV status.')
+
+    if cleaned_data.get('sti_symptoms') == 'yes':
+        score += 2
+        risk_factors.append('Recent STI symptoms or treatment can signal higher HIV exposure risk.')
+    elif cleaned_data.get('sti_symptoms') == 'unsure':
+        score += 1
+
+    if cleaned_data.get('prep_use') in {'no', 'yes_past', 'unsure'}:
+        score += 1
+
+    if cleaned_data.get('pregnancy_or_breastfeeding') == 'yes':
+        score += 1
+        risk_factors.append('Pregnancy or breastfeeding is a good time to review HIV prevention options.')
+
+    if cleaned_data.get('safety_concerns') == 'yes':
+        score += 1
+        risk_factors.append('Safety concerns may make prevention planning harder without support.')
+
+    if score >= 7:
+        level = 'Higher'
+        badge = 'danger'
+        summary = 'Your answers suggest higher HIV exposure risk. A provider can help with HIV testing, PrEP options, STI care, and a prevention plan that fits your situation.'
+        next_steps = [
+            'Book or visit a clinic for HIV testing and prevention counselling as soon as possible.',
+            'Ask about PrEP options, including daily pills or long-acting injectable options where available.',
+            'Seek urgent care if you may have been exposed to HIV within the last 72 hours.',
+        ]
+    elif score >= 4:
+        level = 'Moderate'
+        badge = 'warning'
+        summary = 'Your answers show some risk factors. A clinic visit can help confirm your HIV status and choose the right prevention support.'
+        next_steps = [
+            'Schedule HIV testing if you have not tested recently.',
+            'Discuss PrEP or other prevention methods with a health worker.',
+            'Use condoms and consider STI screening if you have symptoms or a new partner.',
+        ]
+    else:
+        level = 'Lower'
+        badge = 'success'
+        summary = 'Your answers suggest lower current HIV exposure risk. Keep testing regularly and continue prevention habits that work for you.'
+        next_steps = [
+            'Continue routine HIV testing based on your provider guidance.',
+            'Use condoms and prevention medicine consistently when recommended.',
+            'Retake this assessment if your relationship, partner status, or symptoms change.',
+        ]
+
+    return {
+        'score': score,
+        'level': level,
+        'badge': badge,
+        'summary': summary,
+        'risk_factors': risk_factors,
+        'next_steps': next_steps,
+    }
+
+
+@active_login_required
+def self_risk_assessment(request):
+    result = None
+    form = SelfRiskAssessmentForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        result = calculate_self_risk_assessment(form.cleaned_data)
+
+    return render(request, 'users/self_risk_assessment.html', {
+        'form': form,
+        'result': result,
+    })
+
+
+def get_self_test_guidance(cleaned_data):
+    result = cleaned_data.get('result')
+    followed_instructions = cleaned_data.get('followed_instructions')
+    confirmatory_test = cleaned_data.get('confirmatory_test')
+    support_needed = cleaned_data.get('support_needed')
+
+    if result == 'positive':
+        level = 'Confirm at clinic'
+        badge = 'danger'
+        summary = 'A reactive self-test result must be confirmed by a trained health worker. The next step is confirmatory HIV testing and supportive counselling.'
+        next_steps = [
+            'Visit a clinic or contact a health worker for confirmatory testing as soon as possible.',
+            'Do not start or stop HIV treatment based only on a self-test result.',
+            'Bring the kit or a photo of the result if you can do so privately and safely.',
+        ]
+    elif result == 'negative':
+        level = 'Negative reported'
+        badge = 'success'
+        summary = 'A negative self-test is reassuring, but recent exposure can still require repeat testing or prevention support.'
+        next_steps = [
+            'Repeat testing if you may have been exposed recently or if a provider recommends it.',
+            'Consider PrEP, condoms, or other prevention options if you have ongoing exposure risk.',
+            'Use the risk screening tool if you want help deciding what prevention support fits.',
+        ]
+    elif result == 'invalid':
+        level = 'Retest needed'
+        badge = 'warning'
+        summary = 'An invalid or unclear result cannot confirm your HIV status. Use a new kit or visit a clinic for assisted testing.'
+        next_steps = [
+            'Use a new self-test kit and follow the timing instructions carefully.',
+            'Visit a clinic if another result is unclear or if you need help reading it.',
+            'Keep the used kit private and dispose of it safely.',
+        ]
+    else:
+        level = 'Finish reading'
+        badge = 'warning'
+        summary = 'Read the test only within the kit instructions timing window. Reading too early or too late can make the result unreliable.'
+        next_steps = [
+            'Check the kit instructions for the correct reading time.',
+            'If the reading window has passed, use a new kit or visit a clinic.',
+            'Ask a health worker for support if you are unsure what the result means.',
+        ]
+
+    alerts = []
+    if followed_instructions in {'no', 'unsure'}:
+        alerts.append('The result may be less reliable if kit instructions or timing were not followed.')
+    if result == 'positive' and confirmatory_test != 'yes':
+        alerts.append('Confirmatory testing is still needed before any diagnosis or treatment decision.')
+    if support_needed == 'yes':
+        alerts.append('A health worker can help with confirmatory testing, counselling, prevention, or linkage to care.')
+
+    return {
+        'level': level,
+        'badge': badge,
+        'summary': summary,
+        'next_steps': next_steps,
+        'alerts': alerts,
+    }
+
+
+@active_login_required
+def self_test_report(request):
+    guidance = None
+    form = SelfTestReportForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        guidance = get_self_test_guidance(form.cleaned_data)
+
+    return render(request, 'users/self_test_report.html', {
+        'form': form,
+        'guidance': guidance,
+    })
+
+
+def get_side_effect_guidance(cleaned_data):
+    severity = cleaned_data.get('severity')
+    urgent_symptoms = cleaned_data.get('urgent_symptoms')
+    status = cleaned_data.get('status')
+    stopped_medicine = cleaned_data.get('stopped_medicine')
+    facility_visit = cleaned_data.get('facility_visit')
+    support_needed = cleaned_data.get('support_needed')
+
+    if urgent_symptoms == 'yes' or severity == 'severe':
+        level = 'Urgent care'
+        badge = 'danger'
+        summary = 'Your report includes symptoms that need urgent clinical attention. Please contact emergency services, a clinic, or a health worker now.'
+        next_steps = [
+            'Seek urgent care now, especially for breathing problems, chest pain, fainting, swelling, or severe rash.',
+            'Bring your medication package, injection card, or product name if you can.',
+            'Do not take another dose until a health worker advises you if symptoms are severe.',
+        ]
+    elif severity == 'moderate' or status == 'worse':
+        level = 'Clinical follow-up'
+        badge = 'warning'
+        summary = 'Your symptoms may need review by a provider, especially if they are affecting daily activities or getting worse.'
+        next_steps = [
+            'Contact a clinic or health worker for assessment and side-effect management.',
+            'Keep a note of when symptoms started, how often they happen, and any missed doses.',
+            'Ask whether you should continue, pause, or switch prevention options.',
+        ]
+    else:
+        level = 'Monitor symptoms'
+        badge = 'success'
+        summary = 'Your report sounds mild or improving. Continue monitoring and seek care if symptoms worsen or do not settle.'
+        next_steps = [
+            'Track symptoms for the next few days and keep using the medicine as advised.',
+            'Contact a clinic if the side effect gets worse, persists, or worries you.',
+            'Report any new severe symptoms immediately.',
+        ]
+
+    alerts = []
+    if stopped_medicine == 'yes':
+        alerts.append('Tell a provider you stopped or missed medicine so they can help keep your prevention plan effective.')
+    if facility_visit != 'yes':
+        alerts.append('A health worker can confirm whether the symptom is medicine-related and advise what to do next.')
+    if support_needed == 'yes':
+        alerts.append('Follow-up support is recommended based on your preference.')
+
+    return {
+        'level': level,
+        'badge': badge,
+        'summary': summary,
+        'next_steps': next_steps,
+        'alerts': alerts,
+    }
+
+
+@active_login_required
+def side_effect_report(request):
+    guidance = None
+    form = SideEffectReportForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        guidance = get_side_effect_guidance(form.cleaned_data)
+
+    return render(request, 'users/side_effect_report.html', {
+        'form': form,
+        'guidance': guidance,
+    })
+
+
+def get_clinic_feedback_guidance(cleaned_data):
+    overall_rating = int(cleaned_data.get('overall_rating') or 0)
+    wait_time_rating = int(cleaned_data.get('wait_time_rating') or 0)
+    staff_respect_rating = int(cleaned_data.get('staff_respect_rating') or 0)
+    medicine_availability = cleaned_data.get('medicine_availability')
+    would_recommend = cleaned_data.get('would_recommend')
+    follow_up_needed = cleaned_data.get('follow_up_needed')
+
+    average_rating = round((overall_rating + wait_time_rating + staff_respect_rating) / 3, 1)
+
+    if average_rating <= 2.5 or medicine_availability == 'no' or would_recommend == 'no':
+        level = 'Needs review'
+        badge = 'warning'
+        summary = 'Thank you for reporting a clinic experience that may need follow-up. Your feedback highlights service areas that should be reviewed.'
+        next_steps = [
+            'A supervisor or health worker should review the service concern if follow-up is requested.',
+            'Use Find a Clinic if you need another nearby service point.',
+            'Seek urgent care immediately if the clinic visit was related to a serious health concern.',
+        ]
+    elif average_rating < 4:
+        level = 'Feedback received'
+        badge = 'success'
+        summary = 'Thank you. Your feedback notes a mixed service experience and can help improve clinic quality.'
+        next_steps = [
+            'Your rating can help identify service improvements.',
+            'Share specific comments when possible so teams know what to improve.',
+            'Return for scheduled follow-up or use Find a Clinic for alternatives.',
+        ]
+    else:
+        level = 'Positive rating'
+        badge = 'success'
+        summary = 'Thank you for sharing a positive clinic experience. Feedback like this helps identify what is working well.'
+        next_steps = [
+            'Keep attending scheduled visits and prevention follow-ups.',
+            'Share any specific staff or service strengths in the comments next time.',
+            'Retake this form after future visits if your experience changes.',
+        ]
+
+    alerts = []
+    if wait_time_rating <= 2:
+        alerts.append('Waiting time was rated low and may need attention.')
+    if staff_respect_rating <= 2:
+        alerts.append('Respect or privacy was rated low and should be reviewed.')
+    if follow_up_needed == 'yes':
+        alerts.append('Follow-up was requested for this feedback.')
+
+    return {
+        'level': level,
+        'badge': badge,
+        'summary': summary,
+        'next_steps': next_steps,
+        'alerts': alerts,
+        'average_rating': average_rating,
+    }
+
+
+@active_login_required
+def clinic_feedback(request):
+    guidance = None
+    form = ClinicFeedbackForm(request.POST or None)
+
+    if request.method == 'POST' and form.is_valid():
+        guidance = get_clinic_feedback_guidance(form.cleaned_data)
+
+    return render(request, 'users/clinic_feedback.html', {
+        'form': form,
+        'guidance': guidance,
     })
 
 

@@ -22,7 +22,11 @@ from users import views as user_views
 urlpatterns = [
     path('', RedirectView.as_view(pattern_name='portal_home', permanent=False)),
     path('admin/', admin.site.urls),
+    path('feedback/', user_views.clinic_feedback, name='clinic_feedback'),
     path('reminders/', user_views.medication_reminders, name='medication_reminders'),
+    path('hivst/self-report/', user_views.self_test_report, name='self_test_report'),
+    path('pv/client-report/', user_views.side_effect_report, name='side_effect_report'),
+    path('self-screening/', user_views.self_risk_assessment, name='self_risk_assessment'),
     path('chatbot/', include('chatbot.urls')),
     path('facilities/', include('locations.urls')),
     path('users/', include('users.urls')),

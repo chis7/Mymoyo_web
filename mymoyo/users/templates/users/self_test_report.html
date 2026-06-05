@@ -1,0 +1,458 @@
+{% extends "users/base.html" %}
+
+{% block title %}Recent Self-Test{% endblock %}
+
+{% block extra_head %}
+<style>
+    .self-test-page {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+        min-height: 0;
+    }
+    .management-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--theme-text-muted);
+        font-size: 0.92rem;
+        font-weight: 700;
+    }
+    .management-breadcrumb a {
+        color: var(--theme-primary);
+        text-decoration: none;
+    }
+    .management-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+    .management-breadcrumb .material-symbols-outlined {
+        color: var(--theme-text-muted);
+        font-size: 1rem;
+    }
+    .management-breadcrumb [aria-current="page"] {
+        color: var(--theme-text-strong);
+    }
+    .management-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 0.35rem;
+    }
+    .self-test-title {
+        margin: 0;
+        color: var(--theme-text-strong);
+        font-size: 1.45rem;
+        font-weight: 800;
+    }
+    .self-test-subtitle {
+        max-width: 780px;
+        margin: 0.35rem 0 0;
+        color: var(--theme-text-muted);
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    .self-test-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+        gap: 1rem;
+        align-items: start;
+    }
+    .self-test-card {
+        background: var(--theme-surface);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+        overflow: hidden;
+    }
+    .self-test-card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+        border-bottom: 2px solid rgba(var(--theme-primary-rgb), 0.16);
+        background: var(--theme-soft);
+        color: var(--theme-surface-text);
+        font-weight: 800;
+    }
+    .self-test-card-header .material-symbols-outlined {
+        color: var(--theme-primary);
+    }
+    .self-test-card-body {
+        padding: 1.25rem;
+    }
+    .self-test-fields {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+    .self-test-field.full {
+        grid-column: 1 / -1;
+    }
+    .self-test-field label {
+        display: block;
+        min-height: 2.6rem;
+        margin-bottom: 0.45rem;
+        color: var(--theme-surface-text);
+        font-size: 0.88rem;
+        font-weight: 800;
+        line-height: 1.35;
+    }
+    .self-test-field .form-select,
+    .self-test-field .form-control {
+        width: 100%;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        color: var(--theme-surface-text);
+        font-weight: 600;
+    }
+    .self-test-field textarea.form-control {
+        min-height: 6rem;
+        resize: vertical;
+    }
+    .self-test-field .form-select:focus,
+    .self-test-field .form-control:focus {
+        border-color: var(--theme-primary);
+        box-shadow: 0 0 0 3px var(--theme-focus);
+    }
+    .self-test-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+    }
+    .wizard-progress {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        border-radius: 8px;
+        background: rgba(var(--theme-primary-rgb), 0.04);
+        color: var(--theme-text-muted);
+        font-size: 0.88rem;
+        font-weight: 800;
+    }
+    .wizard-dots {
+        display: flex;
+        gap: 0.4rem;
+    }
+    .wizard-dot {
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 999px;
+        background: rgba(var(--theme-primary-rgb), 0.18);
+    }
+    .wizard-dot.active {
+        background: var(--theme-primary);
+    }
+    .wizard-page {
+        display: none;
+    }
+    .wizard-page.active {
+        display: block;
+    }
+    .wizard-nav {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 1.25rem;
+    }
+    .create-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border: none;
+        border-radius: 8px;
+        background: var(--theme-primary);
+        color: white;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    .create-btn:hover {
+        background: var(--theme-primary-hover);
+        color: white;
+    }
+    .secondary-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.7rem 1rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.2);
+        border-radius: 8px;
+        background: transparent;
+        color: var(--theme-primary);
+        font-weight: 800;
+        text-decoration: none;
+    }
+    .guidance-panel {
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        border-radius: 12px;
+        padding: 1rem;
+        background: rgba(var(--theme-primary-rgb), 0.05);
+    }
+    .guidance-level {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 800;
+    }
+    .guidance-level.success {
+        border: 1px solid rgba(var(--theme-life-rgb), 0.28);
+        background: rgba(var(--theme-life-rgb), 0.16);
+        color: var(--theme-text-strong);
+    }
+    .guidance-level.warning {
+        border: 1px solid rgba(var(--theme-highlight-rgb), 0.55);
+        background: rgba(var(--theme-highlight-rgb), 0.22);
+        color: var(--theme-text-strong);
+    }
+    .guidance-level.danger {
+        border: 1px solid rgba(185, 28, 28, 0.22);
+        background: rgba(248, 113, 113, 0.16);
+        color: #991b1b;
+    }
+    .guidance-panel h2 {
+        margin: 0.8rem 0 0.5rem;
+        color: var(--theme-text-strong);
+        font-size: 1.15rem;
+        font-weight: 800;
+    }
+    .guidance-panel p,
+    .support-panel p {
+        color: var(--theme-text-muted);
+        font-size: 0.92rem;
+        font-weight: 600;
+        line-height: 1.55;
+    }
+    .guidance-list {
+        display: grid;
+        gap: 0.6rem;
+        margin: 0.75rem 0 0;
+        padding: 0;
+        list-style: none;
+    }
+    .guidance-list li {
+        display: flex;
+        gap: 0.5rem;
+        color: var(--theme-surface-text);
+        font-size: 0.9rem;
+        font-weight: 700;
+        line-height: 1.45;
+    }
+    .guidance-list .material-symbols-outlined {
+        flex: 0 0 auto;
+        color: var(--theme-primary);
+        font-size: 1.05rem;
+    }
+    .support-panel {
+        display: grid;
+        gap: 1rem;
+    }
+    .support-tile {
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        border-radius: 8px;
+        padding: 0.9rem;
+        background: rgba(var(--theme-primary-rgb), 0.04);
+    }
+    .support-tile strong {
+        display: block;
+        margin-bottom: 0.25rem;
+        color: var(--theme-surface-text);
+        font-size: 0.95rem;
+    }
+    .invalid-feedback {
+        font-weight: 700;
+    }
+    @media (max-width: 980px) {
+        .self-test-grid,
+        .self-test-fields {
+            grid-template-columns: 1fr;
+        }
+        .self-test-field label {
+            min-height: 0;
+        }
+    }
+    @media (max-width: 768px) {
+        .management-header,
+        .self-test-actions {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .create-btn,
+        .secondary-btn {
+            justify-content: center;
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="self-test-page">
+    <nav class="management-breadcrumb" aria-label="Breadcrumb">
+        <a href="{% url 'portal_home' %}">Home</a>
+        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+        <span aria-current="page">Recent Self-Test</span>
+    </nav>
+
+    <div class="management-header">
+        <div>
+            <h1 class="self-test-title">Recent Self-Test</h1>
+            <p class="self-test-subtitle">Report a recent HIV self-test result and get clear next steps for confirmatory testing, prevention, or support.</p>
+        </div>
+    </div>
+
+    <div class="self-test-grid">
+        <section class="self-test-card">
+            <div class="self-test-card-header">
+                <span class="material-symbols-outlined" aria-hidden="true">science</span>
+                Self-test report
+            </div>
+            <div class="self-test-card-body">
+                <form method="post" novalidate data-wizard-form>
+                    {% csrf_token %}
+                    <div class="wizard-progress">
+                        <span data-wizard-progress>Step 1</span>
+                        <div class="wizard-dots" aria-hidden="true" data-wizard-dots></div>
+                    </div>
+                    {% for field in form %}
+                        {% if forloop.counter0|divisibleby:3 %}
+                            <div class="wizard-page{% if forloop.first %} active{% endif %}" data-wizard-page>
+                                <div class="self-test-fields">
+                        {% endif %}
+                                    <div class="self-test-field {% if field.name == 'notes' %}full{% endif %}" data-wizard-field>
+                                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                        {{ field }}
+                                        {% for error in field.errors %}
+                                            <div class="invalid-feedback d-block">{{ error }}</div>
+                                        {% endfor %}
+                                    </div>
+                        {% if forloop.counter|divisibleby:3 or forloop.last %}
+                                </div>
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                    <div class="wizard-nav">
+                        <button class="secondary-btn" type="button" data-wizard-prev>Back</button>
+                        <button class="create-btn" type="button" data-wizard-next>Next</button>
+                        <button class="create-btn" type="submit" data-wizard-submit>
+                            <span class="material-symbols-outlined" aria-hidden="true">assignment_turned_in</span>
+                            Submit Report
+                        </button>
+                        <a class="secondary-btn" href="{% url 'facility_map' %}">
+                            <span class="material-symbols-outlined" aria-hidden="true">local_hospital</span>
+                            Find a Clinic
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <aside class="self-test-card">
+            <div class="self-test-card-header">
+                <span class="material-symbols-outlined" aria-hidden="true">support_agent</span>
+                Result guidance
+            </div>
+            <div class="self-test-card-body">
+                {% if guidance %}
+                    <div class="guidance-panel">
+                        <span class="guidance-level {{ guidance.badge }}">
+                            <span class="material-symbols-outlined" aria-hidden="true">clinical_notes</span>
+                            {{ guidance.level }}
+                        </span>
+                        <h2>Recommended next steps</h2>
+                        <p>{{ guidance.summary }}</p>
+                        <ul class="guidance-list">
+                            {% for step in guidance.next_steps %}
+                                <li>
+                                    <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+                                    <span>{{ step }}</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        {% if guidance.alerts %}
+                            <h2>Important notes</h2>
+                            <ul class="guidance-list">
+                                {% for alert in guidance.alerts %}
+                                    <li>
+                                        <span class="material-symbols-outlined" aria-hidden="true">info</span>
+                                        <span>{{ alert }}</span>
+                                    </li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                {% else %}
+                    <div class="support-panel">
+                        <div class="support-tile">
+                            <strong>Reactive results need confirmation</strong>
+                            <p class="mb-0">A positive or reactive self-test is not a diagnosis until confirmed at a clinic.</p>
+                        </div>
+                        <div class="support-tile">
+                            <strong>Invalid results need retesting</strong>
+                            <p class="mb-0">If the kit result is unclear, use a new kit or ask a health worker for assisted testing.</p>
+                        </div>
+                        <div class="support-tile">
+                            <strong>Recent exposure matters</strong>
+                            <p class="mb-0">If exposure may have happened in the last 72 hours, contact a clinic urgently and ask about PEP.</p>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </aside>
+    </div>
+</div>
+<script>
+    (function () {
+        document.querySelectorAll('[data-wizard-form]').forEach(function (form) {
+            const pages = Array.from(form.querySelectorAll('[data-wizard-page]'));
+            const prevButton = form.querySelector('[data-wizard-prev]');
+            const nextButton = form.querySelector('[data-wizard-next]');
+            const submitButton = form.querySelector('[data-wizard-submit]');
+            const progress = form.querySelector('[data-wizard-progress]');
+            const dots = form.querySelector('[data-wizard-dots]');
+            let currentPage = pages.findIndex((page) => page.querySelector('.invalid-feedback'));
+            if (currentPage < 0) {
+                currentPage = 0;
+            }
+
+            pages.forEach(function () {
+                const dot = document.createElement('span');
+                dot.className = 'wizard-dot';
+                dots.appendChild(dot);
+            });
+
+            function showPage(index) {
+                currentPage = Math.max(0, Math.min(index, pages.length - 1));
+                pages.forEach(function (page, pageIndex) {
+                    page.classList.toggle('active', pageIndex === currentPage);
+                });
+                Array.from(dots.children).forEach(function (dot, dotIndex) {
+                    dot.classList.toggle('active', dotIndex === currentPage);
+                });
+                progress.textContent = `Step ${currentPage + 1} of ${pages.length}`;
+                prevButton.hidden = currentPage === 0;
+                nextButton.hidden = currentPage === pages.length - 1;
+                submitButton.hidden = currentPage !== pages.length - 1;
+            }
+
+            prevButton.addEventListener('click', function () {
+                showPage(currentPage - 1);
+            });
+            nextButton.addEventListener('click', function () {
+                showPage(currentPage + 1);
+            });
+            showPage(currentPage);
+        });
+    })();
+</script>
+{% endblock %}
