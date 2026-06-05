@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 import os
+from importlib.util import find_spec
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -31,6 +32,16 @@ def load_env_file(path):
 
 
 load_env_file(BASE_DIR / '.env')
+
+
+def env_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+RUNNING_IN_DOCKER = env_bool('RUNNING_IN_DOCKER') or Path('/.dockerenv').exists()
 
 
 # Quick-start development settings - unsuitable for production
@@ -61,7 +72,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    "whitenoise.middleware.WhiteNoiseMiddleware",  # Must be directly below SecurityMiddleware
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -69,6 +79,10 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if RUNNING_IN_DOCKER or find_spec('whitenoise') is not None:
+    # Must be directly below SecurityMiddleware when available.
+    MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
 ROOT_URLCONF = 'mymoyo.urls'
 
@@ -101,10 +115,16 @@ AUTHENTICATION_BACKENDS = [
 POSTGRES_DB = os.environ.get('POSTGRES_DB', 'mymoyo')
 POSTGRES_USER = os.environ.get('POSTGRES_USER', 'postgres')
 # keep the default password here in sync with your .env; .env should be used in development
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'p@sswOrd')
-# default to localhost so when using host port mapping the app connects to the host
-POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'db')
-POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '55432')
+POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', '***REMOVED_POSTGRES_PASSWORD***')
+POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'db' if RUNNING_IN_DOCKER else '127.0.0.1')
+POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432' if RUNNING_IN_DOCKER else '55432')
+
+# The Compose service name `db` only resolves inside Docker. When running Django
+# directly on the host, use the database port published by docker-compose.yml.
+if not RUNNING_IN_DOCKER and POSTGRES_HOST == 'db':
+    POSTGRES_HOST = '127.0.0.1'
+    if POSTGRES_PORT == '5432':
+        POSTGRES_PORT = '55432'
 
 DATABASES = {
     'default': {
@@ -157,7 +177,8 @@ STATIC_URL = 'static/'
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 
 # If you store custom assets in a top-level 'static' folder
-STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
+STATIC_DIR = BASE_DIR / 'static'
+STATICFILES_DIRS = [STATIC_DIR] if STATIC_DIR.exists() else []
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'portal_home'
@@ -177,9 +198,14 @@ EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'false').lower() == 'true'
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 OPENAI_CHATBOT_MODEL = os.environ.get('OPENAI_CHATBOT_MODEL', 'gpt-5-mini')
 
-OSRM_BASE_URL = os.environ.get('OSRM_BASE_URL', 'http://osrm-zambia:5000').rstrip('/')
+OSRM_BASE_URL = (
+    os.environ.get('OSRM_BASE_URL')
+    or os.environ.get('OSRM_URL')
+    or ('http://osrm-zambia:5000' if RUNNING_IN_DOCKER else 'http://127.0.0.1:5000')
+).rstrip('/')
+if not RUNNING_IN_DOCKER and '://osrm-zambia:' in OSRM_BASE_URL:
+    OSRM_BASE_URL = OSRM_BASE_URL.replace('://osrm-zambia:', '://127.0.0.1:')
 OSRM_ROUTE_PROFILE = os.environ.get('OSRM_ROUTE_PROFILE', 'driving')
 OSRM_DISTANCE_CANDIDATE_LIMIT = int(os.environ.get('OSRM_DISTANCE_CANDIDATE_LIMIT', '99'))
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-
