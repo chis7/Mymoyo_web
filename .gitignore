@@ -1,2 +1,9 @@
 /.agents
 /.codex
+
+# Local/generated OSRM map data
+mymoyo/osrm-data/zambia-260602*
+
+# Python bytecode/cache files
+__pycache__/
+*.py[cod]
