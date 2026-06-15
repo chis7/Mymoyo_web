@@ -15,12 +15,27 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.conf import settings
+from django.http import FileResponse
+from django.shortcuts import render
+from django.urls import path, include, re_path
 from django.views.generic import RedirectView
 from users import views as user_views
 
+
+def vue_frontend(request, path=''):
+    index_path = settings.FRONTEND_DIST_DIR / 'index.html'
+    if index_path.exists():
+        return FileResponse(index_path.open('rb'), content_type='text/html')
+    return render(request, 'frontend/unbuilt.html')
+
+
 urlpatterns = [
     path('', RedirectView.as_view(pattern_name='portal_home', permanent=False)),
+    path('api/', include('api.urls')),
+    path('api-auth/', include('rest_framework.urls')),
+    path('app/', vue_frontend, name='vue_frontend'),
+    re_path(r'^app/(?P<path>.*)$', vue_frontend, name='vue_frontend_fallback'),
     path('admin/', admin.site.urls),
     path('feedback/', user_views.clinic_feedback, name='clinic_feedback'),
     path('reminders/', user_views.medication_reminders, name='medication_reminders'),

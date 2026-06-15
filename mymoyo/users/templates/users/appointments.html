@@ -20,21 +20,6 @@
         color: #6b7280;
         font-size: 0.95rem;
     }
-    .book-appointment-btn {
-        background: var(--theme-primary);
-        color: white;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.2s ease;
-    }
-    .book-appointment-btn:hover {
-        background: var(--theme-primary-hover);
-        color: white;
-        text-decoration: none;
-    }
     .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -142,6 +127,14 @@
         flex: 1;
         max-width: 400px;
     }
+    .appointments-hero .appointments-search {
+        width: min(100%, 440px);
+        max-width: 440px;
+    }
+    .appointments-search form {
+        display: flex;
+        gap: 0.5rem;
+    }
     .appointments-search input {
         width: 100%;
         padding: 0.75rem 1rem;
@@ -154,6 +147,15 @@
         outline: none;
         border-color: var(--theme-primary);
         box-shadow: 0 0 0 3px var(--theme-focus);
+    }
+    .appointments-search-status {
+        min-height: 1rem;
+        margin-top: 0.35rem;
+        color: #6b7280;
+        font-size: 0.78rem;
+    }
+    .appointments-search-status.loading {
+        color: var(--theme-primary);
     }
     .filter-btn {
         padding: 0.75rem 1rem;
@@ -208,6 +210,220 @@
         color: #6b7280;
         font-size: 0.95rem;
     }
+    .calendar-shell {
+        background: white;
+        border: 1px solid rgba(15, 23, 42, 0.06);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+    .calendar-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+    }
+    .calendar-toolbar h2 {
+        margin: 0;
+        color: #111827;
+        font-size: 1.25rem;
+        font-weight: 800;
+    }
+    .calendar-toolbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .calendar-nav-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 2.5rem;
+        min-height: 2.5rem;
+        padding: 0.65rem 0.8rem;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-radius: 8px;
+        background: #fff;
+        color: #374151;
+        font-weight: 800;
+        text-decoration: none;
+    }
+    .calendar-nav-btn:hover {
+        background: #f9fafb;
+        color: #111827;
+        text-decoration: none;
+    }
+    .calendar-weekdays,
+    .calendar-grid {
+        display: grid;
+        grid-template-columns: repeat(7, minmax(0, 1fr));
+    }
+    .calendar-weekdays {
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+        background: #f9fafb;
+    }
+    .calendar-weekday {
+        padding: 0.75rem;
+        color: #6b7280;
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-align: center;
+        text-transform: uppercase;
+    }
+    .calendar-day {
+        position: relative;
+        min-height: 8.5rem;
+        padding: 0.75rem;
+        border-right: 1px solid rgba(15, 23, 42, 0.06);
+        border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+        background: #fff;
+    }
+    .calendar-day:nth-child(7n) {
+        border-right: 0;
+    }
+    .calendar-day.muted {
+        background: #f9fafb;
+        color: #9ca3af;
+    }
+    .calendar-day.today {
+        box-shadow: inset 0 0 0 2px var(--theme-primary);
+    }
+    .calendar-day-number {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.55rem;
+        color: #374151;
+        font-weight: 800;
+    }
+    .calendar-count {
+        border-radius: 999px;
+        padding: 0.1rem 0.45rem;
+        background: var(--theme-soft);
+        color: var(--theme-primary);
+        font-size: 0.72rem;
+        font-weight: 800;
+    }
+    .calendar-day-menu {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.75rem;
+        height: 1.75rem;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: #6b7280;
+        cursor: pointer;
+        font-size: 1.15rem;
+        font-weight: 900;
+        line-height: 1;
+        opacity: 0;
+        transition: opacity 0.15s ease, background 0.15s ease, color 0.15s ease;
+    }
+    .calendar-day:hover .calendar-day-menu,
+    .calendar-day-menu:focus {
+        opacity: 1;
+    }
+    .calendar-day-menu:hover,
+    .calendar-day-menu:focus {
+        background: var(--theme-soft);
+        color: var(--theme-primary);
+        outline: none;
+    }
+    .calendar-events {
+        display: grid;
+        gap: 0.4rem;
+    }
+    .calendar-event {
+        display: grid;
+        width: 100%;
+        gap: 0.15rem;
+        padding: 0.45rem 0.5rem;
+        border-top: 0;
+        border-right: 0;
+        border-bottom: 0;
+        border-left: 3px solid var(--theme-primary);
+        border-radius: 6px;
+        background: rgba(var(--theme-primary-rgb), 0.08);
+        color: #1f2937;
+        cursor: pointer;
+        font-size: 0.78rem;
+        line-height: 1.25;
+        text-align: left;
+    }
+    .calendar-event:hover,
+    .calendar-event:focus {
+        box-shadow: 0 0 0 3px var(--theme-focus);
+        outline: none;
+    }
+    .calendar-event.completed {
+        border-left-color: #16a34a;
+        background: rgba(34, 197, 94, 0.1);
+    }
+    .calendar-event.missed {
+        border-left-color: #f97316;
+        background: rgba(249, 115, 22, 0.12);
+    }
+    .calendar-event strong,
+    .calendar-event span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .calendar-empty-note {
+        padding: 2rem;
+        color: #6b7280;
+        text-align: center;
+    }
+    .appointment-action-list {
+        display: grid;
+        gap: 0.85rem;
+        margin: 0 0 1.25rem;
+    }
+    .appointment-action-row {
+        display: grid;
+        grid-template-columns: 8rem minmax(0, 1fr);
+        gap: 1rem;
+        color: #374151;
+        font-size: 0.92rem;
+    }
+    .appointment-action-label {
+        color: #6b7280;
+        font-weight: 800;
+        text-transform: uppercase;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+    }
+    .appointment-modal-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+    }
+    @media (max-width: 900px) {
+        .calendar-weekdays {
+            display: none;
+        }
+        .calendar-grid {
+            grid-template-columns: 1fr;
+        }
+        .calendar-day {
+            min-height: auto;
+            border-right: 0;
+        }
+        .calendar-day.muted {
+            display: none;
+        }
+        .calendar-toolbar,
+        .appointments-controls,
+        .appointments-hero {
+            align-items: stretch;
+            flex-direction: column;
+        }
+    }
 </style>
 
 <div class="appointments-hero">
@@ -215,91 +431,139 @@
         <h1>Appointment Scheduler</h1>
         <p>Manage upcoming clinical visits, refills, and lab collections.</p>
     </div>
-    <button class="book-appointment-btn" data-bs-toggle="modal" data-bs-target="#bookAppointmentModal">
-        + BOOK APPOINTMENT
-    </button>
-</div>
-
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-card-header">
-            <div class="stat-card-label">Total Bookings</div>
-            <div class="stat-card-icon teal">📋</div>
-        </div>
-        <div class="stat-card-value">{{ stats.total }}</div>
-        <div class="stat-card-subtext">All-time scheduler queue</div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-card-header">
-            <div class="stat-card-label">Active Queue</div>
-            <div class="stat-card-icon blue">🕐</div>
-        </div>
-        <div class="stat-card-value">{{ stats.upcoming }}</div>
-        <div class="stat-card-subtext"><a href="{% url 'appointment_list' %}?status=upcoming">Visits pending</a></div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-card-header">
-            <div class="stat-card-label">Completed Visits</div>
-            <div class="stat-card-icon green">✔</div>
-        </div>
-        <div class="stat-card-value">{{ stats.completed }}</div>
-        <div class="stat-card-subtext">Registered confirmations</div>
-    </div>
-    
-    <div class="stat-card">
-        <div class="stat-card-header">
-            <div class="stat-card-label">Missed Visits</div>
-            <div class="stat-card-icon gray">⚡</div>
-        </div>
-        <div class="stat-card-value">{{ stats.missed }}</div>
-        <div class="stat-card-subtext">Requires client follow-up</div>
-    </div>
-</div>
-
-<div class="appointments-tabs">
-    <a href="?status=upcoming{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="appointments-tab {% if selected_status == 'upcoming' %}active{% endif %}">UPCOMING</a>
-    <a href="?status=completed{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="appointments-tab {% if selected_status == 'completed' %}active{% endif %}">COMPLETED</a>
-    <a href="?status=missed{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="appointments-tab {% if selected_status == 'missed' %}active{% endif %}">MISSED</a>
-</div>
-
-<div class="appointments-controls">
     <div class="appointments-search">
-        <form method="get" style="display:flex; gap:0.5rem;">
+        <form method="get" id="appointmentSearchForm">
             <input type="hidden" name="status" value="{{ selected_status }}">
-            <input type="text" name="q" value="{{ search_term }}" placeholder="Search records...">
+            <input type="hidden" name="month" value="{{ calendar_month_value }}">
+            <input type="text" name="q" value="{{ search_term }}" placeholder="Search appointments..." autocomplete="off">
             <button type="submit" class="filter-btn">Search</button>
         </form>
+        <div class="appointments-search-status" id="appointmentSearchStatus" role="status" aria-live="polite"></div>
     </div>
 </div>
 
-<div class="appointments-table">
-    <div class="appointments-table-header">
-        <div class="appointments-table-header-cell">Beneficiary</div>
-        <div class="appointments-table-header-cell">Visit Type</div>
-        <div class="appointments-table-header-cell">Time / Date</div>
-        <div class="appointments-table-header-cell">Status</div>
-    </div>
-    {% if appointments.exists %}
-        {% for appointment in appointments %}
-            <div class="appointments-table-row" style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:1rem; padding:1rem 1.5rem; border-top:1px solid rgba(15, 23, 42, 0.06);">
-                <div>
-                    <div style="font-weight:700; color:#111827;">{{ appointment.beneficiary.get_full_name|default:appointment.beneficiary.username }}</div>
-                    <div style="font-size:0.85rem; color:#6b7280; margin-top:0.25rem;">{{ appointment.facility.name }}, {{ appointment.district.name }}, {{ appointment.province.name }}</div>
-                </div>
-                <div style="font-weight:600; color:#374151;">{{ appointment.get_visit_purpose_display }}</div>
-                <div style="color:#374151; font-weight:600;">{{ appointment.appointment_date }}<br>{{ appointment.appointment_time }}</div>
-                <div style="font-weight:700; color:{% if appointment.status == 'completed' %}green{% elif appointment.status == 'upcoming' %}var(--theme-primary){% else %}#f97316{% endif %}; text-transform: uppercase;">{{ appointment.get_status_display }}</div>
-            </div>
-        {% endfor %}
-    {% else %}
-        <div class="appointments-empty-state">
-            <div class="appointments-empty-state-icon">📭</div>
-            <div class="appointments-empty-state-title">No records found</div>
-            <div class="appointments-empty-state-text">Try adjusting your filters or search terms.</div>
+<div id="appointmentCalendarContent">
+<div class="appointments-tabs">
+    <a href="?status=all&month={{ calendar_month_value }}{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="appointments-tab {% if selected_status == 'all' %}active{% endif %}">ALL</a>
+    <a href="?status=upcoming&month={{ calendar_month_value }}{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="appointments-tab {% if selected_status == 'upcoming' %}active{% endif %}">UPCOMING</a>
+    <a href="?status=completed&month={{ calendar_month_value }}{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="appointments-tab {% if selected_status == 'completed' %}active{% endif %}">COMPLETED</a>
+    <a href="?status=missed&month={{ calendar_month_value }}{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" class="appointments-tab {% if selected_status == 'missed' %}active{% endif %}">MISSED</a>
+</div>
+
+<section class="calendar-shell" aria-label="Appointment calendar">
+    <div class="calendar-toolbar">
+        <div>
+            <h2>{{ calendar_month|date:"F Y" }}</h2>
+            <div class="appointments-empty-state-text">{% if selected_status == 'all' %}All{% else %}{{ selected_status|title }}{% endif %} appointments{% if search_term %} matching "{{ search_term }}"{% endif %}</div>
         </div>
+        <div class="calendar-toolbar-actions">
+            <a class="calendar-nav-btn" href="?status={{ selected_status }}&month={{ previous_month_value }}{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" aria-label="Previous month">&lsaquo;</a>
+            <a class="calendar-nav-btn" href="?status={{ selected_status }}{% if search_term %}&q={{ search_term|urlencode }}{% endif %}">Today</a>
+            <a class="calendar-nav-btn" href="?status={{ selected_status }}&month={{ next_month_value }}{% if search_term %}&q={{ search_term|urlencode }}{% endif %}" aria-label="Next month">&rsaquo;</a>
+        </div>
+    </div>
+    <div class="calendar-weekdays" aria-hidden="true">
+        {% for label in weekday_labels %}
+            <div class="calendar-weekday">{{ label }}</div>
+        {% endfor %}
+    </div>
+    <div class="calendar-grid">
+        {% for week in calendar_weeks %}
+            {% for day in week %}
+                <article class="calendar-day {% if not day.in_month %}muted{% endif %} {% if day.is_today %}today{% endif %}">
+                    <div class="calendar-day-number">
+                        <span>{{ day.date|date:"j" }}</span>
+                        {% if day.in_month %}
+                            <button class="calendar-day-menu" type="button" title="Book appointment on {{ day.date|date:'M j, Y' }}" aria-label="Book appointment on {{ day.date|date:'M j, Y' }}" data-booking-date="{{ day.date|date:'Y-m-d' }}" data-bs-toggle="modal" data-bs-target="#bookAppointmentModal">...</button>
+                        {% elif day.appointments %}
+                            <span class="calendar-count">{{ day.appointments|length }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="calendar-events">
+                        {% for appointment in day.appointments %}
+                            <button
+                                class="calendar-event {{ appointment.status }}"
+                                type="button"
+                                data-bs-toggle="modal"
+                                data-bs-target="#appointmentActionModal"
+                                data-action-url="{% url 'appointment_update_status' appointment.pk %}"
+                                data-next-url="{{ request.get_full_path }}"
+                                data-beneficiary="{{ appointment.beneficiary.get_full_name|default:appointment.beneficiary.username }}"
+                                data-purpose="{{ appointment.get_visit_purpose_display }}"
+                                data-date="{{ appointment.appointment_date|date:'M j, Y' }}"
+                                data-time="{{ appointment.appointment_time|time:'H:i' }}"
+                                data-status="{{ appointment.get_status_display }}"
+                                data-facility="{{ appointment.facility.name }}"
+                                data-district="{{ appointment.district.name }}"
+                                data-province="{{ appointment.province.name }}"
+                                data-latitude="{{ appointment.facility.latitude|default:'' }}"
+                                data-longitude="{{ appointment.facility.longitude|default:'' }}"
+                            >
+                                <strong>{{ appointment.appointment_time|time:"H:i" }} - {{ appointment.beneficiary.get_full_name|default:appointment.beneficiary.username }}</strong>
+                                <span>{{ appointment.get_visit_purpose_display }}</span>
+                                <span>{{ appointment.facility.name }}</span>
+                            </button>
+                        {% endfor %}
+                    </div>
+                </article>
+            {% endfor %}
+        {% endfor %}
+    </div>
+    {% if not month_appointment_count %}
+        <div class="calendar-empty-note">No {% if selected_status == 'all' %}{% else %}{{ selected_status }} {% endif %}appointments match this calendar filter.</div>
     {% endif %}
+</section>
+</div>
+
+<!-- Appointment Action Modal -->
+<div class="modal fade" id="appointmentActionModal" tabindex="-1" aria-labelledby="appointmentActionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 16px;">
+            <div class="modal-header" style="border: none; padding: 1.5rem 1.5rem 0;">
+                <h5 class="modal-title" id="appointmentActionModalLabel" style="font-weight: 800; color: #1f2937;">Appointment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" style="padding: 1.5rem;">
+                <div class="appointment-action-list">
+                    <div class="appointment-action-row">
+                        <div class="appointment-action-label">Client</div>
+                        <div id="actionBeneficiary"></div>
+                    </div>
+                    <div class="appointment-action-row">
+                        <div class="appointment-action-label">Visit</div>
+                        <div id="actionPurpose"></div>
+                    </div>
+                    <div class="appointment-action-row">
+                        <div class="appointment-action-label">When</div>
+                        <div id="actionWhen"></div>
+                    </div>
+                    <div class="appointment-action-row">
+                        <div class="appointment-action-label">Facility</div>
+                        <div id="actionFacility"></div>
+                    </div>
+                    <div class="appointment-action-row">
+                        <div class="appointment-action-label">Status</div>
+                        <div id="actionStatus"></div>
+                    </div>
+                </div>
+                <div class="appointment-modal-actions">
+                    <form method="post" id="completeAppointmentForm" class="js-confirm-form" data-confirm-title="Mark completed?" data-confirm-text="Confirm that this appointment visit has been completed." data-confirm-button="Mark Completed">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="completed">
+                        <input type="hidden" name="next" class="js-action-next">
+                        <button type="submit" class="btn btn-success">Mark Completed</button>
+                    </form>
+                    <form method="post" id="missedAppointmentForm" class="js-confirm-form" data-confirm-title="Mark missed?" data-confirm-text="Confirm that this appointment was missed and needs follow-up." data-confirm-button="Mark Missed">
+                        {% csrf_token %}
+                        <input type="hidden" name="status" value="missed">
+                        <input type="hidden" name="next" class="js-action-next">
+                        <button type="submit" class="btn btn-warning">Mark Missed</button>
+                    </form>
+                    <a class="btn btn-outline-primary" id="appointmentDirectionsLink" href="#" target="_blank" rel="noopener">Directions</a>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Book Appointment Modal -->
@@ -458,6 +722,135 @@
         if (selectedDistrict) {
             filterOptions(facilitySelect, facilityOptions, 'district', selectedDistrict, selectedFacility);
         }
+    }
+
+    function bindBookingDateButtons(root = document) {
+        root.querySelectorAll('[data-booking-date]').forEach(button => {
+            if (button.dataset.boundBookingDate) return;
+            button.dataset.boundBookingDate = '1';
+            button.addEventListener('click', () => {
+                const appointmentDate = document.getElementById('id_appointment_date');
+                if (appointmentDate) {
+                    appointmentDate.value = button.dataset.bookingDate;
+                }
+            });
+        });
+    }
+
+    bindBookingDateButtons();
+
+    const appointmentSearchForm = document.getElementById('appointmentSearchForm');
+    const appointmentSearchStatus = document.getElementById('appointmentSearchStatus');
+    let appointmentSearchRequest;
+    let appointmentSearchTimeout;
+
+    function syncSearchFormFromUrl(url) {
+        if (!appointmentSearchForm) return;
+        const params = new URL(url, window.location.origin).searchParams;
+        appointmentSearchForm.querySelector('[name="status"]').value = params.get('status') || 'all';
+        appointmentSearchForm.querySelector('[name="month"]').value = params.get('month') || '{{ calendar_month_value }}';
+        appointmentSearchForm.querySelector('[name="q"]').value = params.get('q') || '';
+    }
+
+    async function updateAppointmentCalendar(url) {
+        if (appointmentSearchRequest) appointmentSearchRequest.abort();
+        appointmentSearchRequest = new AbortController();
+        appointmentSearchStatus.textContent = 'Searching appointments...';
+        appointmentSearchStatus.classList.add('loading');
+
+        try {
+            const response = await fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                signal: appointmentSearchRequest.signal,
+            });
+            if (!response.ok) throw new Error('Unable to search appointments.');
+
+            const html = await response.text();
+            const page = new DOMParser().parseFromString(html, 'text/html');
+            const nextContent = page.getElementById('appointmentCalendarContent');
+            const currentContent = document.getElementById('appointmentCalendarContent');
+            if (!nextContent || !currentContent) throw new Error('Calendar content was not found.');
+
+            currentContent.innerHTML = nextContent.innerHTML;
+            window.history.replaceState({}, '', url);
+            syncSearchFormFromUrl(url);
+            bindBookingDateButtons(currentContent);
+            bindAppointmentActionButtons(currentContent);
+            appointmentSearchStatus.textContent = 'Calendar updated.';
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            appointmentSearchStatus.textContent = 'Could not update appointments. Please try again.';
+        } finally {
+            appointmentSearchStatus.classList.remove('loading');
+        }
+    }
+
+    if (appointmentSearchForm) {
+        appointmentSearchForm.addEventListener('submit', event => {
+            event.preventDefault();
+            const params = new URLSearchParams(new FormData(appointmentSearchForm));
+            updateAppointmentCalendar(`${window.location.pathname}?${params.toString()}`);
+        });
+
+        const searchInput = appointmentSearchForm.querySelector('[name="q"]');
+        searchInput.addEventListener('input', () => {
+            clearTimeout(appointmentSearchTimeout);
+            appointmentSearchTimeout = setTimeout(() => {
+                const params = new URLSearchParams(new FormData(appointmentSearchForm));
+                updateAppointmentCalendar(`${window.location.pathname}?${params.toString()}`);
+            }, 350);
+        });
+    }
+
+    document.addEventListener('click', event => {
+        const link = event.target.closest('#appointmentCalendarContent a[href]');
+        if (!link) return;
+        event.preventDefault();
+        updateAppointmentCalendar(link.href);
+    });
+
+    function bindAppointmentActionButtons(root = document) {
+        root.querySelectorAll('.calendar-event[data-action-url]').forEach(button => {
+            if (button.dataset.boundAppointmentAction) return;
+            button.dataset.boundAppointmentAction = '1';
+            button.addEventListener('click', () => {
+                const location = [button.dataset.facility, button.dataset.district, button.dataset.province]
+                    .filter(Boolean)
+                    .join(', ');
+                setText('actionBeneficiary', button.dataset.beneficiary);
+                setText('actionPurpose', button.dataset.purpose);
+                setText('actionWhen', `${button.dataset.date} at ${button.dataset.time}`);
+                setText('actionFacility', location);
+                setText('actionStatus', button.dataset.status);
+
+                document.getElementById('appointmentActionModalLabel').textContent = button.dataset.beneficiary || 'Appointment';
+                document.getElementById('completeAppointmentForm').action = button.dataset.actionUrl;
+                document.getElementById('missedAppointmentForm').action = button.dataset.actionUrl;
+                document.querySelectorAll('.js-action-next').forEach(input => {
+                    input.value = button.dataset.nextUrl || window.location.pathname + window.location.search;
+                });
+
+                const directionsLink = document.getElementById('appointmentDirectionsLink');
+                if (button.dataset.latitude && button.dataset.longitude) {
+                    const params = new URLSearchParams({
+                        api: '1',
+                        destination: `${button.dataset.latitude},${button.dataset.longitude}`,
+                        travelmode: 'driving',
+                    });
+                    directionsLink.href = `https://www.google.com/maps/dir/?${params.toString()}`;
+                    directionsLink.hidden = false;
+                } else {
+                    directionsLink.hidden = true;
+                }
+            });
+        });
+    }
+
+    bindAppointmentActionButtons();
+
+    function setText(id, value) {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value || 'Not set';
     }
 
     {% if form_has_errors %}

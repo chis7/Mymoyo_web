@@ -9,7 +9,7 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.utils import timezone
 
-from .models import AuditLog
+from .models import Appointment, AuditLog
 from locations.models import District, Facility, Province
 
 
@@ -20,6 +20,12 @@ class PortalAccessTests(TestCase):
         user.profile.is_active = profile_active
         user.profile.save(update_fields=['role', 'is_active'])
         return user
+
+    def create_facility(self):
+        province = Province.objects.create(name='Lusaka')
+        district = District.objects.create(name='Lusaka', province=province)
+        facility = Facility.objects.create(name='Central Clinic', district=district)
+        return province, district, facility
 
     def test_anonymous_user_is_redirected_to_login(self):
         response = self.client.get(reverse('appointment_list'))
@@ -422,6 +428,66 @@ class PortalAccessTests(TestCase):
         user.profile.refresh_from_db()
         self.assertEqual(user.profile.theme_color, 'indigo')
         self.assertRedirects(response, reverse('appointment_list'))
+
+    def test_upcoming_appointments_are_future_scheduled_visits(self):
+        provider = self.create_user('calendar-provider', 'provider')
+        beneficiary = self.create_user('calendar-client', 'client')
+        province, district, facility = self.create_facility()
+        now = timezone.localtime()
+        past = now - timedelta(hours=1)
+        future = now + timedelta(days=1)
+
+        Appointment.objects.create(
+            beneficiary=beneficiary,
+            visit_purpose='follow_up',
+            appointment_date=past.date(),
+            appointment_time=past.time(),
+            province=province,
+            district=district,
+            facility=facility,
+            status='upcoming',
+        )
+        future_appointment = Appointment.objects.create(
+            beneficiary=beneficiary,
+            visit_purpose='follow_up',
+            appointment_date=future.date(),
+            appointment_time=future.time(),
+            province=province,
+            district=district,
+            facility=facility,
+            status='upcoming',
+        )
+
+        self.client.force_login(provider)
+        response = self.client.get(reverse('appointment_list'), {
+            'status': 'upcoming',
+            'month': future.strftime('%Y-%m'),
+        })
+
+        self.assertContains(response, future_appointment.beneficiary.username)
+        self.assertEqual(response.context['month_appointment_count'], 1)
+
+    def test_appointment_booking_rejects_past_datetime(self):
+        provider = self.create_user('past-booking-provider', 'provider')
+        beneficiary = self.create_user('past-booking-client', 'client')
+        province, district, facility = self.create_facility()
+        past = timezone.localtime() - timedelta(hours=1)
+        self.client.force_login(provider)
+
+        response = self.client.post(reverse('appointment_list'), {
+            'beneficiary': beneficiary.pk,
+            'visit_purpose': 'follow_up',
+            'appointment_date': past.date().isoformat(),
+            'appointment_time': past.strftime('%H:%M'),
+            'province': province.pk,
+            'district': district.pk,
+            'facility': facility.pk,
+            'notes': '',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Appointments cannot be booked in the past.')
+        self.assertFalse(Appointment.objects.filter(beneficiary=beneficiary).exists())
 
     def test_admin_can_edit_user_with_management_modal_payload(self):
         admin = self.create_user('admin-editor', 'admin')

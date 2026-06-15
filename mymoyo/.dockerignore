@@ -1,0 +1,9 @@
+.git
+.venv
+frontend/node_modules
+frontend/dist
+static/vue
+staticfiles
+db.sqlite3
+__pycache__
+*.pyc

@@ -1,5 +1,6 @@
 /.agents
 /.codex
+/.venv
 
 # Local/generated OSRM map data
 mymoyo/osrm-data/zambia-260602*
@@ -7,3 +8,9 @@ mymoyo/osrm-data/zambia-260602*
 # Python bytecode/cache files
 __pycache__/
 *.py[cod]
+
+# Frontend dependencies/build output
+node_modules/
+mymoyo/frontend/dist/
+mymoyo/frontend/node_modules/
+mymoyo/static/vue/

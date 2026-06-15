@@ -1,3 +1,14 @@
+FROM node:20-alpine AS frontend
+
+WORKDIR /frontend
+
+COPY frontend/package*.json ./
+RUN npm ci
+
+COPY frontend/ ./
+RUN npm run build
+
+
 # 1. Use a lightweight Python environment
 FROM python:3.11-slim
 
@@ -14,6 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 5. Copy your local project files into the container
 COPY . /app/
+COPY --from=frontend /static/vue /app/static/vue
 
 # 6. Expose the port for web traffic
 EXPOSE 8000

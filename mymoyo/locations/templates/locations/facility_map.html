@@ -332,6 +332,13 @@
         color: var(--theme-surface-muted);
         font-size: 0.85rem;
     }
+    .clinic-location-debug {
+        display: block;
+        margin-top: 0.35rem;
+        color: var(--theme-surface-muted);
+        font-size: 0.78rem;
+        line-height: 1.35;
+    }
     .clinic-nearest {
         display: grid;
         gap: 0.28rem;
@@ -666,11 +673,14 @@
                                     <span class="clinic-location-status" id="locationStatus" role="status" aria-live="polite">
                                         Finding your device location and calculating road distances...
                                     </span>
+                                    <span class="clinic-location-debug" id="locationDebug">
+                                        Waiting for browser coordinates...
+                                    </span>
                                 </article>
                             </div>
                         </aside>
                     </div>
-                    <p class="clinic-map-summary"><span id="mappedCount">0</span> facilities within 5 km of your device location shown on the map.</p>
+                    <p class="clinic-map-summary" id="mapSummary"><span id="mappedCount">0</span> facilities within 5 km of your GPS location shown on the map.</p>
                 </div>
             </section>
     </div>
@@ -803,6 +813,8 @@
         const districtSelect = document.getElementById('clinicDistrict');
         const filterStatus = document.getElementById('clinicFilterStatus');
         const locationStatus = document.getElementById('locationStatus');
+        let locationDebug = document.getElementById('locationDebug');
+        const mapSummary = document.getElementById('mapSummary');
         const routeSummary = document.getElementById('routeSummary');
         const routeSummaryContent = document.getElementById('routeSummaryContent');
         const routeSummaryClose = document.getElementById('routeSummaryClose');
@@ -819,7 +831,32 @@
         let roadDistanceByKey = new Map();
         let routeInfoByKey = new Map();
         let selectedFacilityKey = null;
+
+        function getLocationDebugText() {
+            if (!userLocation) return 'Waiting for browser coordinates...';
+            return [
+                `Lat ${userLocation.latitude.toFixed(6)}`,
+                `Lng ${userLocation.longitude.toFixed(6)}`,
+                `accuracy ${Math.round(userLocation.accuracy)} m`,
+            ].join(' | ');
+        }
+
+        function getLocationDebugMarkup() {
+            return `<span class="clinic-location-debug" id="locationDebug">${escapeHtml(getLocationDebugText())}</span>`;
+        }
+
+        function updateLocationDebug(text) {
+            locationDebug = document.getElementById('locationDebug');
+            if (locationDebug) {
+                locationDebug.textContent = text || getLocationDebugText();
+            }
+        }
         const facilityRadiusKm = 5;
+        const maximumGpsAccuracyMeters = 100;
+
+        function updateMapSummary(text) {
+            mapSummary.innerHTML = text || `<span id="mappedCount">${visibleFacilities.length}</span> facilities within ${facilityRadiusKm} km of your GPS location shown on the map.`;
+        }
 
         function renderMarkers(facilities, fitVisibleMarkers) {
             markerLayer.clearLayers();
@@ -1030,7 +1067,8 @@
                     '<strong>Nearest facility from your device location</strong>' +
                     `<span class="clinic-location-status">${userLocation && !visibleFacilities.length
                         ? 'No facilities were found within 5 km of your device location.'
-                        : 'Road distances are not available yet.'}</span>`;
+                        : 'Road distances are not available yet.'}</span>` +
+                    getLocationDebugMarkup();
                 if (nearestMarker) {
                     map.removeLayer(nearestMarker);
                     nearestMarker = null;
@@ -1049,6 +1087,7 @@
                 `<h3><span>${escapeHtml(facility.name)}</span>${detailSup}</h3>` +
                 `<sub class="facility-subline">${escapeHtml(facility.district)}, ${escapeHtml(facility.province)}</sub>` +
                 `<span class="facility-distance">${formatDistance(distanceKm)} by road</span>` +
+                getLocationDebugMarkup() +
                 getRouteInfoMarkup(facility) +
                 '<div class="facility-actions">' +
                     `<button class="facility-map-button" type="button" data-facility-key="${facilityKey}" data-latitude="${facility.latitude}" data-longitude="${facility.longitude}">Map</button>` +
@@ -1192,14 +1231,34 @@
         }
 
         async function setDeviceLocation(position) {
+            const accuracy = position.coords.accuracy;
+            if (!accuracy || accuracy > maximumGpsAccuracyMeters) {
+                userLocation = null;
+                clearRoute();
+                if (userMarker) {
+                    map.removeLayer(userMarker);
+                    userMarker = null;
+                }
+                document.getElementById('mappedCount').textContent = visibleFacilities.length;
+                renderMarkers(visibleFacilities, true);
+                renderNearestFacility();
+                locationStatus.textContent = `Precise GPS is required. Browser accuracy is ${Math.round(accuracy || 0)} m, so this location was not used.`;
+                updateLocationDebug(`Rejected approximate location: Lat ${position.coords.latitude.toFixed(6)} | Lng ${position.coords.longitude.toFixed(6)} | accuracy ${Math.round(accuracy || 0)} m`);
+                updateMapSummary(`Showing ${visibleFacilities.length} mapped facilities. Precise GPS is required for the 5 km nearest-clinic view.`);
+                return;
+            }
+
             userLocation = {
                 latitude: position.coords.latitude,
                 longitude: position.coords.longitude,
+                accuracy,
             };
+            updateLocationDebug();
             if (!hasActiveFilters()) {
                 visibleFacilities = getFacilitiesWithinRadius(visibleFacilities);
             }
             document.getElementById('mappedCount').textContent = visibleFacilities.length;
+            updateMapSummary();
             renderUserLocation();
             await refreshFacilityRoutesWithinRadius();
             renderMarkers(visibleFacilities, false);
@@ -1217,8 +1276,10 @@
                 3: 'Finding your location timed out.',
             };
             locationStatus.textContent = messages[error.code] || 'Could not read your device location.';
+            updateLocationDebug('No browser coordinates available.');
             nearestPanel.hidden = false;
             document.getElementById('mappedCount').textContent = visibleFacilities.length;
+            updateMapSummary(`Showing ${visibleFacilities.length} mapped facilities. Precise GPS is required for the 5 km nearest-clinic view.`);
             renderMarkers(visibleFacilities, true);
         }
 

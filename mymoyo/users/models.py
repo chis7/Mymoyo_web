@@ -1,8 +1,11 @@
+from datetime import datetime
+
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 
 class UserProfile(models.Model):
@@ -128,6 +131,15 @@ class Appointment(models.Model):
 
         if self.facility_id and self.district_id and self.facility.district_id != self.district_id:
             errors['facility'] = 'Select a facility within the chosen district.'
+
+        if self.pk is None and self.appointment_date and self.appointment_time:
+            appointment_datetime = timezone.make_aware(
+                datetime.combine(self.appointment_date, self.appointment_time),
+                timezone.get_current_timezone(),
+            )
+            if appointment_datetime <= timezone.now():
+                errors['appointment_date'] = 'Appointments cannot be booked in the past.'
+                errors['appointment_time'] = 'Choose a future appointment time.'
 
         if errors:
             raise ValidationError(errors)

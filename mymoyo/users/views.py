@@ -1,4 +1,5 @@
-from datetime import datetime, time, timedelta
+import calendar
+from datetime import date, datetime, time, timedelta
 from urllib.parse import urlencode
 
 from django.apps import apps
@@ -944,12 +945,30 @@ def user_dashboard(request):
 @role_required(*APPOINTMENT_ROLES)
 def appointment_list(request):
     """Display, filter, and create appointments."""
-    valid_statuses = {choice[0] for choice in Appointment.STATUS_CHOICES}
-    selected_status = request.GET.get('status', 'upcoming').strip()
+    valid_statuses = {choice[0] for choice in Appointment.STATUS_CHOICES} | {'all'}
+    selected_status = request.GET.get('status', 'all').strip()
     search_term = request.GET.get('q', '').strip()
+    selected_month = request.GET.get('month', '').strip()
 
     if selected_status not in valid_statuses:
-        selected_status = 'upcoming'
+        selected_status = 'all'
+
+    today = timezone.localdate()
+    try:
+        calendar_year, calendar_month = [int(part) for part in selected_month.split('-', 1)]
+        calendar_start = date(calendar_year, calendar_month, 1)
+    except (TypeError, ValueError):
+        calendar_start = today.replace(day=1)
+
+    now = timezone.localtime()
+    future_appointment_filter = (
+        Q(appointment_date__gt=now.date()) |
+        Q(appointment_date=now.date(), appointment_time__gt=now.time())
+    )
+    _, days_in_month = calendar.monthrange(calendar_start.year, calendar_start.month)
+    calendar_end = calendar_start.replace(day=days_in_month)
+    previous_month = (calendar_start - timedelta(days=1)).replace(day=1)
+    next_month = (calendar_end + timedelta(days=1)).replace(day=1)
 
     form = AppointmentForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -965,7 +984,12 @@ def appointment_list(request):
         'province',
         'district',
         'facility',
-    ).filter(status=selected_status)
+    )
+
+    if selected_status == 'upcoming':
+        appointments = appointments.filter(status='upcoming').filter(future_appointment_filter)
+    elif selected_status != 'all':
+        appointments = appointments.filter(status=selected_status)
 
     if search_term:
         appointments = appointments.filter(
@@ -978,8 +1002,35 @@ def appointment_list(request):
             Q(province__name__icontains=search_term)
         )
 
+    month_appointments = appointments.filter(
+        appointment_date__gte=calendar_start,
+        appointment_date__lte=calendar_end,
+    ).order_by('appointment_date', 'appointment_time')
+    appointments_by_date = {}
+    for appointment in month_appointments:
+        appointments_by_date.setdefault(appointment.appointment_date, []).append(appointment)
+
+    calendar_weeks = []
+    for week in calendar.Calendar(firstweekday=0).monthdatescalendar(calendar_start.year, calendar_start.month):
+        calendar_weeks.append([
+            {
+                'date': day,
+                'in_month': day.month == calendar_start.month,
+                'is_today': day == today,
+                'appointments': appointments_by_date.get(day, []),
+            }
+            for day in week
+        ])
+
     context = {
         'appointments': appointments,
+        'calendar_weeks': calendar_weeks,
+        'calendar_month': calendar_start,
+        'calendar_month_value': calendar_start.strftime('%Y-%m'),
+        'previous_month_value': previous_month.strftime('%Y-%m'),
+        'next_month_value': next_month.strftime('%Y-%m'),
+        'weekday_labels': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+        'month_appointment_count': month_appointments.count(),
         'form': form,
         'form_has_errors': request.method == 'POST' and form.errors,
         'provinces': Province.objects.all(),
@@ -989,9 +1040,32 @@ def appointment_list(request):
         'selected_status': selected_status,
         'stats': {
             'total': Appointment.objects.count(),
-            'upcoming': Appointment.objects.filter(status='upcoming').count(),
+            'upcoming': Appointment.objects.filter(status='upcoming').filter(future_appointment_filter).count(),
             'completed': Appointment.objects.filter(status='completed').count(),
             'missed': Appointment.objects.filter(status='missed').count(),
         },
     }
     return render(request, 'users/appointments.html', context)
+
+
+@require_POST
+@role_required(*APPOINTMENT_ROLES)
+def appointment_update_status(request, pk):
+    """Update an appointment status from the calendar action modal."""
+    appointment = get_object_or_404(Appointment, pk=pk)
+    status_value = request.POST.get('status', '').strip()
+    valid_statuses = {choice[0] for choice in Appointment.STATUS_CHOICES}
+    if status_value not in valid_statuses:
+        messages.error(request, 'Choose a valid appointment action.')
+    else:
+        appointment.status = status_value
+        appointment.save(update_fields=['status', 'updated_at'])
+        messages.success(
+            request,
+            f'Appointment for "{appointment.beneficiary.username}" marked as {appointment.get_status_display().lower()}.'
+        )
+
+    next_url = request.POST.get('next', '')
+    if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('appointment_list')
