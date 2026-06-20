@@ -242,6 +242,27 @@
         border: 0;
         box-shadow: 0 2px 8px rgba(16, 32, 48, 0.18);
     }
+    .facility-map-tooltip {
+        display: grid;
+        gap: 0.16rem;
+        padding: 0.45rem 0.55rem;
+        border: 0;
+        border-radius: 8px;
+        background: var(--theme-surface);
+        box-shadow: 0 4px 14px rgba(16, 32, 48, 0.18);
+        color: var(--theme-surface-muted);
+        font: inherit;
+        font-size: 0.76rem;
+        line-height: 1.25;
+    }
+    .facility-map-tooltip strong {
+        color: var(--theme-surface-text);
+        font-size: 0.82rem;
+    }
+    .facility-map-tooltip small {
+        color: var(--theme-surface-muted);
+        font-size: 0.72rem;
+    }
     .device-location-marker {
         position: relative;
         width: 18px;
@@ -680,7 +701,7 @@
                             </div>
                         </aside>
                     </div>
-                    <p class="clinic-map-summary" id="mapSummary"><span id="mappedCount">0</span> facilities within 5 km of your GPS location shown on the map.</p>
+                    <p class="clinic-map-summary" id="mapSummary"><span id="mappedCount">0</span> facilities within 5 km of your device location shown on the map.</p>
                 </div>
             </section>
     </div>
@@ -807,7 +828,8 @@
         }
 
         const markerLayer = L.layerGroup().addTo(map);
-        let visibleFacilities = JSON.parse(document.getElementById('facility-map-data').textContent);
+        const initialMappedFacilities = JSON.parse(document.getElementById('facility-map-data').textContent);
+        let visibleFacilities = initialMappedFacilities;
         let resultFacilities = JSON.parse(document.getElementById('facility-result-data').textContent);
         const filterForm = document.getElementById('clinicFilters');
         const districtSelect = document.getElementById('clinicDistrict');
@@ -828,9 +850,12 @@
         let userMarker = null;
         let nearestMarker = null;
         let routeLayer = null;
+        let locationWatchId = null;
         let roadDistanceByKey = new Map();
         let routeInfoByKey = new Map();
         let selectedFacilityKey = null;
+        const facilityRadiusKm = 5;
+        const maximumGpsAccuracyMeters = 100;
 
         function getLocationDebugText() {
             if (!userLocation) return 'Waiting for browser coordinates...';
@@ -851,11 +876,23 @@
                 locationDebug.textContent = text || getLocationDebugText();
             }
         }
-        const facilityRadiusKm = 5;
-        const maximumGpsAccuracyMeters = 100;
 
         function updateMapSummary(text) {
             mapSummary.innerHTML = text || `<span id="mappedCount">${visibleFacilities.length}</span> facilities within ${facilityRadiusKm} km of your GPS location shown on the map.`;
+        }
+
+        function getFacilityTooltipMarkup(facility) {
+            const details = [
+                facility.level || 'Facility',
+                facility.code ? `MFL ${facility.code}` : '',
+            ].filter(Boolean).join(' | ');
+            const distanceLabel = getRoadDistanceLabel(facility);
+            return (
+                `<strong>${escapeHtml(facility.name)}</strong>` +
+                `<span>${escapeHtml(facility.district)}, ${escapeHtml(facility.province)}</span>` +
+                `<small>${escapeHtml(details)}</small>` +
+                (distanceLabel ? `<small>${distanceLabel} by road</small>` : '')
+            );
         }
 
         function renderMarkers(facilities, fitVisibleMarkers) {
@@ -882,6 +919,12 @@
                     `<button class="facility-directions-button" type="button" data-facility-key="${escapeHtml(getFacilityKey(facility))}" data-latitude="${facility.latitude}" data-longitude="${facility.longitude}" data-name="${escapeHtml(facility.name)}">Get directions</button>` +
                     `<button class="facility-google-maps-button" type="button" data-latitude="${facility.latitude}" data-longitude="${facility.longitude}">Open in Google Maps</button>`
                 );
+                marker.bindTooltip(getFacilityTooltipMarkup(facility), {
+                    className: 'facility-map-tooltip',
+                    direction: 'top',
+                    opacity: 0.96,
+                    sticky: true,
+                });
                 marker.on('click', function () {
                     routeToFacility(facility);
                 });
@@ -1239,12 +1282,14 @@
                     map.removeLayer(userMarker);
                     userMarker = null;
                 }
-                document.getElementById('mappedCount').textContent = visibleFacilities.length;
-                renderMarkers(visibleFacilities, true);
+                visibleFacilities = [];
+                document.getElementById('mappedCount').textContent = '0';
+                renderMarkers([], false);
                 renderNearestFacility();
-                locationStatus.textContent = `Precise GPS is required. Browser accuracy is ${Math.round(accuracy || 0)} m, so this location was not used.`;
-                updateLocationDebug(`Rejected approximate location: Lat ${position.coords.latitude.toFixed(6)} | Lng ${position.coords.longitude.toFixed(6)} | accuracy ${Math.round(accuracy || 0)} m`);
-                updateMapSummary(`Showing ${visibleFacilities.length} mapped facilities. Precise GPS is required for the 5 km nearest-clinic view.`);
+                const roundedAccuracy = Math.round(accuracy || 0);
+                locationStatus.textContent = `Precise GPS is required. Browser accuracy is ${roundedAccuracy} m, so this location was not used.`;
+                updateLocationDebug(`Rejected approximate location: Lat ${position.coords.latitude.toFixed(6)} | Lng ${position.coords.longitude.toFixed(6)} | accuracy ${roundedAccuracy} m`);
+                updateMapSummary(`Showing 0 facilities. Precise GPS under ${maximumGpsAccuracyMeters} m is required for the ${facilityRadiusKm} km nearest-clinic view.`);
                 return;
             }
 
@@ -1255,18 +1300,23 @@
             };
             updateLocationDebug();
             if (!hasActiveFilters()) {
-                visibleFacilities = getFacilitiesWithinRadius(visibleFacilities);
+                visibleFacilities = getFacilitiesWithinRadius(initialMappedFacilities);
             }
             document.getElementById('mappedCount').textContent = visibleFacilities.length;
             updateMapSummary();
             renderUserLocation();
+            renderMarkers(visibleFacilities, true);
+            renderNearestFacility();
             await refreshFacilityRoutesWithinRadius();
-            renderMarkers(visibleFacilities, false);
             renderNearestFacility();
             if (!hasActiveFilters() && !visibleFacilities.length) {
                 locationStatus.textContent = 'No facilities were found within 5 km of your device location.';
             }
             map.setView([userLocation.latitude, userLocation.longitude], 14);
+            if (locationWatchId !== null) {
+                navigator.geolocation.clearWatch(locationWatchId);
+                locationWatchId = null;
+            }
         }
 
         function showLocationError(error) {
@@ -1278,9 +1328,10 @@
             locationStatus.textContent = messages[error.code] || 'Could not read your device location.';
             updateLocationDebug('No browser coordinates available.');
             nearestPanel.hidden = false;
-            document.getElementById('mappedCount').textContent = visibleFacilities.length;
-            updateMapSummary(`Showing ${visibleFacilities.length} mapped facilities. Precise GPS is required for the 5 km nearest-clinic view.`);
-            renderMarkers(visibleFacilities, true);
+            visibleFacilities = [];
+            document.getElementById('mappedCount').textContent = '0';
+            updateMapSummary(`Showing 0 facilities. Precise GPS is required for the ${facilityRadiusKm} km nearest-clinic view.`);
+            renderMarkers([], false);
         }
 
         async function updateFacilities() {
@@ -1341,6 +1392,7 @@
             });
         }
 
+        document.getElementById('mappedCount').textContent = '0';
         renderMarkers([], false);
         renderTopFacilitiesPanel();
 
@@ -1350,16 +1402,14 @@
                 return;
             }
             locationStatus.textContent = 'Finding your device location...';
-            navigator.geolocation.getCurrentPosition(setDeviceLocation, showLocationError, {
+            locationWatchId = navigator.geolocation.watchPosition(setDeviceLocation, showLocationError, {
                 enableHighAccuracy: true,
-                timeout: 12000,
-                maximumAge: 60000,
+                timeout: 30000,
+                maximumAge: 0,
             });
         }
         requestDeviceLocation();
-        routeSummaryClose.addEventListener('click', function () {
-            routeSummary.hidden = true;
-        });
+        routeSummaryClose.addEventListener('click', clearRoute);
 
         filterForm.addEventListener('submit', function (event) {
             event.preventDefault();
