@@ -8,6 +8,30 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 
+class PersonIdentity(models.Model):
+    """A real person that may have more than one login persona."""
+    full_name = models.CharField(max_length=255)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    date_of_birth = models.DateField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['full_name', 'id']
+        verbose_name_plural = 'Person identities'
+
+    def __str__(self):
+        return self.full_name or f'Person #{self.pk}'
+
+    @classmethod
+    def for_user_defaults(cls, user, phone='', date_of_birth=None):
+        full_name = user.get_full_name().strip() or user.username
+        return cls.objects.create(
+            full_name=full_name,
+            phone=phone or None,
+            date_of_birth=date_of_birth,
+        )
+
+
 class UserProfile(models.Model):
     """Extended user profile for additional information"""
     THEME_CHOICES = [
@@ -68,11 +92,29 @@ class UserProfile(models.Model):
     }
     
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    person_identity = models.ForeignKey(
+        PersonIdentity,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='profiles',
+    )
+    facility = models.ForeignKey(
+        'locations.Facility',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='workers',
+    )
+    reference_number = models.CharField(max_length=20, unique=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='client')
     bio = models.TextField(blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
+    is_phone_verified = models.BooleanField(default=False)
+    otp_code_hash = models.CharField(max_length=128, blank=True)
+    otp_expires_at = models.DateTimeField(blank=True, null=True)
     must_change_password = models.BooleanField(default=False)
     temporary_password_expires_at = models.DateTimeField(blank=True, null=True)
     theme_color = models.CharField(max_length=20, choices=THEME_CHOICES, default='slate')
@@ -86,6 +128,15 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.get_role_display()}"
+
+    @staticmethod
+    def build_reference_number(user_id):
+        return f"MM-{user_id:06d}"
+
+    def save(self, *args, **kwargs):
+        if not self.reference_number and self.user_id:
+            self.reference_number = self.build_reference_number(self.user_id)
+        super().save(*args, **kwargs)
 
     def get_role_responsibilities(self):
         return self.ROLE_RESPONSIBILITIES.get(self.role, [])
@@ -105,6 +156,13 @@ class Appointment(models.Model):
     ]
 
     beneficiary = models.ForeignKey(User, on_delete=models.CASCADE, related_name='appointments')
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='created_appointments',
+    )
     visit_purpose = models.CharField(max_length=50, choices=VISIT_PURPOSE_CHOICES)
     appointment_date = models.DateField()
     appointment_time = models.TimeField()
@@ -143,6 +201,67 @@ class Appointment(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+
+class AnonymousOrUserSubmission(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='%(class)ss',
+    )
+    session_key = models.CharField(max_length=40, blank=True, db_index=True)
+    answers = models.JSONField(default=dict, blank=True)
+    guidance = models.JSONField(default=dict, blank=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        abstract = True
+        ordering = ['-submitted_at']
+
+
+class SelfRiskAssessmentSubmission(AnonymousOrUserSubmission):
+    score = models.PositiveSmallIntegerField(default=0)
+    level = models.CharField(max_length=20, blank=True)
+
+    def __str__(self):
+        owner = self.user.username if self.user_id else 'Anonymous'
+        return f'{owner} risk assessment ({self.level or "unscored"})'
+
+
+class SelfTestReportSubmission(AnonymousOrUserSubmission):
+    test_date = models.DateField()
+    result = models.CharField(max_length=30)
+
+    def __str__(self):
+        owner = self.user.username if self.user_id else 'Anonymous'
+        return f'{owner} self-test report ({self.result})'
+
+
+class SideEffectReportSubmission(AnonymousOrUserSubmission):
+    symptom_start_date = models.DateField()
+    severity = models.CharField(max_length=30)
+    follow_up_requested = models.BooleanField(default=False)
+
+    def __str__(self):
+        owner = self.user.username if self.user_id else 'Anonymous'
+        return f'{owner} side-effect report ({self.severity})'
+
+
+class ClinicFeedbackSubmission(AnonymousOrUserSubmission):
+    facility = models.ForeignKey(
+        'locations.Facility',
+        on_delete=models.PROTECT,
+        related_name='feedback_submissions',
+    )
+    visit_date = models.DateField()
+    average_rating = models.DecimalField(max_digits=3, decimal_places=1)
+    follow_up_requested = models.BooleanField(default=False)
+
+    def __str__(self):
+        owner = self.user.username if self.user_id else 'Anonymous'
+        return f'{owner} clinic feedback for {self.facility}'
 
 
 class AuditLog(models.Model):

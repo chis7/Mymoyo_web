@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ***REMOVED_POSTGRES_PASSWORD***
     ports:
-      - "55432:5432"
+      - "55461:5432"
     volumes:
       - mymoyo-db-data:/var/lib/postgresql/data
     networks:
@@ -21,11 +21,43 @@ services:
     # Removed external ports here. Gunicorn is now protected behind Nginx.
     env_file:
       - .env 
+    environment:
+      HAPI_FHIR_BASE_URL: http://hapi-fhir:8080/fhir
+      HAPI_FHIR_SYNC_ENABLED: "true"
     depends_on:
       - db
       - osrm-zambia
+      - hapi-fhir
     volumes:
       - static_volume:/app/staticfiles
+    networks:
+      - mymoyo-network
+
+  hapi-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: hapi
+      POSTGRES_USER: hapi
+      POSTGRES_PASSWORD: ${HAPI_POSTGRES_PASSWORD}
+    volumes:
+      - hapi-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hapi -d hapi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mymoyo-network
+
+  hapi-fhir:
+    image: hapiproject/hapi:latest
+    ports:
+      - "7201:8080"
+    volumes:
+      - ./hapi/application.yaml:/app/config/application.yaml:ro
+    depends_on:
+      hapi-db:
+        condition: service_healthy
     networks:
       - mymoyo-network
 
@@ -59,4 +91,5 @@ networks:
 
 volumes:
   mymoyo-db-data:
+  hapi-db-data:
   static_volume:

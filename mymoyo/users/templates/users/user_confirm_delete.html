@@ -3,6 +3,16 @@
 {% block title %}Confirm Delete - {{ user.username }}{% endblock %}
 
 {% block content %}
+<nav class="management-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'user_dashboard' %}">Command Center</a>
+    <span class="material-symbols-outlined">chevron_right</span>
+    <a href="{% url 'user_list' %}">Manage Users</a>
+    <span class="material-symbols-outlined">chevron_right</span>
+    <a href="{% url 'user_detail' user.pk %}">{{ user.username }}</a>
+    <span class="material-symbols-outlined">chevron_right</span>
+    <span aria-current="page">Delete</span>
+</nav>
+
 <div class="card border-danger">
     <div class="card-header bg-danger text-white">
         <h5 class="mb-0">Confirm Delete</h5>

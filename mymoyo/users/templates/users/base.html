@@ -551,6 +551,21 @@
         .account-menu-button .material-symbols-outlined {
             font-size: 1.1rem;
         }
+        .account-menu-button > span:not(.material-symbols-outlined) {
+            display: grid;
+            gap: 0.1rem;
+            line-height: 1.1;
+            text-align: left;
+        }
+        .account-menu-button small {
+            max-width: 14rem;
+            overflow: hidden;
+            color: rgba(255, 255, 255, 0.72);
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
         .account-dropdown {
             display: none;
             position: absolute;
@@ -695,6 +710,29 @@
             color: var(--theme-text-muted);
             text-align: center;
         }
+        .management-breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            margin-bottom: 1.5rem;
+            color: var(--theme-text-muted);
+            font-size: 0.92rem;
+            font-weight: 700;
+        }
+        .management-breadcrumb a {
+            color: var(--theme-primary);
+            text-decoration: none;
+        }
+        .management-breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        .management-breadcrumb .material-symbols-outlined {
+            color: var(--theme-text-muted);
+            font-size: 1rem;
+        }
+        .management-breadcrumb [aria-current="page"] {
+            color: var(--theme-text-strong);
+        }
         @media (max-width: 991.98px) {
             .sidebar {
                 width: min(82vw, 280px);
@@ -759,6 +797,14 @@
                     <span class="nav-icon material-symbols-outlined">manage_accounts</span>
                     Manage Users
                 </a>
+                <a class="nav-link" href="{% url 'location_management' %}">
+                    <span class="nav-icon material-symbols-outlined">map</span>
+                    Manage Locations
+                </a>
+                <a class="nav-link" href="{% url 'service_management' %}">
+                    <span class="nav-icon material-symbols-outlined">medical_services</span>
+                    Manage Services
+                </a>
             </nav>
         </div>
     {% endif %}
@@ -774,15 +820,30 @@
                     Command Center
                 </a>
             {% endif %}
-            {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'supervisor' or request.user.profile.role == 'provider' or request.user.profile.role == 'chw' or request.user.profile.role == 'mobiliser' %}
+            {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'supervisor' or request.user.profile.role == 'provider' or request.user.profile.role == 'chw' or request.user.profile.role == 'mobiliser' or request.user.profile.role == 'client' %}
                 <a class="nav-link" href="{% url 'appointment_list' %}">
                     <span class="nav-icon material-symbols-outlined">calendar_month</span>
                     Appointments
                 </a>
             {% endif %}
-            <a class="nav-link" href="{% url 'user_detail' pk=request.user.pk %}">
-                <span class="nav-icon material-symbols-outlined">account_circle</span>
-                My Profile
+            {% if request.user.is_authenticated %}
+                <a class="nav-link" href="{% url 'user_detail' pk=request.user.pk %}">
+                    <span class="nav-icon material-symbols-outlined">account_circle</span>
+                    My Profile
+                </a>
+            {% else %}
+                <a class="nav-link" href="{% url 'login' %}">
+                    <span class="nav-icon material-symbols-outlined">login</span>
+                    Login
+                </a>
+                <a class="nav-link" href="{% url 'register' %}">
+                    <span class="nav-icon material-symbols-outlined">person_add</span>
+                    Create Account
+                </a>
+            {% endif %}
+            <a class="nav-link" href="/app/">
+                <span class="nav-icon material-symbols-outlined">download</span>
+                Install App
             </a>
             {% if request.user.is_staff %}
                 <a class="nav-link" href="{% url 'admin:index' %}">
@@ -807,17 +868,21 @@
                     <span class="nav-icon material-symbols-outlined">people</span>
                     Users
                 </a>
-                <a class="nav-link" href="{% url 'admin:locations_province_changelist' %}">
+                <a class="nav-link" href="{% url 'location_management_tab' tab='provinces' %}">
                     <span class="nav-icon material-symbols-outlined">location_on</span>
                     Provinces
                 </a>
-                <a class="nav-link" href="{% url 'admin:locations_district_changelist' %}">
+                <a class="nav-link" href="{% url 'location_management_tab' tab='districts' %}">
                     <span class="nav-icon material-symbols-outlined">public</span>
                     Districts
                 </a>
-                <a class="nav-link" href="{% url 'admin:locations_facility_changelist' %}">
+                <a class="nav-link" href="{% url 'location_management_tab' tab='facilities' %}">
                     <span class="nav-icon material-symbols-outlined">local_hospital</span>
                     Facilities
+                </a>
+                <a class="nav-link" href="{% url 'service_management' %}">
+                    <span class="nav-icon material-symbols-outlined">medical_services</span>
+                    Services
                 </a>
             </nav>
         </div>
@@ -900,35 +965,56 @@
             <div class="account-menu">
                 <button class="account-menu-button" id="accountMenuButton" type="button" aria-expanded="false" aria-controls="accountDropdown">
                     <span class="material-symbols-outlined">account_circle</span>
-                    {{ request.user.get_full_name|default:request.user.username }}
+                    <span>
+                        {% if request.user.is_authenticated %}
+                            <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+                            {% if request.user.profile.facility %}
+                                <small>{{ request.user.profile.facility.name }}</small>
+                            {% endif %}
+                        {% else %}
+                            <span>Guest</span>
+                            <small>Public access</small>
+                        {% endif %}
+                    </span>
                     <span class="material-symbols-outlined">expand_more</span>
                 </button>
                 <div class="account-dropdown" id="accountDropdown">
-                    <a href="{% url 'user_detail' pk=request.user.pk %}">
-                        <span class="material-symbols-outlined">person</span>
-                        My Profile
-                    </a>
-                    <form class="theme-picker" method="post" action="{% url 'update_theme' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ request.path }}">
-                        {% for theme_value, theme_label in request.user.profile.THEME_CHOICES %}
-                            <button
-                                type="submit"
-                                name="theme_color"
-                                value="{{ theme_value }}"
-                                class="theme-swatch theme-swatch-{{ theme_value }}{% if request.user.profile.theme_color == theme_value %} is-selected{% endif %}"
-                                title="{{ theme_label }}"
-                                aria-label="{{ theme_label }} theme"
-                            ></button>
-                        {% endfor %}
-                    </form>
-                    <form method="post" action="{% url 'logout' %}">
-                        {% csrf_token %}
-                        <button type="submit">
-                            <span class="material-symbols-outlined">logout</span>
-                            Logout
-                        </button>
-                    </form>
+                    {% if request.user.is_authenticated %}
+                        <a href="{% url 'user_detail' pk=request.user.pk %}">
+                            <span class="material-symbols-outlined">person</span>
+                            My Profile
+                        </a>
+                        <form class="theme-picker" method="post" action="{% url 'update_theme' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            {% for theme_value, theme_label in request.user.profile.THEME_CHOICES %}
+                                <button
+                                    type="submit"
+                                    name="theme_color"
+                                    value="{{ theme_value }}"
+                                    class="theme-swatch theme-swatch-{{ theme_value }}{% if request.user.profile.theme_color == theme_value %} is-selected{% endif %}"
+                                    title="{{ theme_label }}"
+                                    aria-label="{{ theme_label }} theme"
+                                ></button>
+                            {% endfor %}
+                        </form>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit">
+                                <span class="material-symbols-outlined">logout</span>
+                                Logout
+                            </button>
+                        </form>
+                    {% else %}
+                        <a href="{% url 'login' %}">
+                            <span class="material-symbols-outlined">login</span>
+                            Login
+                        </a>
+                        <a href="{% url 'register' %}">
+                            <span class="material-symbols-outlined">person_add</span>
+                            Create Account
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

@@ -1,0 +1,124 @@
+{% extends "users/base.html" %}
+
+{% block title %}Edit {{ active_tab_singular }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .location-form-page {
+        max-width: 720px;
+    }
+    .management-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 1.5rem;
+        color: var(--theme-text-muted);
+        font-size: 0.92rem;
+        font-weight: 700;
+    }
+    .management-breadcrumb a {
+        color: var(--theme-primary);
+        text-decoration: none;
+    }
+    .form-panel {
+        background: var(--theme-surface);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+        padding: 1.25rem;
+    }
+    .form-panel h1 {
+        margin: 0 0 0.35rem;
+        color: var(--theme-text-strong);
+        font-size: 1.7rem;
+    }
+    .form-panel p {
+        margin: 0 0 1.25rem;
+        color: var(--theme-text-muted);
+    }
+    .form-stack {
+        display: grid;
+        gap: 1rem;
+    }
+    .form-stack label {
+        display: block;
+        margin-bottom: 0.4rem;
+        color: var(--theme-text-muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .form-control,
+    .form-select {
+        width: 100%;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        padding: 0.72rem 0.85rem;
+        color: var(--theme-surface-text);
+        background: var(--theme-surface);
+    }
+    .errorlist {
+        margin: 0.4rem 0 0;
+        padding-left: 1.1rem;
+        color: #b91c1c;
+        font-size: 0.82rem;
+    }
+    .form-actions {
+        display: flex;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-top: 1rem;
+    }
+    .btn-primary,
+    .btn-secondary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        font-weight: 900;
+        text-decoration: none;
+    }
+    .btn-primary {
+        border: 0;
+        background: var(--theme-primary);
+        color: var(--theme-on-primary);
+        cursor: pointer;
+    }
+    .btn-secondary {
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.2);
+        background: var(--theme-surface);
+        color: var(--theme-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="location-form-page">
+    <div class="management-breadcrumb">
+        <a href="{% url 'user_dashboard' %}">Command Center</a>
+        <span class="material-symbols-outlined">chevron_right</span>
+        {% if active_tab == 'services' %}
+            <a href="{% url 'service_management' %}">{{ active_tab_label }}</a>
+        {% else %}
+            <a href="{% url 'location_management_tab' tab=active_tab %}">{{ active_tab_label }}</a>
+        {% endif %}
+        <span class="material-symbols-outlined">chevron_right</span>
+        <span aria-current="page">Edit</span>
+    </div>
+
+    <section class="form-panel">
+        <h1>Edit {{ active_tab_singular }}</h1>
+        <p>{{ location_object }}</p>
+        {% include "locations/_location_form_fields.html" with action_url=request.path submit_label="Save Changes" %}
+        <div class="form-actions">
+            {% if active_tab == 'services' %}
+                <a class="btn-secondary" href="{% url 'service_management' %}">Cancel</a>
+            {% else %}
+                <a class="btn-secondary" href="{% url 'location_management_tab' tab=active_tab %}">Cancel</a>
+            {% endif %}
+        </div>
+    </section>
+</div>
+{% endblock %}

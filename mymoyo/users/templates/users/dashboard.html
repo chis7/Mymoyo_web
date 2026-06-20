@@ -1,108 +1,252 @@
 {% extends 'users/base.html' %}
 
-{% block title %}Dashboard - User Management{% endblock %}
+{% block title %}Dashboard{% endblock %}
+
+{% block extra_head %}
+<style>
+    .dashboard-page {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .dashboard-title h1 {
+        margin: 0;
+        color: var(--theme-text-strong);
+        font-size: 1.9rem;
+    }
+    .dashboard-title p {
+        margin: 0.35rem 0 0;
+        color: var(--theme-text-muted);
+    }
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1rem;
+    }
+    .dashboard-card {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        min-height: 126px;
+        padding: 1.2rem;
+        border-radius: 12px;
+        background: var(--theme-surface);
+        color: var(--theme-surface-text);
+        text-decoration: none;
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.08);
+    }
+    .dashboard-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(16, 32, 48, 0.12);
+    }
+    .dashboard-card h2 {
+        margin: 0;
+        color: var(--theme-text-strong);
+        font-size: 0.95rem;
+    }
+    .dashboard-card .value {
+        margin-top: 0.45rem;
+        color: var(--theme-primary);
+        font-size: 2rem;
+        font-weight: 900;
+        line-height: 1;
+    }
+    .dashboard-card .meta {
+        margin-top: 0.45rem;
+        color: var(--theme-text-muted);
+        font-size: 0.88rem;
+        font-weight: 700;
+    }
+    .dashboard-card .material-symbols-outlined {
+        width: 48px;
+        height: 48px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        background: var(--theme-soft);
+        color: var(--theme-primary);
+        font-size: 1.8rem;
+        flex: 0 0 auto;
+    }
+    .dashboard-columns {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(280px, 420px);
+        gap: 1rem;
+    }
+    .dashboard-panel {
+        background: var(--theme-surface);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+        overflow: hidden;
+    }
+    .dashboard-panel h2 {
+        margin: 0;
+        padding: 1rem;
+        color: var(--theme-text-strong);
+        background: var(--theme-soft);
+        font-size: 1rem;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+    }
+    .dashboard-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .dashboard-table th,
+    .dashboard-table td {
+        padding: 0.85rem 1rem;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.09);
+        color: var(--theme-surface-text);
+        text-align: left;
+    }
+    .dashboard-table th {
+        color: var(--theme-text-muted);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .dashboard-table a {
+        color: var(--theme-primary);
+        font-weight: 800;
+        text-decoration: none;
+    }
+    .status-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 0.25rem 0.55rem;
+        background: var(--theme-soft);
+        color: var(--theme-primary);
+        font-size: 0.78rem;
+        font-weight: 900;
+    }
+    .empty-state {
+        padding: 1.5rem;
+        color: var(--theme-text-muted);
+        text-align: center;
+    }
+    @media (max-width: 980px) {
+        .dashboard-columns {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="row gy-4">
-    <div class="col-md-4">
-        <div class="card p-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Total Users</h5>
-            </div>
-            <div class="card-body">
-                <h2 class="display-5">{{ total_users }}</h2>
-            </div>
+<div class="dashboard-page">
+    <nav class="management-breadcrumb" aria-label="Breadcrumb">
+        <a href="{% url 'user_dashboard' %}">Command Center</a>
+        <span class="material-symbols-outlined">chevron_right</span>
+        <span aria-current="page">Dashboard</span>
+    </nav>
+    <header class="dashboard-header">
+        <div class="dashboard-title">
+            <h1>Dashboard</h1>
+            <p>Quick access to users, locations, appointments, and recent activity.</p>
         </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card p-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Active Users</h5>
-            </div>
-            <div class="card-body">
-                <h2 class="display-5 text-success">{{ active_users }}</h2>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-4">
-        <div class="card p-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Inactive Users</h5>
-            </div>
-            <div class="card-body">
-                <h2 class="display-5 text-danger">{{ inactive_users }}</h2>
-            </div>
-        </div>
-    </div>
-</div>
+    </header>
 
-<div class="row mt-4 gy-4">
-    <div class="col-md-12">
-        <div class="card">
-            <div class="card-header">
-                <h5>Users by Role</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-borderless mb-0">
-                        <thead>
-                            <tr>
-                                <th>Role</th>
-                                <th class="text-end">Count</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for entry in role_stats %}
-                            <tr>
-                                <td>{{ entry.label }}</td>
-                                <td class="text-end">{{ entry.count }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+    <section class="dashboard-grid" aria-label="Dashboard shortcuts">
+        {% for card in dashboard_cards %}
+            <a class="dashboard-card" href="{{ card.href }}">
+                <div>
+                    <h2>{{ card.title }}</h2>
+                    <div class="value">{{ card.value }}</div>
+                    <div class="meta">{{ card.meta }}</div>
                 </div>
-            </div>
-        </div>
-    </div>
-</div>
+                <span class="material-symbols-outlined">{{ card.icon }}</span>
+            </a>
+        {% endfor %}
+    </section>
 
-<div class="card mt-4">
-    <div class="card-header">
-        <h5>Recent Users</h5>
-    </div>
-    <div class="card-body">
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+    <div class="dashboard-columns">
+        <section class="dashboard-panel">
+            <h2>Recent Users</h2>
+            <table class="dashboard-table">
                 <thead>
                     <tr>
-                        <th>Username</th>
+                        <th>User</th>
                         <th>Email</th>
-                        <th>Date Joined</th>
+                        <th>Joined</th>
                         <th>Status</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for user in recent_users %}
-                    <tr>
-                        <td><a href="{% url 'user_detail' pk=user.pk %}">{{ user.username }}</a></td>
-                        <td>{{ user.email }}</td>
-                        <td>{{ user.date_joined|date:'M d, Y' }}</td>
-                        <td>
-                            {% if user.is_active %}
-                                <span class="badge bg-success">Active</span>
-                            {% else %}
-                                <span class="badge bg-secondary">Inactive</span>
-                            {% endif %}
-                        </td>
-                    </tr>
+                        <tr>
+                            <td><a href="{% url 'user_detail' pk=user.pk %}">{{ user.username }}</a></td>
+                            <td>{{ user.email|default:"-" }}</td>
+                            <td>{{ user.date_joined|date:'M d, Y' }}</td>
+                            <td>
+                                {% if user.is_active %}
+                                    <span class="status-pill">Active</span>
+                                {% else %}
+                                    <span class="status-pill">Inactive</span>
+                                {% endif %}
+                            </td>
+                        </tr>
                     {% empty %}
-                    <tr>
-                        <td colspan="4" class="text-center">No recent users yet.</td>
-                    </tr>
+                        <tr><td colspan="4" class="empty-state">No recent users yet.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
-        </div>
+        </section>
+
+        <section class="dashboard-panel">
+            <h2>Users By Role</h2>
+            <table class="dashboard-table">
+                <thead>
+                    <tr>
+                        <th>Role</th>
+                        <th>Count</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in role_stats %}
+                        <tr>
+                            <td>{{ entry.label }}</td>
+                            <td>{{ entry.count }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
     </div>
+
+    <section class="dashboard-panel">
+        <h2>Recent Activity</h2>
+        <table class="dashboard-table">
+            <thead>
+                <tr>
+                    <th>Action</th>
+                    <th>Record</th>
+                    <th>Actor</th>
+                    <th>When</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in recent_audit_events %}
+                    <tr>
+                        <td>{{ event.get_action_display }}</td>
+                        <td>{{ event.object_repr }}</td>
+                        <td>{% if event.actor %}{{ event.actor.username }}{% else %}System{% endif %}</td>
+                        <td>{{ event.created_at|date:'M d, Y H:i' }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="4" class="empty-state">No recent activity yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
 </div>
 {% endblock %}

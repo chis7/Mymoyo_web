@@ -2,6 +2,7 @@ from functools import wraps
 
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.shortcuts import redirect
 
 from .models import UserProfile
@@ -18,6 +19,24 @@ def get_user_role(user):
 
     profile, _ = UserProfile.objects.get_or_create(user=user)
     return profile.role
+
+
+def can_manage_appointments(user):
+    return user.is_superuser or get_user_role(user) in APPOINTMENT_ROLES
+
+
+def visible_appointment_filter(user):
+    role = get_user_role(user)
+    if user.is_superuser or role in USER_ADMIN_ROLES:
+        return Q()
+    if role in APPOINTMENT_ROLES:
+        profile = getattr(user, 'profile', None)
+        facility_id = getattr(profile, 'facility_id', None)
+        visibility = Q(created_by=user)
+        if facility_id:
+            visibility |= Q(facility_id=facility_id)
+        return visibility
+    return Q(beneficiary=user)
 
 
 def active_login_required(view_func):

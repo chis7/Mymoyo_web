@@ -4,6 +4,29 @@
 
 {% block content %}
 <style>
+    .management-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 1.5rem;
+        color: var(--theme-text-muted);
+        font-size: 0.92rem;
+        font-weight: 700;
+    }
+    .management-breadcrumb a {
+        color: var(--theme-primary);
+        text-decoration: none;
+    }
+    .management-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+    .management-breadcrumb .material-symbols-outlined {
+        color: var(--theme-text-muted);
+        font-size: 1rem;
+    }
+    .management-breadcrumb [aria-current="page"] {
+        color: var(--theme-text-strong);
+    }
     .appointments-hero {
         display: flex;
         justify-content: space-between;
@@ -275,7 +298,7 @@
     }
     .calendar-day {
         position: relative;
-        min-height: 8.5rem;
+        min-height: 5.5rem;
         padding: 0.75rem;
         border-right: 1px solid rgba(15, 23, 42, 0.06);
         border-bottom: 1px solid rgba(15, 23, 42, 0.06);
@@ -403,12 +426,59 @@
         flex-wrap: wrap;
         gap: 0.65rem;
     }
+    .client-picker {
+        position: relative;
+    }
+    .client-picker-results {
+        display: grid;
+        gap: 0.35rem;
+        max-height: 12rem;
+        overflow-y: auto;
+        margin-top: 0.5rem;
+        padding: 0.35rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 10px;
+        background: #fff;
+    }
+    .client-picker-results[hidden] {
+        display: none;
+    }
+    .client-picker-option {
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        padding: 0.65rem 0.75rem;
+        background: #f9fafb;
+        color: #1f2937;
+        text-align: left;
+        font-weight: 700;
+    }
+    .client-picker-option:hover,
+    .client-picker-option:focus {
+        background: var(--theme-soft);
+        color: var(--theme-primary);
+        outline: none;
+    }
+    .client-picker-option sup,
+    .client-picker-selected sup {
+        margin-left: 0.25rem;
+        color: #6b7280;
+        font-size: 0.65rem;
+        font-weight: 800;
+    }
+    .client-picker-selected {
+        margin-top: 0.45rem;
+        color: #374151;
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
     @media (max-width: 900px) {
         .calendar-weekdays {
             display: none;
         }
         .calendar-grid {
             grid-template-columns: 1fr;
+            height:3rem;
         }
         .calendar-day {
             min-height: auto;
@@ -425,6 +495,12 @@
         }
     }
 </style>
+
+<nav class="management-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'user_dashboard' %}">Command Center</a>
+    <span class="material-symbols-outlined">chevron_right</span>
+    <span aria-current="page">Appointments</span>
+</nav>
 
 <div class="appointments-hero">
     <div class="appointments-title">
@@ -473,7 +549,7 @@
                 <article class="calendar-day {% if not day.in_month %}muted{% endif %} {% if day.is_today %}today{% endif %}">
                     <div class="calendar-day-number">
                         <span>{{ day.date|date:"j" }}</span>
-                        {% if day.in_month %}
+                        {% if can_manage_appointments and day.in_month and not day.is_past %}
                             <button class="calendar-day-menu" type="button" title="Book appointment on {{ day.date|date:'M j, Y' }}" aria-label="Book appointment on {{ day.date|date:'M j, Y' }}" data-booking-date="{{ day.date|date:'Y-m-d' }}" data-bs-toggle="modal" data-bs-target="#bookAppointmentModal">...</button>
                         {% elif day.appointments %}
                             <span class="calendar-count">{{ day.appointments|length }}</span>
@@ -487,8 +563,9 @@
                                 data-bs-toggle="modal"
                                 data-bs-target="#appointmentActionModal"
                                 data-action-url="{% url 'appointment_update_status' appointment.pk %}"
+                                data-edit-url="{% url 'appointment_edit' appointment.pk %}"
                                 data-next-url="{{ request.get_full_path }}"
-                                data-beneficiary="{{ appointment.beneficiary.get_full_name|default:appointment.beneficiary.username }}"
+                                data-beneficiary="{% if is_client_appointment_view %}{{ appointment.facility.name }}{% else %}{{ appointment.beneficiary.get_full_name|default:appointment.beneficiary.username }}{% endif %}"
                                 data-purpose="{{ appointment.get_visit_purpose_display }}"
                                 data-date="{{ appointment.appointment_date|date:'M j, Y' }}"
                                 data-time="{{ appointment.appointment_time|time:'H:i' }}"
@@ -499,9 +576,8 @@
                                 data-latitude="{{ appointment.facility.latitude|default:'' }}"
                                 data-longitude="{{ appointment.facility.longitude|default:'' }}"
                             >
-                                <strong>{{ appointment.appointment_time|time:"H:i" }} - {{ appointment.beneficiary.get_full_name|default:appointment.beneficiary.username }}</strong>
-                                <span>{{ appointment.get_visit_purpose_display }}</span>
-                                <span>{{ appointment.facility.name }}</span>
+                                <strong>{{ appointment.appointment_time|time:"H:i" }} {% if is_client_appointment_view %} - {{ appointment.facility.name }}{% endif %}</strong>
+                                <span>{% if is_client_appointment_view %}{{ appointment.district.name }} - {{ appointment.facility.name }}{% endif %}</span>
                             </button>
                         {% endfor %}
                     </div>
@@ -526,7 +602,7 @@
             <div class="modal-body" style="padding: 1.5rem;">
                 <div class="appointment-action-list">
                     <div class="appointment-action-row">
-                        <div class="appointment-action-label">Client</div>
+                        <div class="appointment-action-label">{% if is_client_appointment_view %}Facility{% else %}Client{% endif %}</div>
                         <div id="actionBeneficiary"></div>
                     </div>
                     <div class="appointment-action-row">
@@ -547,20 +623,38 @@
                     </div>
                 </div>
                 <div class="appointment-modal-actions">
-                    <form method="post" id="completeAppointmentForm" class="js-confirm-form" data-confirm-title="Mark completed?" data-confirm-text="Confirm that this appointment visit has been completed." data-confirm-button="Mark Completed">
-                        {% csrf_token %}
-                        <input type="hidden" name="status" value="completed">
-                        <input type="hidden" name="next" class="js-action-next">
-                        <button type="submit" class="btn btn-success">Mark Completed</button>
-                    </form>
-                    <form method="post" id="missedAppointmentForm" class="js-confirm-form" data-confirm-title="Mark missed?" data-confirm-text="Confirm that this appointment was missed and needs follow-up." data-confirm-button="Mark Missed">
-                        {% csrf_token %}
-                        <input type="hidden" name="status" value="missed">
-                        <input type="hidden" name="next" class="js-action-next">
-                        <button type="submit" class="btn btn-warning">Mark Missed</button>
-                    </form>
-                    <a class="btn btn-outline-primary" id="appointmentDirectionsLink" href="#" target="_blank" rel="noopener">Directions</a>
+                    {% if can_manage_appointments %}
+                        <form method="post" id="completeAppointmentForm" class="js-confirm-form" data-confirm-title="Mark completed?" data-confirm-text="Confirm that this appointment visit has been completed." data-confirm-button="Mark Completed">
+                            {% csrf_token %}
+                            <input type="hidden" name="status" value="completed">
+                            <input type="hidden" name="next" class="js-action-next">
+                            <button type="submit" class="btn btn-success">Mark Completed</button>
+                        </form>
+                        <form method="post" id="missedAppointmentForm" class="js-confirm-form" data-confirm-title="Mark missed?" data-confirm-text="Confirm that this appointment was missed and needs follow-up." data-confirm-button="Mark Missed">
+                            {% csrf_token %}
+                            <input type="hidden" name="status" value="missed">
+                            <input type="hidden" name="next" class="js-action-next">
+                            <button type="submit" class="btn btn-warning">Mark Missed</button>
+                        </form>
+                        <button type="button" class="btn btn-outline-secondary" id="editAppointmentButton">Edit</button>
+                    {% endif %}
+                    {% if is_client_appointment_view %}<a class="btn btn-outline-primary" id="appointmentDirectionsLink" href="#" target="_blank" rel="noopener">Directions</a>{% endif %}
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Appointment Modal -->
+<div class="modal fade" id="editAppointmentModal" tabindex="-1" aria-labelledby="editAppointmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width: 420px;">
+        <div class="modal-content" style="border-radius: 20px;">
+            <div class="modal-header" style="background: transparent; border: none; padding: 1.5rem 1.5rem 0;">
+                <h5 class="modal-title" id="editAppointmentModalLabel" style="font-weight: 700; color: #1f2937;">Edit Appointment</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="editAppointmentModalBody" style="padding: 1.5rem;">
+                <div class="text-muted">Loading appointment...</div>
             </div>
         </div>
     </div>
@@ -579,10 +673,15 @@
                     {% csrf_token %}
                     {{ form.non_field_errors }}
                     <div class="mb-4">
-                        <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Beneficiary</label>
-                        {{ form.beneficiary }}
-                        {% if form.beneficiary.errors %}
-                            <div class="text-danger" style="font-size:0.85rem;">{{ form.beneficiary.errors }}</div>
+                        <label for="clientNameSearch" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Client Name</label>
+                        {{ form.client }}
+                        <div class="client-picker">
+                            <input type="text" class="form-control" id="clientNameSearch" placeholder="Search client by name" autocomplete="off">
+                            <div class="client-picker-results" id="clientPickerResults" hidden></div>
+                            <div class="client-picker-selected" id="clientPickerSelected"></div>
+                        </div>
+                        {% if form.client.errors %}
+                            <div class="text-danger" style="font-size:0.85rem;">{{ form.client.errors }}</div>
                         {% endif %}
                     </div>
 
@@ -594,61 +693,31 @@
                         {% endif %}
                     </div>
 
-                    <div class="row g-3 mb-4">
-                        <div class="col-6">
-                            <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Date</label>
-                            {{ form.appointment_date }}
-                            {% if form.appointment_date.errors %}
-                                <div class="text-danger" style="font-size:0.85rem;">{{ form.appointment_date.errors }}</div>
-                            {% endif %}
-                        </div>
-                        <div class="col-6">
-                            <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Time</label>
-                            {{ form.appointment_time }}
-                            {% if form.appointment_time.errors %}
-                                <div class="text-danger" style="font-size:0.85rem;">{{ form.appointment_time.errors }}</div>
-                            {% endif %}
-                        </div>
+                    <div class="mb-4">
+                        {{ form.appointment_date }}
+                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; margin-bottom: 0.5rem;">Date</div>
+                        <div id="selectedAppointmentDate" style="padding: 0.75rem; border-radius: 8px; background: #f9fafb; color: #374151; font-weight: 700;">Select a date from the calendar</div>
+                        {% if form.appointment_date.errors %}
+                            <div class="text-danger" style="font-size:0.85rem;">{{ form.appointment_date.errors }}</div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-4">
-                        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; margin-bottom: 1rem;">Location Selection</div>
-                        <div class="row g-3 mb-3">
-                            <div class="col-6">
-                                <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; font-weight: 600; display: block; margin-bottom: 0.5rem;">Province</label>
-                                <select name="province" id="id_province" class="form-select" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem;">
-                                    <option value="">Select Province</option>
-                                    {% for province in provinces %}
-                                        <option value="{{ province.id }}" {% if province.id|stringformat:"s" == form.province.value %}selected{% endif %}>{{ province.name }}</option>
-                                    {% endfor %}
-                                </select>
-                                {% if form.province.errors %}
-                                    <div class="text-danger" style="font-size:0.85rem;">{{ form.province.errors }}</div>
-                                {% endif %}
-                            </div>
-                            <div class="col-6">
-                                <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #9ca3af; font-weight: 600; display: block; margin-bottom: 0.5rem;">District</label>
-                                <select name="district" id="id_district" class="form-select" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem;">
-                                    <option value="">Select District</option>
-                                    {% for district in districts %}
-                                        <option value="{{ district.id }}" data-province="{{ district.province.id }}" {% if district.id|stringformat:"s" == form.district.value %}selected{% endif %}>{{ district.name }}</option>
-                                    {% endfor %}
-                                </select>
-                                {% if form.district.errors %}
-                                    <div class="text-danger" style="font-size:0.85rem;">{{ form.district.errors }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
+                        <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Time</label>
+                        {{ form.appointment_time }}
+                        {% if form.appointment_time.errors %}
+                            <div class="text-danger" style="font-size:0.85rem;">{{ form.appointment_time.errors }}</div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-4">
                         <label style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Preferred Facility</label>
-                        <select name="facility" id="id_facility" class="form-select" style="border: 1px solid #e5e7eb; border-radius: 8px; padding: 0.75rem;">
-                            <option value="">Select Healthcare Facility</option>
-                            {% for facility in facilities %}
-                                <option value="{{ facility.id }}" data-district="{{ facility.district.id }}" {% if facility.id|stringformat:"s" == form.facility.value %}selected{% endif %}>{{ facility.name }}</option>
-                            {% endfor %}
-                        </select>
+                        {{ form.facility.as_hidden }}
+                        <div class="client-picker" id="facilityPicker">
+                            <input type="text" class="form-control" id="facilityNameSearch" placeholder="Search facility" autocomplete="off">
+                            <div class="client-picker-results" id="facilityPickerResults" hidden></div>
+                            <div class="client-picker-selected" id="facilityPickerSelected"></div>
+                        </div>
                         {% if form.facility.errors %}
                             <div class="text-danger" style="font-size:0.85rem;">{{ form.facility.errors }}</div>
                         {% endif %}
@@ -668,60 +737,190 @@
     </div>
 </div>
 
+{{ appointment_clients|json_script:"appointmentClientsData" }}
+{{ appointment_facilities|json_script:"appointmentFacilitiesData" }}
+
 <script>
-    const provinceSelect = document.getElementById('id_province');
-    const districtSelect = document.getElementById('id_district');
     const facilitySelect = document.getElementById('id_facility');
+    const visitPurposeSelect = document.getElementById('id_visit_purpose');
+    const facilitySearch = document.getElementById('facilityNameSearch');
+    const facilityResults = document.getElementById('facilityPickerResults');
+    const facilitySelected = document.getElementById('facilityPickerSelected');
+    const clientInput = document.getElementById('id_client');
+    const clientSearch = document.getElementById('clientNameSearch');
+    const clientResults = document.getElementById('clientPickerResults');
+    const clientSelected = document.getElementById('clientPickerSelected');
+    const appointmentClientsElement = document.getElementById('appointmentClientsData');
+    const appointmentClients = appointmentClientsElement ? JSON.parse(appointmentClientsElement.textContent) : [];
+    const appointmentFacilitiesElement = document.getElementById('appointmentFacilitiesData');
+    const appointmentFacilities = appointmentFacilitiesElement ? JSON.parse(appointmentFacilitiesElement.textContent) : [];
 
-    const districtOptions = Array.from(districtSelect.options).map(option => ({
-        value: option.value,
-        label: option.text,
-        province: option.dataset.province,
-        selected: option.selected
-    }));
+    function clientLabel(client) {
+        return `${client.name}${client.phone ? ` ${client.phone}` : ''}`.trim();
+    }
 
-    const facilityOptions = Array.from(facilitySelect.options).map(option => ({
-        value: option.value,
-        label: option.text,
-        district: option.dataset.district,
-        selected: option.selected
-    }));
+    function clientHtml(client) {
+        return `${escapeClientHtml(client.name)}${client.phone ? `<sup>${escapeClientHtml(client.phone)}</sup>` : ''}`;
+    }
 
-    function filterOptions(selectElement, options, valueKey, parentValue, selectedValue = '') {
-        selectElement.innerHTML = '';
-        const placeholder = document.createElement('option');
-        placeholder.value = '';
-        placeholder.text = 'Select';
-        selectElement.appendChild(placeholder);
+    function facilityLabel(facility) {
+        return `${facility.name} ${facility.district} ${facility.province}`.trim();
+    }
 
-        options.filter(opt => opt[valueKey] === parentValue).forEach(opt => {
-            const option = document.createElement('option');
-            option.value = opt.value;
-            option.text = opt.label;
-            option.selected = opt.value === selectedValue;
-            selectElement.appendChild(option);
+    function facilityHtml(facility) {
+        return `${escapeClientHtml(facility.name)} <sup>${escapeClientHtml(facility.district)}</sup>`;
+    }
+
+    function escapeClientHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function selectClient(client) {
+        if (!clientInput || !clientSearch || !clientResults || !clientSelected) return;
+        clientInput.value = client.id;
+        clientSearch.value = client.name;
+        clientSelected.innerHTML = `Selected: ${clientHtml(client)}`;
+        clientResults.hidden = true;
+        clientResults.innerHTML = '';
+    }
+
+    function renderClientResults(searchTerm) {
+        if (!clientResults) return;
+        const normalizedTerm = searchTerm.trim().toLowerCase();
+        if (!normalizedTerm) {
+            clientResults.hidden = true;
+            clientResults.innerHTML = '';
+            return;
+        }
+
+        const matches = appointmentClients
+            .filter(client => clientLabel(client).toLowerCase().includes(normalizedTerm))
+            .slice(0, 8);
+
+        if (!matches.length) {
+            clientResults.hidden = false;
+            clientResults.innerHTML = '<div class="client-picker-option">No clients found</div>';
+            return;
+        }
+
+        clientResults.hidden = false;
+        clientResults.innerHTML = matches.map(client => `
+            <button type="button" class="client-picker-option" data-client-id="${client.id}">
+                ${clientHtml(client)}
+            </button>
+        `).join('');
+    }
+
+    if (clientInput && clientSearch && clientResults) {
+        const initialClient = appointmentClients.find(client => String(client.id) === String(clientInput.value));
+        if (initialClient) selectClient(initialClient);
+
+        clientSearch.addEventListener('input', () => {
+            clientInput.value = '';
+            if (clientSelected) clientSelected.textContent = '';
+            renderClientResults(clientSearch.value);
+        });
+
+        clientSearch.addEventListener('focus', () => {
+            renderClientResults(clientSearch.value);
+        });
+
+        clientResults.addEventListener('click', event => {
+            const button = event.target.closest('[data-client-id]');
+            if (!button) return;
+            const client = appointmentClients.find(item => String(item.id) === String(button.dataset.clientId));
+            if (client) selectClient(client);
+        });
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest('.client-picker')) {
+                clientResults.hidden = true;
+            }
         });
     }
 
-    if (provinceSelect && districtSelect && facilitySelect) {
-        provinceSelect.addEventListener('change', () => {
-            filterOptions(districtSelect, districtOptions, 'province', provinceSelect.value);
-            filterOptions(facilitySelect, facilityOptions, 'district', '');
+    function getFacilityMatches(searchTerm = '') {
+        const purpose = visitPurposeSelect ? visitPurposeSelect.value : '';
+        const normalizedTerm = searchTerm.trim().toLowerCase();
+        if (!purpose) return [];
+        return appointmentFacilities
+            .filter(facility => facility.services.includes(purpose))
+            .filter(facility => !normalizedTerm || facilityLabel(facility).toLowerCase().includes(normalizedTerm))
+            .slice(0, 10);
+    }
+
+    function selectFacility(facility) {
+        if (!facilitySelect || !facilitySearch || !facilityResults || !facilitySelected) return;
+        facilitySelect.value = facility.id;
+        facilitySearch.value = facility.name;
+        facilitySelected.innerHTML = `Selected: ${facilityHtml(facility)}`;
+        facilityResults.hidden = true;
+        facilityResults.innerHTML = '';
+    }
+
+    function renderFacilityResults(searchTerm = '') {
+        if (!facilityResults) return;
+        if (!visitPurposeSelect || !visitPurposeSelect.value) {
+            facilityResults.hidden = false;
+            facilityResults.innerHTML = '<div class="client-picker-option">Select a visit purpose first</div>';
+            return;
+        }
+
+        const matches = getFacilityMatches(searchTerm);
+        if (!matches.length) {
+            facilityResults.hidden = false;
+            facilityResults.innerHTML = '<div class="client-picker-option">No mapped facilities found for this service</div>';
+            return;
+        }
+
+        facilityResults.hidden = false;
+        facilityResults.innerHTML = matches.map(facility => `
+            <button type="button" class="client-picker-option" data-facility-id="${facility.id}">
+                ${facilityHtml(facility)}
+            </button>
+        `).join('');
+    }
+
+    if (facilitySelect && facilitySearch && facilityResults) {
+        const initialFacility = appointmentFacilities.find(facility => String(facility.id) === String(facilitySelect.value));
+        if (initialFacility) selectFacility(initialFacility);
+
+        if (visitPurposeSelect) {
+            visitPurposeSelect.addEventListener('change', () => {
+                facilitySelect.value = '';
+                facilitySearch.value = '';
+                if (facilitySelected) facilitySelected.textContent = '';
+                renderFacilityResults(facilitySearch.value);
+            });
+        }
+
+        facilitySearch.addEventListener('input', () => {
+            facilitySelect.value = '';
+            if (facilitySelected) facilitySelected.textContent = '';
+            renderFacilityResults(facilitySearch.value);
         });
 
-        districtSelect.addEventListener('change', () => {
-            filterOptions(facilitySelect, facilityOptions, 'district', districtSelect.value);
+        facilitySearch.addEventListener('focus', () => {
+            renderFacilityResults(facilitySearch.value);
         });
 
-        const selectedProvince = provinceSelect.value;
-        const selectedDistrict = districtSelect.value;
-        const selectedFacility = facilitySelect.value;
-        if (selectedProvince) {
-            filterOptions(districtSelect, districtOptions, 'province', selectedProvince, selectedDistrict);
-        }
-        if (selectedDistrict) {
-            filterOptions(facilitySelect, facilityOptions, 'district', selectedDistrict, selectedFacility);
-        }
+        facilityResults.addEventListener('click', event => {
+            const button = event.target.closest('[data-facility-id]');
+            if (!button) return;
+            const facility = appointmentFacilities.find(item => String(item.id) === String(button.dataset.facilityId));
+            if (facility) selectFacility(facility);
+        });
+
+        document.addEventListener('click', event => {
+            if (!event.target.closest('#facilityPicker')) {
+                facilityResults.hidden = true;
+            }
+        });
     }
 
     function bindBookingDateButtons(root = document) {
@@ -733,11 +932,29 @@
                 if (appointmentDate) {
                     appointmentDate.value = button.dataset.bookingDate;
                 }
+                const selectedDate = document.getElementById('selectedAppointmentDate');
+                if (selectedDate) {
+                    selectedDate.textContent = new Date(`${button.dataset.bookingDate}T00:00:00`).toLocaleDateString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                    });
+                }
             });
         });
     }
 
     bindBookingDateButtons();
+
+    const initialAppointmentDate = document.getElementById('id_appointment_date');
+    const selectedAppointmentDate = document.getElementById('selectedAppointmentDate');
+    if (initialAppointmentDate && selectedAppointmentDate && initialAppointmentDate.value) {
+        selectedAppointmentDate.textContent = new Date(`${initialAppointmentDate.value}T00:00:00`).toLocaleDateString(undefined, {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+        });
+    }
 
     const appointmentSearchForm = document.getElementById('appointmentSearchForm');
     const appointmentSearchStatus = document.getElementById('appointmentSearchStatus');
@@ -809,6 +1026,64 @@
         updateAppointmentCalendar(link.href);
     });
 
+    function bindAppointmentEditForm(root) {
+        const form = root.querySelector('[data-appointment-edit-form]');
+        if (!form) return;
+
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            const submitButton = form.querySelector('[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.textContent = 'Saving...';
+            }
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const contentType = response.headers.get('content-type') || '';
+                if (response.ok && contentType.includes('application/json')) {
+                    const result = await response.json();
+                    window.location.href = result.redirect || window.location.href;
+                    return;
+                }
+
+                const html = await response.text();
+                root.innerHTML = html;
+                bindAppointmentEditForm(root);
+            } catch (error) {
+                root.insertAdjacentHTML('afterbegin', '<div class="alert alert-danger">Could not save the appointment. Please try again.</div>');
+            }
+        });
+    }
+
+    async function openAppointmentEditModal(editUrl, nextUrl) {
+        const body = document.getElementById('editAppointmentModalBody');
+        const modalElement = document.getElementById('editAppointmentModal');
+        if (!body || !modalElement || !editUrl) return;
+
+        const url = new URL(editUrl, window.location.origin);
+        url.searchParams.set('next', nextUrl || window.location.pathname + window.location.search);
+        body.innerHTML = '<div class="text-muted">Loading appointment...</div>';
+
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('appointmentActionModal')).hide();
+        bootstrap.Modal.getOrCreateInstance(modalElement).show();
+
+        try {
+            const response = await fetch(url.toString(), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            if (!response.ok) throw new Error('Unable to load appointment form.');
+            body.innerHTML = await response.text();
+            bindAppointmentEditForm(body);
+        } catch (error) {
+            body.innerHTML = '<div class="alert alert-danger">Could not load the appointment. Please try again.</div>';
+        }
+    }
+
     function bindAppointmentActionButtons(root = document) {
         root.querySelectorAll('.calendar-event[data-action-url]').forEach(button => {
             if (button.dataset.boundAppointmentAction) return;
@@ -824,8 +1099,15 @@
                 setText('actionStatus', button.dataset.status);
 
                 document.getElementById('appointmentActionModalLabel').textContent = button.dataset.beneficiary || 'Appointment';
-                document.getElementById('completeAppointmentForm').action = button.dataset.actionUrl;
-                document.getElementById('missedAppointmentForm').action = button.dataset.actionUrl;
+                const completeForm = document.getElementById('completeAppointmentForm');
+                const missedForm = document.getElementById('missedAppointmentForm');
+                if (completeForm) completeForm.action = button.dataset.actionUrl;
+                if (missedForm) missedForm.action = button.dataset.actionUrl;
+                const editButton = document.getElementById('editAppointmentButton');
+                if (editButton) {
+                    editButton.dataset.editUrl = button.dataset.editUrl;
+                    editButton.dataset.nextUrl = button.dataset.nextUrl || window.location.pathname + window.location.search;
+                }
                 document.querySelectorAll('.js-action-next').forEach(input => {
                     input.value = button.dataset.nextUrl || window.location.pathname + window.location.search;
                 });
@@ -847,6 +1129,13 @@
     }
 
     bindAppointmentActionButtons();
+
+    const editAppointmentButton = document.getElementById('editAppointmentButton');
+    if (editAppointmentButton) {
+        editAppointmentButton.addEventListener('click', () => {
+            openAppointmentEditModal(editAppointmentButton.dataset.editUrl, editAppointmentButton.dataset.nextUrl);
+        });
+    }
 
     function setText(id, value) {
         const element = document.getElementById(id);

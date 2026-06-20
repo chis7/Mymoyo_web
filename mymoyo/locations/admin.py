@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Province, District, Facility
+from .models import Province, District, Facility, Service
 
 
 class DistrictInline(admin.TabularInline):
@@ -34,5 +34,13 @@ class DistrictAdmin(admin.ModelAdmin):
 @admin.register(Facility)
 class FacilityAdmin(admin.ModelAdmin):
     list_display = ('name', 'district', 'code', 'level', 'latitude', 'longitude')
-    list_filter = ('district__province', 'district')
-    search_fields = ('name', 'code', 'district__name', 'district__province__name')
+    list_filter = ('district__province', 'district', 'services')
+    search_fields = ('name', 'code', 'district__name', 'district__province__name', 'services__name')
+    filter_horizontal = ('services',)
+
+
+@admin.register(Service)
+class ServiceAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'is_active')
+    list_filter = ('is_active',)
+    search_fields = ('name', 'code', 'description')

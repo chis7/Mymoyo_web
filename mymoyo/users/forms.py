@@ -1,9 +1,15 @@
+from datetime import datetime
+
 from django import forms
 from django.contrib.auth.forms import UserCreationForm as DjangoUserCreationForm
 from django.contrib.auth.models import User
 from django.utils import timezone
-from .models import UserProfile, Appointment
-from locations.models import Province, District, Facility
+from .models import Appointment, PersonIdentity, UserProfile
+from locations.models import Facility
+
+FACILITY_REQUIRED_ROLES = {'supervisor', 'provider', 'chw', 'mobiliser'}
+FACILITY_ASSIGNABLE_ROLES = {'admin', 'supervisor', 'provider', 'chw', 'mobiliser'}
+FACILITY_USER_ROLES = FACILITY_REQUIRED_ROLES
 
 
 class UserForm(forms.ModelForm):
@@ -33,9 +39,15 @@ class UserForm(forms.ModelForm):
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
-        fields = ['role', 'bio', 'phone', 'date_of_birth', 'is_active', 'must_change_password']
+        fields = ['role', 'person_identity', 'facility', 'bio', 'phone', 'date_of_birth', 'is_active', 'must_change_password']
         widgets = {
             'role': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'person_identity': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'facility': forms.Select(attrs={
                 'class': 'form-control'
             }),
             'bio': forms.Textarea(attrs={
@@ -56,6 +68,48 @@ class UserProfileForm(forms.ModelForm):
             }),
             'must_change_password': forms.CheckboxInput(attrs={
                 'class': 'form-check-input'
+            }),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['person_identity'].queryset = PersonIdentity.objects.order_by('full_name', 'id')
+        self.fields['person_identity'].required = False
+        self.fields['facility'].queryset = Facility.objects.select_related('district__province').order_by(
+            'district__province__name',
+            'district__name',
+            'name',
+        )
+        self.fields['facility'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        role = cleaned_data.get('role')
+        facility = cleaned_data.get('facility')
+        if role in FACILITY_REQUIRED_ROLES and not facility:
+            self.add_error('facility', 'Select the facility where this user works.')
+        if role not in FACILITY_ASSIGNABLE_ROLES:
+            cleaned_data['facility'] = None
+        return cleaned_data
+
+
+class SelfProfileForm(forms.ModelForm):
+    class Meta:
+        model = UserProfile
+        fields = ['bio', 'phone', 'date_of_birth']
+        widgets = {
+            'bio': forms.Textarea(attrs={
+                'class': 'form-control',
+                'placeholder': 'Biography',
+                'rows': 4,
+            }),
+            'phone': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Phone Number',
+            }),
+            'date_of_birth': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
             }),
         }
 
@@ -122,10 +176,17 @@ class PublicRegistrationForm(DjangoUserCreationForm):
             'placeholder': 'Email Address'
         })
     )
+    phone = forms.CharField(
+        max_length=20,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Mobile number for OTP'
+        })
+    )
 
     class Meta:
         model = User
-        fields = ['username', 'first_name', 'last_name', 'email', 'password1', 'password2']
+        fields = ['username', 'first_name', 'last_name', 'email', 'phone', 'password1', 'password2']
         widgets = {
             'username': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -158,25 +219,36 @@ class PublicRegistrationForm(DjangoUserCreationForm):
             raise forms.ValidationError('An account with this email already exists.')
         return email
 
+    def clean_phone(self):
+        phone = self.cleaned_data['phone'].strip()
+        if UserProfile.objects.filter(phone__iexact=phone).exists():
+            raise forms.ValidationError('An account with this mobile number already exists.')
+        return phone
+
 
 class AppointmentForm(forms.ModelForm):
+    client = forms.ModelChoiceField(
+        label='Client name',
+        queryset=User.objects.none(),
+        widget=forms.HiddenInput(attrs={
+            'id': 'id_client',
+        }),
+        error_messages={
+            'required': 'Select an active client.',
+            'invalid_choice': 'Select a valid active client.',
+        },
+    )
+
     class Meta:
         model = Appointment
         fields = [
-            'beneficiary',
             'visit_purpose',
             'appointment_date',
             'appointment_time',
-            'province',
-            'district',
             'facility',
             'notes',
         ]
         widgets = {
-            'beneficiary': forms.Select(attrs={
-                'class': 'form-select',
-                'id': 'id_beneficiary'
-            }),
             'visit_purpose': forms.Select(attrs={
                 'class': 'form-select',
                 'id': 'id_visit_purpose'
@@ -184,20 +256,13 @@ class AppointmentForm(forms.ModelForm):
             'appointment_date': forms.DateInput(attrs={
                 'class': 'form-control',
                 'type': 'date',
-                'id': 'id_appointment_date'
+                'id': 'id_appointment_date',
+                'min': timezone.localdate().isoformat(),
             }),
             'appointment_time': forms.TimeInput(attrs={
                 'class': 'form-control',
                 'type': 'time',
                 'id': 'id_appointment_time'
-            }),
-            'province': forms.Select(attrs={
-                'class': 'form-select',
-                'id': 'id_province'
-            }),
-            'district': forms.Select(attrs={
-                'class': 'form-select',
-                'id': 'id_district'
             }),
             'facility': forms.Select(attrs={
                 'class': 'form-select',
@@ -211,16 +276,102 @@ class AppointmentForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self.created_by = kwargs.pop('created_by', None)
         super().__init__(*args, **kwargs)
-        self.fields['beneficiary'].queryset = User.objects.all().order_by('username')
-        self.fields['province'].queryset = Province.objects.all().order_by('name')
-        self.fields['district'].queryset = District.objects.all().order_by('province__name', 'name')
-        self.fields['facility'].queryset = Facility.objects.all().order_by('district__province__name', 'district__name', 'name')
+        self.fields['client'].queryset = User.objects.select_related('profile').filter(
+            profile__role='client',
+            profile__is_active=True,
+            is_active=True,
+        ).order_by('first_name', 'last_name', 'username')
+        self.fields['facility'].queryset = Facility.objects.select_related('district__province').prefetch_related('services').order_by(
+            'district__province__name',
+            'district__name',
+            'name',
+        )
         self.fields['visit_purpose'].choices = Appointment.VISIT_PURPOSE_CHOICES
         self.fields['notes'].required = False
+        self.fields['appointment_date'].widget = forms.HiddenInput(attrs={
+            'id': 'id_appointment_date',
+        })
         for field in self.fields.values():
             if not field.widget.attrs.get('class'):
                 field.widget.attrs['class'] = 'form-control'
+
+        if self.instance and self.instance.pk:
+            self.fields['client'].initial = self.instance.beneficiary
+        elif self.created_by and hasattr(self.created_by, 'profile') and self.created_by.profile.facility_id:
+            facility = self.created_by.profile.facility
+            self.fields['facility'].initial = facility.pk
+
+    def clean(self):
+        cleaned_data = super().clean()
+        facility = cleaned_data.get('facility')
+        visit_purpose = cleaned_data.get('visit_purpose')
+        if facility and visit_purpose:
+            active_services = facility.services.filter(is_active=True)
+            if not active_services.filter(code=visit_purpose).exists():
+                self.add_error('facility', 'Select a facility that provides this appointment service.')
+        return cleaned_data
+
+    def save(self, commit=True):
+        appointment = super().save(commit=False)
+        appointment.beneficiary = self.cleaned_data['client']
+        appointment.district = appointment.facility.district
+        appointment.province = appointment.facility.district.province
+        if self.created_by and not appointment.created_by_id:
+            appointment.created_by = self.created_by
+        if commit:
+            appointment.save()
+            self.save_m2m()
+        return appointment
+
+
+class AppointmentEditForm(forms.ModelForm):
+    class Meta:
+        model = Appointment
+        fields = ['visit_purpose', 'appointment_date', 'appointment_time', 'status']
+        widgets = {
+            'visit_purpose': forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_edit_visit_purpose',
+            }),
+            'appointment_date': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date',
+                'id': 'id_edit_appointment_date',
+                'min': timezone.localdate().isoformat(),
+            }),
+            'appointment_time': forms.TimeInput(attrs={
+                'class': 'form-control',
+                'type': 'time',
+                'id': 'id_edit_appointment_time',
+            }),
+            'status': forms.Select(attrs={
+                'class': 'form-select',
+                'id': 'id_edit_status',
+            }),
+        }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        appointment_date = cleaned_data.get('appointment_date')
+        appointment_time = cleaned_data.get('appointment_time')
+        visit_purpose = cleaned_data.get('visit_purpose')
+        status = cleaned_data.get('status')
+        facility = self.instance.facility
+        if status == 'upcoming' and appointment_date and appointment_time:
+            appointment_datetime = timezone.make_aware(
+                datetime.combine(appointment_date, appointment_time),
+                timezone.get_current_timezone(),
+            )
+            if appointment_datetime <= timezone.now():
+                self.add_error('appointment_date', 'Appointments cannot be scheduled in the past.')
+                self.add_error('appointment_time', 'Choose a future appointment time.')
+        if facility and visit_purpose:
+            active_services = facility.services.filter(is_active=True)
+            if not active_services.filter(code=visit_purpose).exists():
+                self.add_error('visit_purpose', 'This facility is not mapped to that service.')
+        return cleaned_data
 
 
 class SelfRiskAssessmentForm(forms.Form):

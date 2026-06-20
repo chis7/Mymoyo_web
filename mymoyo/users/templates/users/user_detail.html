@@ -1,62 +1,722 @@
 {% extends 'users/base.html' %}
 
-{% block title %}{{ user.username }} - User Details{% endblock %}
+{% block title %}{{ user.get_full_name|default:user.username }} - Profile{% endblock %}
+
+{% block extra_head %}
+<style>
+    .profile-page {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+    }
+    .profile-hero {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 1rem;
+        padding: 1.25rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        border-radius: 12px;
+        background: var(--theme-surface);
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+    }
+    .profile-avatar {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 76px;
+        height: 76px;
+        border-radius: 14px;
+        background: var(--theme-soft);
+        color: var(--theme-primary);
+        font-size: 2rem;
+        font-weight: 900;
+        text-transform: uppercase;
+    }
+    .profile-title h1 {
+        margin: 0;
+        color: var(--theme-text-strong);
+        font-size: 1.75rem;
+        line-height: 1.15;
+    }
+    .profile-title p {
+        margin: 0.35rem 0 0;
+        color: var(--theme-text-muted);
+        font-weight: 700;
+    }
+    .profile-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.8rem;
+    }
+    .profile-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.65rem;
+        border-radius: 999px;
+        background: var(--theme-soft);
+        color: var(--theme-primary);
+        font-size: 0.8rem;
+        font-weight: 900;
+    }
+    .profile-pill.success {
+        background: #d1fae5;
+        color: #047857;
+    }
+    .profile-pill.muted {
+        background: rgba(100, 116, 139, 0.12);
+        color: var(--theme-text-muted);
+    }
+    .profile-pill .material-symbols-outlined {
+        font-size: 1rem;
+    }
+    .profile-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.55rem;
+        justify-content: flex-end;
+    }
+    .profile-action {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.65rem 0.85rem;
+        border: 0;
+        border-radius: 8px;
+        color: #ffffff;
+        background: var(--theme-primary);
+        font-size: 0.9rem;
+        font-weight: 900;
+        text-decoration: none;
+    }
+    .profile-action.secondary {
+        background: var(--theme-soft);
+        color: var(--theme-primary);
+    }
+    .profile-action.danger {
+        background: #dc2626;
+    }
+    .profile-action .material-symbols-outlined {
+        font-size: 1.1rem;
+    }
+    .profile-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem;
+    }
+    .profile-card {
+        min-width: 0;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.09);
+        border-radius: 12px;
+        background: var(--theme-surface);
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+        overflow: hidden;
+    }
+    .profile-card.full {
+        grid-column: 1 / -1;
+    }
+    .profile-card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 1rem;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        background: var(--theme-soft);
+        color: var(--theme-text-strong);
+        font-weight: 900;
+    }
+    .profile-card-header .material-symbols-outlined {
+        color: var(--theme-primary);
+        font-size: 1.25rem;
+    }
+    .profile-card-body {
+        padding: 1rem;
+    }
+    .profile-facts {
+        display: grid;
+        gap: 0.85rem;
+    }
+    .profile-fact {
+        display: grid;
+        gap: 0.25rem;
+    }
+    .profile-fact dt {
+        margin: 0;
+        color: var(--theme-text-muted);
+        font-size: 0.75rem;
+        font-weight: 900;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .profile-fact dd {
+        margin: 0;
+        color: var(--theme-surface-text);
+        font-weight: 800;
+        overflow-wrap: anywhere;
+    }
+    .profile-fact small {
+        display: block;
+        margin-top: 0.2rem;
+        color: var(--theme-text-muted);
+        font-weight: 700;
+    }
+    .profile-bio {
+        margin: 0;
+        color: var(--theme-surface-text);
+        line-height: 1.6;
+    }
+    .responsibility-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+        gap: 0.75rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    .responsibility-list li {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 0.55rem;
+        align-items: start;
+        padding: 0.85rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.09);
+        border-radius: 10px;
+        background: var(--theme-soft);
+        color: var(--theme-surface-text);
+        font-weight: 700;
+    }
+    .responsibility-list .material-symbols-outlined {
+        color: var(--theme-primary);
+        font-size: 1.1rem;
+    }
+    .profile-empty {
+        margin: 0;
+        color: var(--theme-text-muted);
+        font-weight: 700;
+    }
+    .profile-modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 1300;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1.25rem;
+        background: rgba(15, 23, 42, 0.58);
+        backdrop-filter: blur(8px);
+    }
+    .profile-modal-overlay.active {
+        display: flex;
+    }
+    .profile-modal-dialog {
+        width: min(920px, 100%);
+        max-height: min(90vh, 820px);
+        overflow: hidden;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.16);
+        border-radius: 14px;
+        background: var(--theme-surface);
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+    }
+    .profile-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.15rem 1.25rem;
+        background: var(--theme-soft);
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+    }
+    .profile-modal-title {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+    }
+    .profile-modal-title .material-symbols-outlined {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 42px;
+        height: 42px;
+        border-radius: 10px;
+        background: var(--theme-primary);
+        color: #ffffff;
+        font-size: 1.35rem;
+    }
+    .profile-modal-title h2 {
+        margin: 0;
+        color: var(--theme-text-strong);
+        font-size: 1.18rem;
+    }
+    .profile-modal-title p {
+        margin: 0.18rem 0 0;
+        color: var(--theme-text-muted);
+        font-size: 0.86rem;
+        font-weight: 700;
+    }
+    .profile-modal-close {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        border: 0;
+        border-radius: 8px;
+        background: rgba(var(--theme-primary-rgb), 0.12);
+        color: var(--theme-primary);
+        cursor: pointer;
+    }
+    .profile-modal-body {
+        max-height: calc(min(90vh, 820px) - 148px);
+        overflow: auto;
+        padding: 1.25rem;
+    }
+    .profile-modal-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+    .profile-modal-section {
+        display: grid;
+        gap: 0.85rem;
+        align-content: start;
+        padding: 1rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.09);
+        border-radius: 12px;
+        background: rgba(var(--theme-primary-rgb), 0.035);
+    }
+    .profile-modal-section h3 {
+        margin: 0;
+        color: var(--theme-text-strong);
+        font-size: 0.95rem;
+    }
+    .profile-form-field {
+        display: grid;
+        gap: 0.35rem;
+    }
+    .profile-form-field label {
+        color: var(--theme-text-muted);
+        font-size: 0.78rem;
+        font-weight: 900;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+    }
+    .profile-form-field input,
+    .profile-form-field select,
+    .profile-form-field textarea {
+        width: 100%;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.16);
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--theme-surface-text);
+        padding: 0.72rem 0.8rem;
+        font-weight: 700;
+    }
+    .profile-form-field input:focus,
+    .profile-form-field select:focus,
+    .profile-form-field textarea:focus {
+        outline: 2px solid rgba(var(--theme-primary-rgb), 0.22);
+        border-color: var(--theme-primary);
+    }
+    .profile-form-field .form-check-input {
+        width: auto;
+        padding: 0;
+    }
+    .profile-field-error,
+    .profile-modal-error {
+        color: #b91c1c;
+        font-size: 0.82rem;
+        font-weight: 800;
+    }
+    .profile-modal-error {
+        display: none;
+        margin-bottom: 1rem;
+        padding: 0.8rem;
+        border-radius: 10px;
+        background: #fee2e2;
+    }
+    .profile-modal-footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+        padding: 1rem 1.25rem;
+        border-top: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        background: var(--theme-surface);
+    }
+    @media (max-width: 1100px) {
+        .profile-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+        .profile-hero {
+            grid-template-columns: auto minmax(0, 1fr);
+        }
+        .profile-actions {
+            grid-column: 1 / -1;
+            justify-content: flex-start;
+        }
+    }
+    @media (max-width: 720px) {
+        .profile-hero,
+        .profile-grid {
+            grid-template-columns: 1fr;
+        }
+        .profile-avatar {
+            width: 64px;
+            height: 64px;
+        }
+        .profile-title h1 {
+            font-size: 1.45rem;
+        }
+        .profile-actions,
+        .profile-action,
+        .profile-modal-grid {
+            width: 100%;
+        }
+        .profile-action {
+            justify-content: center;
+        }
+        .profile-modal-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">{{ user.username }} Details</h5>
+<div class="profile-page">
+    <nav class="management-breadcrumb" aria-label="Breadcrumb">
+        <a href="{% url 'user_dashboard' %}">Command Center</a>
+        <span class="material-symbols-outlined">chevron_right</span>
         {% if request.user.is_superuser or request.user.profile.role == 'admin' %}
-            <div>
-                <a href="{% url 'user_edit' user.pk %}" class="btn btn-sm btn-outline-secondary">Edit Profile</a>
-                <a href="{% url 'user_delete' user.pk %}" class="btn btn-sm btn-danger">Delete</a>
+            <a href="{% url 'user_list' %}">Manage Users</a>
+            <span class="material-symbols-outlined">chevron_right</span>
+        {% endif %}
+        <span aria-current="page">{{ user.get_full_name|default:user.username }}</span>
+    </nav>
+
+    <section class="profile-hero" aria-label="Profile summary">
+        <div class="profile-avatar" aria-hidden="true">
+            {% firstof user.first_name|first user.username|first "U" %}
+        </div>
+        <div class="profile-title">
+            <h1>{{ user.get_full_name|default:user.username }}</h1>
+            <p>@{{ user.username }}{% if profile.reference_number %} · {{ profile.reference_number }}{% endif %}</p>
+            <div class="profile-pills">
+                <span class="profile-pill">
+                    <span class="material-symbols-outlined" aria-hidden="true">badge</span>
+                    {{ profile.get_role_display }}
+                </span>
+                {% if user.is_active %}
+                    <span class="profile-pill success">
+                        <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+                        Active
+                    </span>
+                {% else %}
+                    <span class="profile-pill muted">
+                        <span class="material-symbols-outlined" aria-hidden="true">block</span>
+                        Inactive
+                    </span>
+                {% endif %}
+                {% if profile.is_phone_verified %}
+                    <span class="profile-pill success">
+                        <span class="material-symbols-outlined" aria-hidden="true">verified</span>
+                        Phone verified
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+        {% if can_edit_profile %}
+            <div class="profile-actions" aria-label="Profile actions">
+                <button type="button" class="profile-action secondary" data-open-profile-modal>
+                    <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                    Edit Profile
+                </button>
+                {% if can_admin_edit_profile %}
+                    <a href="{% url 'user_delete' user.pk %}" class="profile-action danger">
+                        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                        Delete
+                    </a>
+                {% endif %}
             </div>
         {% endif %}
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-md-6">
-                <dl class="row">
-                    <dt class="col-sm-4">Full name</dt>
-                    <dd class="col-sm-8">{{ user.get_full_name }}</dd>
-                    <dt class="col-sm-4">Email</dt>
-                    <dd class="col-sm-8">{{ user.email }}</dd>
-                    <dt class="col-sm-4">Joined</dt>
-                    <dd class="col-sm-8">{{ user.date_joined|date:'M d, Y' }}</dd>
-                    <dt class="col-sm-4">Status</dt>
-                    <dd class="col-sm-8">
-                        {% if user.is_active %}
-                        <span class="badge bg-success">Active</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Inactive</span>
-                        {% endif %}
-                    </dd>
+    </section>
+
+    <section class="profile-grid" aria-label="Profile details">
+        <article class="profile-card">
+            <div class="profile-card-header">
+                <span class="material-symbols-outlined" aria-hidden="true">contact_mail</span>
+                Account
+            </div>
+            <div class="profile-card-body">
+                <dl class="profile-facts">
+                    <div class="profile-fact">
+                        <dt>Email</dt>
+                        <dd>{{ user.email|default:"Not provided" }}</dd>
+                    </div>
+                    <div class="profile-fact">
+                        <dt>Joined</dt>
+                        <dd>{{ user.date_joined|date:'M d, Y' }}</dd>
+                    </div>
+                    <div class="profile-fact">
+                        <dt>Last login</dt>
+                        <dd>{{ user.last_login|date:'M d, Y H:i'|default:"Not recorded" }}</dd>
+                    </div>
                 </dl>
             </div>
-            <div class="col-md-6">
-                <dl class="row">
-                    <dt class="col-sm-4">Role</dt>
-                    <dd class="col-sm-8">{{ profile.get_role_display }}</dd>
-                    <dt class="col-sm-4">Phone</dt>
-                    <dd class="col-sm-8">{{ profile.phone|default:'—' }}</dd>
-                    <dt class="col-sm-4">Birthday</dt>
-                    <dd class="col-sm-8">{{ profile.date_of_birth|date:'M d, Y'|default:'—' }}</dd>
-                    <dt class="col-sm-4">Bio</dt>
-                    <dd class="col-sm-8">{{ profile.bio|default:'No biography added.' }}</dd>
+        </article>
+
+        <article class="profile-card">
+            <div class="profile-card-header">
+                <span class="material-symbols-outlined" aria-hidden="true">person_pin_circle</span>
+                Contact
+            </div>
+            <div class="profile-card-body">
+                <dl class="profile-facts">
+                    <div class="profile-fact">
+                        <dt>Phone</dt>
+                        <dd>{{ profile.phone|default:"Not provided" }}</dd>
+                    </div>
+                    <div class="profile-fact">
+                        <dt>Date of birth</dt>
+                        <dd>{{ profile.date_of_birth|date:'M d, Y'|default:"Not provided" }}</dd>
+                    </div>
+                    <div class="profile-fact">
+                        <dt>Person identity</dt>
+                        <dd>
+                            {% if profile.person_identity %}
+                                {{ profile.person_identity.full_name }}
+                                {% if profile.person_identity.phone %}
+                                    <small>{{ profile.person_identity.phone }}</small>
+                                {% endif %}
+                            {% else %}
+                                Not linked
+                            {% endif %}
+                        </dd>
+                    </div>
                 </dl>
             </div>
-        </div>
-        <div class="mt-4">
-            <h6>Role responsibilities</h6>
-            <ul class="list-group list-group-flush">
-                {% for responsibility in profile.get_role_responsibilities %}
-                <li class="list-group-item">{{ responsibility }}</li>
-                {% empty %}
-                <li class="list-group-item text-muted">No role details available.</li>
-                {% endfor %}
-            </ul>
-        </div>
-        </div>
+        </article>
+
+        <article class="profile-card">
+            <div class="profile-card-header">
+                <span class="material-symbols-outlined" aria-hidden="true">local_hospital</span>
+                Facility
+            </div>
+            <div class="profile-card-body">
+                <dl class="profile-facts">
+                    <div class="profile-fact">
+                        <dt>Assigned facility</dt>
+                        <dd>
+                            {% if profile.facility %}
+                                {{ profile.facility.name }}
+                                <small>{{ profile.facility.district.name }}, {{ profile.facility.district.province.name }}</small>
+                            {% else %}
+                                Not assigned
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div class="profile-fact">
+                        <dt>Role</dt>
+                        <dd>{{ profile.get_role_display }}</dd>
+                    </div>
+                    <div class="profile-fact">
+                        <dt>Password status</dt>
+                        <dd>{% if profile.must_change_password %}Change required{% else %}Current{% endif %}</dd>
+                    </div>
+                </dl>
+            </div>
+        </article>
+
+        <article class="profile-card full">
+            <div class="profile-card-header">
+                <span class="material-symbols-outlined" aria-hidden="true">notes</span>
+                Bio
+            </div>
+            <div class="profile-card-body">
+                <p class="profile-bio">{{ profile.bio|default:"No biography added." }}</p>
+            </div>
+        </article>
+
+        <article class="profile-card full">
+            <div class="profile-card-header">
+                <span class="material-symbols-outlined" aria-hidden="true">task_alt</span>
+                Role Responsibilities
+            </div>
+            <div class="profile-card-body">
+                {% if profile.get_role_responsibilities %}
+                    <ul class="responsibility-list">
+                        {% for responsibility in profile.get_role_responsibilities %}
+                            <li>
+                                <span class="material-symbols-outlined" aria-hidden="true">check_circle</span>
+                                <span>{{ responsibility }}</span>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="profile-empty">No role details available.</p>
+                {% endif %}
+            </div>
+        </article>
+    </section>
+</div>
+
+{% if can_edit_profile %}
+<div class="profile-modal-overlay" id="profileEditModal" aria-hidden="true">
+    <div class="profile-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="profileEditTitle">
+        <form method="post" action="{% url 'user_profile_update' user.pk %}" id="profileEditForm" class="js-ajax-form">
+            {% csrf_token %}
+            <div class="profile-modal-header">
+                <div class="profile-modal-title">
+                    <span class="material-symbols-outlined" aria-hidden="true">manage_accounts</span>
+                    <div>
+                        <h2 id="profileEditTitle">Edit Profile</h2>
+                        <p>{{ user.get_full_name|default:user.username }}</p>
+                    </div>
+                </div>
+                <button type="button" class="profile-modal-close" data-close-profile-modal aria-label="Close edit profile modal">
+                    <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                </button>
+            </div>
+            <div class="profile-modal-body">
+                <div class="profile-modal-error" id="profileEditError"></div>
+                <div class="profile-modal-grid">
+                    <section class="profile-modal-section">
+                        <h3>Account Details</h3>
+                        {% for field in edit_user_form %}
+                            <div class="profile-form-field" data-field-name="{{ field.name }}">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}
+                                    <div class="profile-field-error">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </section>
+                    <section class="profile-modal-section">
+                        <h3>{% if can_admin_edit_profile %}Access & Assignment{% else %}Personal Details{% endif %}</h3>
+                        {% for field in edit_profile_form %}
+                            <div class="profile-form-field" data-field-name="{{ field.name }}">
+                                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <small>{{ field.help_text }}</small>
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <div class="profile-field-error">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </section>
+                </div>
+            </div>
+            <div class="profile-modal-footer">
+                <button type="button" class="profile-action secondary" data-close-profile-modal>Cancel</button>
+                <button type="submit" class="profile-action" id="profileEditSubmit">
+                    <span class="material-symbols-outlined" aria-hidden="true">save</span>
+                    Save Changes
+                </button>
+            </div>
+        </form>
     </div>
 </div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{% if can_edit_profile %}
+<script>
+    (function () {
+        const modal = document.getElementById('profileEditModal');
+        const form = document.getElementById('profileEditForm');
+        const errorBox = document.getElementById('profileEditError');
+        const submitButton = document.getElementById('profileEditSubmit');
+        if (!modal || !form || !submitButton) return;
+
+        function openModal() {
+            modal.classList.add('active');
+            modal.setAttribute('aria-hidden', 'false');
+            document.body.style.overflow = 'hidden';
+            const firstInput = form.querySelector('input, select, textarea');
+            if (firstInput) firstInput.focus();
+        }
+
+        function closeModal() {
+            modal.classList.remove('active');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+        }
+
+        function clearErrors() {
+            if (errorBox) {
+                errorBox.textContent = '';
+                errorBox.style.display = 'none';
+            }
+            form.querySelectorAll('.profile-field-error.js-error').forEach(error => error.remove());
+        }
+
+        function showErrors(errors) {
+            clearErrors();
+            let foundField = false;
+            Object.entries(errors || {}).forEach(([fieldName, messages]) => {
+                const field = form.querySelector(`[data-field-name="${fieldName}"]`);
+                if (!field) return;
+                const error = document.createElement('div');
+                error.className = 'profile-field-error js-error';
+                error.textContent = Array.isArray(messages) ? messages.join(' ') : String(messages);
+                field.appendChild(error);
+                foundField = true;
+            });
+            if (!foundField && errorBox) {
+                errorBox.textContent = 'Could not save the profile. Please check the form and try again.';
+                errorBox.style.display = 'block';
+            }
+        }
+
+        document.querySelectorAll('[data-open-profile-modal]').forEach(button => {
+            button.addEventListener('click', openModal);
+        });
+        document.querySelectorAll('[data-close-profile-modal]').forEach(button => {
+            button.addEventListener('click', closeModal);
+        });
+        modal.addEventListener('click', event => {
+            if (event.target === modal) closeModal();
+        });
+        document.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && modal.classList.contains('active')) closeModal();
+        });
+
+        form.addEventListener('submit', async event => {
+            event.preventDefault();
+            clearErrors();
+            const originalContent = submitButton.innerHTML;
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">hourglass_top</span> Saving';
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    showErrors(data.errors || {});
+                    return;
+                }
+                closeModal();
+                window.location.href = data.redirect || window.location.href;
+            } catch (error) {
+                if (errorBox) {
+                    errorBox.textContent = 'Could not save the profile. Please try again.';
+                    errorBox.style.display = 'block';
+                }
+            } finally {
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalContent;
+            }
+        });
+    })();
+</script>
+{% endif %}
 {% endblock %}

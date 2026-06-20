@@ -1,7 +1,16 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Appointment, AuditLog, UserProfile
+from .models import (
+    Appointment,
+    AuditLog,
+    ClinicFeedbackSubmission,
+    PersonIdentity,
+    SelfRiskAssessmentSubmission,
+    SelfTestReportSubmission,
+    SideEffectReportSubmission,
+    UserProfile,
+)
 from locations.models import Province, District, Facility
 
 admin.site.site_header = 'My Moyo Admin'
@@ -18,26 +27,34 @@ class UserProfileInline(admin.StackedInline):
 
 class CustomUserAdmin(BaseUserAdmin):
     inlines = (UserProfileInline,)
-    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_role')
-    search_fields = ('username', 'email', 'first_name', 'last_name', 'profile__phone')
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_role', 'get_reference_number')
+    search_fields = ('username', 'email', 'first_name', 'last_name', 'profile__phone', 'profile__reference_number')
 
     def get_role(self, obj):
         return obj.profile.role if hasattr(obj, 'profile') else ''
     get_role.short_description = 'Role'
 
+    def get_reference_number(self, obj):
+        return obj.profile.reference_number if hasattr(obj, 'profile') else ''
+    get_reference_number.short_description = 'Reference #'
+
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'role', 'phone', 'is_active', 'must_change_password', 'created_at')
-    list_filter = ('role', 'is_active', 'must_change_password', 'created_at')
-    search_fields = ('user__username', 'user__email', 'phone')
-    readonly_fields = ('created_at', 'updated_at')
+    list_display = ('user', 'person_identity', 'reference_number', 'role', 'phone', 'is_active', 'is_phone_verified', 'must_change_password', 'created_at')
+    list_filter = ('role', 'is_active', 'is_phone_verified', 'must_change_password', 'created_at')
+    search_fields = ('reference_number', 'user__username', 'user__email', 'phone')
+    readonly_fields = ('reference_number', 'created_at', 'updated_at')
     fieldsets = (
         ('User', {
-            'fields': ('user',)
+            'fields': ('user', 'person_identity', 'reference_number')
         }),
         ('Profile Information', {
-            'fields': ('role', 'bio', 'phone', 'date_of_birth', 'is_active', 'must_change_password')
+            'fields': ('role', 'bio', 'phone', 'date_of_birth', 'is_active', 'is_phone_verified', 'must_change_password')
+        }),
+        ('OTP Verification', {
+            'fields': ('otp_expires_at',),
+            'classes': ('collapse',)
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -46,15 +63,22 @@ class UserProfileAdmin(admin.ModelAdmin):
     )
 
 
+@admin.register(PersonIdentity)
+class PersonIdentityAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'phone', 'date_of_birth', 'created_at')
+    search_fields = ('full_name', 'phone')
+    readonly_fields = ('created_at',)
+
+
 @admin.register(Appointment)
 class AppointmentAdmin(admin.ModelAdmin):
-    list_display = ('beneficiary', 'visit_purpose', 'appointment_date', 'appointment_time', 'status', 'province', 'district', 'facility')
+    list_display = ('beneficiary', 'created_by', 'visit_purpose', 'appointment_date', 'appointment_time', 'status', 'province', 'district', 'facility')
     list_filter = ('status', 'visit_purpose', 'province', 'district', 'facility')
-    search_fields = ('beneficiary__username', 'beneficiary__email', 'notes')
+    search_fields = ('beneficiary__username', 'beneficiary__email', 'beneficiary__profile__reference_number', 'created_by__username', 'notes')
     readonly_fields = ('created_at', 'updated_at')
     fieldsets = (
         ('Appointment Info', {
-            'fields': ('beneficiary', 'visit_purpose', 'appointment_date', 'appointment_time', 'status')
+            'fields': ('beneficiary', 'created_by', 'visit_purpose', 'appointment_date', 'appointment_time', 'status')
         }),
         ('Location', {
             'fields': ('province', 'district', 'facility')
@@ -88,6 +112,69 @@ class AuditLogAdmin(admin.ModelAdmin):
         return False
 
     def has_change_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(SelfRiskAssessmentSubmission)
+class SelfRiskAssessmentSubmissionAdmin(admin.ModelAdmin):
+    list_display = ('submitted_at', 'user', 'session_key', 'level', 'score')
+    list_filter = ('level', 'submitted_at')
+    search_fields = ('user__username', 'user__email', 'session_key')
+    readonly_fields = ('user', 'session_key', 'answers', 'guidance', 'score', 'level', 'submitted_at')
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(SelfTestReportSubmission)
+class SelfTestReportSubmissionAdmin(admin.ModelAdmin):
+    list_display = ('submitted_at', 'user', 'session_key', 'test_date', 'result')
+    list_filter = ('result', 'test_date', 'submitted_at')
+    search_fields = ('user__username', 'user__email', 'session_key')
+    readonly_fields = ('user', 'session_key', 'answers', 'guidance', 'test_date', 'result', 'submitted_at')
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(SideEffectReportSubmission)
+class SideEffectReportSubmissionAdmin(admin.ModelAdmin):
+    list_display = ('submitted_at', 'user', 'session_key', 'severity', 'follow_up_requested')
+    list_filter = ('severity', 'follow_up_requested', 'submitted_at')
+    search_fields = ('user__username', 'user__email', 'session_key')
+    readonly_fields = (
+        'user',
+        'session_key',
+        'answers',
+        'guidance',
+        'symptom_start_date',
+        'severity',
+        'follow_up_requested',
+        'submitted_at',
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+
+@admin.register(ClinicFeedbackSubmission)
+class ClinicFeedbackSubmissionAdmin(admin.ModelAdmin):
+    list_display = ('submitted_at', 'user', 'session_key', 'facility', 'visit_date', 'average_rating', 'follow_up_requested')
+    list_filter = ('facility', 'visit_date', 'follow_up_requested', 'submitted_at')
+    search_fields = ('user__username', 'user__email', 'session_key', 'facility__name')
+    readonly_fields = (
+        'user',
+        'session_key',
+        'answers',
+        'guidance',
+        'facility',
+        'visit_date',
+        'average_rating',
+        'follow_up_requested',
+        'submitted_at',
+    )
+
+    def has_add_permission(self, request):
         return False
 
 

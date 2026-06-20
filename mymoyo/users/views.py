@@ -1,6 +1,9 @@
 import calendar
+import json
+import logging
 from datetime import date, datetime, time, timedelta
 from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 from django.apps import apps
 from django.shortcuts import render, redirect, get_object_or_404
@@ -9,6 +12,7 @@ from django.contrib.auth import login as auth_login, logout as auth_logout, upda
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.sessions.models import Session
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
@@ -24,13 +28,26 @@ from django.utils import timezone
 from django.utils.dateparse import parse_date
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
-from .models import Appointment, AuditLog, UserProfile
+from .models import (
+    Appointment,
+    AuditLog,
+    ClinicFeedbackSubmission,
+    PersonIdentity,
+    SelfRiskAssessmentSubmission,
+    SelfTestReportSubmission,
+    SideEffectReportSubmission,
+    UserProfile,
+)
 from .audit import should_audit_model
 from .forms import (
     AppointmentForm,
+    AppointmentEditForm,
     ClinicFeedbackForm,
+    FACILITY_ASSIGNABLE_ROLES,
+    FACILITY_REQUIRED_ROLES,
     PublicRegistrationForm,
     SideEffectReportForm,
+    SelfProfileForm,
     SelfRiskAssessmentForm,
     SelfTestReportForm,
     UserForm,
@@ -42,13 +59,63 @@ from .access import (
     DASHBOARD_ROLES,
     USER_ADMIN_ROLES,
     active_login_required,
+    can_manage_appointments,
     get_user_role,
     role_required,
+    visible_appointment_filter,
 )
-from locations.models import Province, District, Facility
+from locations.models import District, Facility, Province, Service
 
 
+logger = logging.getLogger(__name__)
 TEMPORARY_PASSWORD_TTL = timedelta(minutes=10)
+ACCOUNT_OTP_TTL = timedelta(minutes=10)
+
+
+def zamtel_sms_is_configured():
+    return bool(settings.ZAMTEL_SMS_API_KEY and settings.ZAMTEL_SMS_URL)
+
+
+def generate_account_otp():
+    return get_random_string(6, allowed_chars='0123456789')
+
+
+def send_zamtel_sms(phone_number, message):
+    """Send an SMS through the configured Zamtel gateway."""
+    if not zamtel_sms_is_configured():
+        return False
+
+    payload = json.dumps({
+        'to': phone_number,
+        'message': message,
+        'sender': settings.ZAMTEL_SMS_SENDER_ID,
+    }).encode('utf-8')
+    request = Request(
+        settings.ZAMTEL_SMS_URL,
+        data=payload,
+        headers={
+            'Authorization': f'Bearer {settings.ZAMTEL_SMS_API_KEY}',
+            'Content-Type': 'application/json',
+        },
+        method='POST',
+    )
+    with urlopen(request, timeout=settings.ZAMTEL_SMS_TIMEOUT_SECONDS) as response:
+        return 200 <= response.status < 300
+
+
+def issue_account_otp(user):
+    otp = generate_account_otp()
+    profile = user.profile
+    profile.otp_code_hash = make_password(otp)
+    profile.otp_expires_at = timezone.now() + ACCOUNT_OTP_TTL
+    profile.save(update_fields=['otp_code_hash', 'otp_expires_at'])
+    try:
+        return send_zamtel_sms(
+            profile.phone,
+            f'Your MyMoyo verification code is {otp}. It expires in 10 minutes.',
+        )
+    except Exception:
+        return False
 
 
 def get_logged_in_user_ids():
@@ -71,6 +138,53 @@ def logout_user_sessions(user):
     return deleted_count
 
 
+def ensure_session_key(request):
+    if not request.session.session_key:
+        request.session.save()
+    session_key = request.session.session_key or ''
+    if session_key:
+        request.session['anonymous_submission_session_key'] = session_key
+    return session_key
+
+
+def get_submission_user(request):
+    return request.user if request.user.is_authenticated else None
+
+
+def serialize_form_answers(cleaned_data):
+    answers = {}
+    for key, value in cleaned_data.items():
+        if isinstance(value, (date, datetime, time)):
+            answers[key] = value.isoformat()
+        elif hasattr(value, 'pk'):
+            answers[key] = {
+                'id': value.pk,
+                'label': str(value),
+            }
+        else:
+            answers[key] = value
+    return answers
+
+
+def claim_session_submissions_for_user(request, user):
+    session_key = request.session.get('anonymous_submission_session_key') or request.session.session_key
+    if not session_key:
+        return
+
+    submission_models = (
+        SelfRiskAssessmentSubmission,
+        SelfTestReportSubmission,
+        SideEffectReportSubmission,
+        ClinicFeedbackSubmission,
+    )
+    for model in submission_models:
+        model.objects.filter(
+            user__isnull=True,
+            session_key=session_key,
+        ).update(user=user)
+    request.session.pop('anonymous_submission_session_key', None)
+
+
 def get_user_management_stats():
     logged_in_user_ids = get_logged_in_user_ids()
     return {
@@ -82,7 +196,7 @@ def get_user_management_stats():
 
 
 def get_user_management_rows(search_term='', role_filter=''):
-    users = User.objects.prefetch_related('profile').order_by('-date_joined')
+    users = User.objects.select_related('profile__person_identity', 'profile__facility__district').order_by('-date_joined')
 
     if search_term:
         users = users.filter(
@@ -106,6 +220,36 @@ def get_user_management_rows(search_term='', role_filter=''):
         })
 
     return users_with_profiles
+
+
+def get_visible_appointments(user):
+    queryset = Appointment.objects.select_related(
+        'beneficiary__profile',
+        'created_by__profile',
+        'province',
+        'district',
+        'facility',
+    )
+    return queryset.filter(visible_appointment_filter(user))
+
+
+def get_selected_person_identity(identity_id):
+    if not identity_id:
+        return None
+    return PersonIdentity.objects.filter(pk=identity_id).first()
+
+
+def ensure_user_person_identity(user):
+    profile = user.profile
+    if profile.person_identity_id:
+        return profile.person_identity
+    profile.person_identity = PersonIdentity.for_user_defaults(
+        user,
+        phone=profile.phone or '',
+        date_of_birth=profile.date_of_birth,
+    )
+    profile.save(update_fields=['person_identity'])
+    return profile.person_identity
 
 
 def generate_temporary_password():
@@ -158,6 +302,7 @@ def login_view(request):
             form.add_error(None, 'This account has been disabled.')
         else:
             auth_login(request, user)
+            claim_session_submissions_for_user(request, user)
             if profile.must_change_password:
                 return redirect('password_change_required')
             next_url = request.POST.get('next', '')
@@ -172,7 +317,7 @@ def login_view(request):
 
 
 def register_view(request):
-    """Create a public client account and sign the user in."""
+    """Create a public client account and verify it with an SMS OTP when configured."""
     if request.user.is_authenticated:
         return redirect('portal_home')
 
@@ -180,13 +325,96 @@ def register_view(request):
     if request.method == 'POST' and form.is_valid():
         user = form.save()
         user.profile.role = 'client'
+        user.profile.phone = form.cleaned_data['phone']
+        user.profile.person_identity = PersonIdentity.for_user_defaults(
+            user,
+            phone=form.cleaned_data['phone'],
+        )
+        if zamtel_sms_is_configured():
+            user.profile.is_active = False
+            user.profile.is_phone_verified = False
+            user.profile.save(update_fields=['role', 'phone', 'person_identity', 'is_active', 'is_phone_verified'])
+            request.session['pending_verification_user_id'] = user.pk
+            if issue_account_otp(user):
+                messages.success(request, 'Your account has been created. Enter the OTP sent to your phone to activate it.')
+            else:
+                messages.error(request, 'Your account was created, but the OTP could not be sent. Please request a new code.')
+            return redirect('verify_account')
+
         user.profile.is_active = True
-        user.profile.save(update_fields=['role', 'is_active'])
+        user.profile.is_phone_verified = True
+        user.profile.otp_code_hash = ''
+        user.profile.otp_expires_at = None
+        user.profile.save(update_fields=[
+            'role',
+            'phone',
+            'person_identity',
+            'is_active',
+            'is_phone_verified',
+            'otp_code_hash',
+            'otp_expires_at',
+        ])
         auth_login(request, user)
+        claim_session_submissions_for_user(request, user)
+        messages.info(request, 'SMS verification is not configured, so OTP verification was skipped for this environment.')
         messages.success(request, 'Your account has been created successfully.')
         return redirect('portal_home')
 
     return render(request, 'users/register.html', {'form': form})
+
+
+def verify_account_view(request):
+    """Activate a newly registered account after OTP verification."""
+    pending_user_id = request.session.get('pending_verification_user_id')
+    if not pending_user_id:
+        return redirect('register')
+
+    user = get_object_or_404(User, pk=pending_user_id)
+    profile = user.profile
+
+    if not zamtel_sms_is_configured():
+        profile.is_active = True
+        profile.is_phone_verified = True
+        profile.otp_code_hash = ''
+        profile.otp_expires_at = None
+        profile.save(update_fields=['is_active', 'is_phone_verified', 'otp_code_hash', 'otp_expires_at'])
+        request.session.pop('pending_verification_user_id', None)
+        auth_login(request, user)
+        claim_session_submissions_for_user(request, user)
+        messages.info(request, 'SMS verification is not configured, so OTP verification was skipped for this environment.')
+        return redirect('portal_home')
+
+    if request.method == 'POST':
+        if 'resend' in request.POST:
+            if issue_account_otp(user):
+                messages.success(request, 'A new OTP has been sent.')
+            else:
+                messages.error(request, 'The OTP could not be sent. Please try again.')
+            return redirect('verify_account')
+
+        otp = request.POST.get('otp', '').strip()
+        if not profile.otp_code_hash or not profile.otp_expires_at:
+            messages.error(request, 'No active OTP was found. Request a new code.')
+        elif profile.otp_expires_at <= timezone.now():
+            messages.error(request, 'This OTP has expired. Request a new code.')
+        elif not check_password(otp, profile.otp_code_hash):
+            messages.error(request, 'Enter a valid OTP.')
+        else:
+            profile.is_active = True
+            profile.is_phone_verified = True
+            profile.otp_code_hash = ''
+            profile.otp_expires_at = None
+            profile.save(update_fields=['is_active', 'is_phone_verified', 'otp_code_hash', 'otp_expires_at'])
+            request.session.pop('pending_verification_user_id', None)
+            auth_login(request, user)
+            claim_session_submissions_for_user(request, user)
+            messages.success(request, 'Your account has been verified.')
+            return redirect('portal_home')
+
+    return render(request, 'users/verify_account.html', {
+        'phone': profile.phone,
+        'otp_expires_at': profile.otp_expires_at,
+    })
 
 
 @active_login_required
@@ -393,17 +621,26 @@ def calculate_self_risk_assessment(cleaned_data):
     }
 
 
-@active_login_required
 def self_risk_assessment(request):
     result = None
+    saved_submission = None
     form = SelfRiskAssessmentForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
         result = calculate_self_risk_assessment(form.cleaned_data)
+        saved_submission = SelfRiskAssessmentSubmission.objects.create(
+            user=get_submission_user(request),
+            session_key=ensure_session_key(request),
+            answers=serialize_form_answers(form.cleaned_data),
+            guidance=result,
+            score=result['score'],
+            level=result['level'],
+        )
 
     return render(request, 'users/self_risk_assessment.html', {
         'form': form,
         'result': result,
+        'saved_submission': saved_submission,
     })
 
 
@@ -467,17 +704,26 @@ def get_self_test_guidance(cleaned_data):
     }
 
 
-@active_login_required
 def self_test_report(request):
     guidance = None
+    saved_submission = None
     form = SelfTestReportForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
         guidance = get_self_test_guidance(form.cleaned_data)
+        saved_submission = SelfTestReportSubmission.objects.create(
+            user=get_submission_user(request),
+            session_key=ensure_session_key(request),
+            answers=serialize_form_answers(form.cleaned_data),
+            guidance=guidance,
+            test_date=form.cleaned_data['test_date'],
+            result=form.cleaned_data['result'],
+        )
 
     return render(request, 'users/self_test_report.html', {
         'form': form,
         'guidance': guidance,
+        'saved_submission': saved_submission,
     })
 
 
@@ -534,17 +780,27 @@ def get_side_effect_guidance(cleaned_data):
     }
 
 
-@active_login_required
 def side_effect_report(request):
     guidance = None
+    saved_submission = None
     form = SideEffectReportForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
         guidance = get_side_effect_guidance(form.cleaned_data)
+        saved_submission = SideEffectReportSubmission.objects.create(
+            user=get_submission_user(request),
+            session_key=ensure_session_key(request),
+            answers=serialize_form_answers(form.cleaned_data),
+            guidance=guidance,
+            symptom_start_date=form.cleaned_data['symptom_start_date'],
+            severity=form.cleaned_data['severity'],
+            follow_up_requested=form.cleaned_data.get('support_needed') == 'yes',
+        )
 
     return render(request, 'users/side_effect_report.html', {
         'form': form,
         'guidance': guidance,
+        'saved_submission': saved_submission,
     })
 
 
@@ -604,17 +860,28 @@ def get_clinic_feedback_guidance(cleaned_data):
     }
 
 
-@active_login_required
 def clinic_feedback(request):
     guidance = None
+    saved_submission = None
     form = ClinicFeedbackForm(request.POST or None)
 
     if request.method == 'POST' and form.is_valid():
         guidance = get_clinic_feedback_guidance(form.cleaned_data)
+        saved_submission = ClinicFeedbackSubmission.objects.create(
+            user=get_submission_user(request),
+            session_key=ensure_session_key(request),
+            answers=serialize_form_answers(form.cleaned_data),
+            guidance=guidance,
+            facility=form.cleaned_data['facility'],
+            visit_date=form.cleaned_data['visit_date'],
+            average_rating=guidance['average_rating'],
+            follow_up_requested=form.cleaned_data.get('follow_up_needed') == 'yes',
+        )
 
     return render(request, 'users/clinic_feedback.html', {
         'form': form,
         'guidance': guidance,
+        'saved_submission': saved_submission,
     })
 
 
@@ -630,6 +897,12 @@ def user_list(request):
         'search_term': search_term,
         'role_filter': role_filter,
         'role_choices': UserProfile.ROLE_CHOICES,
+        'person_identity_choices': PersonIdentity.objects.order_by('full_name', 'id'),
+        'facility_choices': Facility.objects.select_related('district__province').order_by(
+            'district__province__name',
+            'district__name',
+            'name',
+        ),
     }
     return render(request, 'users/user_management.html', context)
 
@@ -752,11 +1025,80 @@ def user_detail(request, pk):
 
     user = get_object_or_404(User, pk=pk)
     profile, _ = UserProfile.objects.get_or_create(user=user)
+    can_admin_edit = request.user.is_superuser or get_user_role(request.user) in USER_ADMIN_ROLES
+    can_edit_profile = request.user.pk == user.pk or can_admin_edit
+    edit_user_form = UserForm(instance=user)
+    edit_profile_form = UserProfileForm(instance=profile) if can_admin_edit else SelfProfileForm(instance=profile)
     context = {
         'user': user,
         'profile': profile,
+        'can_admin_edit_profile': can_admin_edit,
+        'can_edit_profile': can_edit_profile,
+        'edit_user_form': edit_user_form,
+        'edit_profile_form': edit_profile_form,
     }
     return render(request, 'users/user_detail.html', context)
+
+
+@active_login_required
+def user_profile_update(request, pk):
+    """Update a profile from the profile-page modal."""
+    user = get_object_or_404(User, pk=pk)
+    if request.user.pk != user.pk and not (
+        request.user.is_superuser or get_user_role(request.user) in USER_ADMIN_ROLES
+    ):
+        raise PermissionDenied
+
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    can_admin_edit = request.user.is_superuser or get_user_role(request.user) in USER_ADMIN_ROLES
+
+    if request.method != 'POST':
+        return redirect('user_detail', pk=user.pk)
+
+    if can_admin_edit:
+        user_form = UserForm(request.POST, instance=user)
+        profile_form = UserProfileForm(request.POST, instance=profile)
+    else:
+        user_form = UserForm(request.POST, instance=user)
+        profile_form = SelfProfileForm(request.POST, instance=profile)
+
+    if user_form.is_valid() and profile_form.is_valid():
+        user_form.save()
+        profile = profile_form.save()
+        if not can_admin_edit and profile.person_identity_id:
+            identity = profile.person_identity
+            identity.full_name = user.get_full_name().strip() or user.username
+            identity.phone = profile.phone or None
+            identity.date_of_birth = profile.date_of_birth
+            identity.save(update_fields=['full_name', 'phone', 'date_of_birth'])
+        elif not profile.person_identity_id:
+            profile.person_identity = PersonIdentity.for_user_defaults(
+                user,
+                phone=profile.phone or '',
+                date_of_birth=profile.date_of_birth,
+            )
+            profile.save(update_fields=['person_identity'])
+
+        messages.success(request, 'Profile updated successfully.')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'redirect': reverse('user_detail', args=[user.pk])})
+        return redirect('user_detail', pk=user.pk)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        errors = {}
+        for field, error_list in user_form.errors.items():
+            errors[field] = list(error_list)
+        for field, error_list in profile_form.errors.items():
+            errors[field] = list(error_list)
+        return JsonResponse({'success': False, 'errors': errors}, status=400)
+
+    for field, errors in user_form.errors.items():
+        for error in errors:
+            messages.error(request, f'User - {field}: {error}')
+    for field, errors in profile_form.errors.items():
+        for error in errors:
+            messages.error(request, f'Profile - {field}: {error}')
+    return redirect('user_detail', pk=user.pk)
 
 
 @role_required(*USER_ADMIN_ROLES)
@@ -764,14 +1106,36 @@ def user_create(request):
     """Create a new user"""
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
+        role = request.POST.get('role')
+        person_identity = get_selected_person_identity(request.POST.get('person_identity') or None)
+        facility_id = request.POST.get('facility') or None
+        valid_roles = {choice[0] for choice in UserProfile.ROLE_CHOICES}
+        facility_error = None
+        facility = None
+        if role in FACILITY_REQUIRED_ROLES:
+            if not facility_id:
+                facility_error = 'Select the facility where this user works.'
+            else:
+                facility = Facility.objects.filter(pk=facility_id).first()
+                if not facility:
+                    facility_error = 'Select a valid facility.'
+        elif facility_id and role in FACILITY_ASSIGNABLE_ROLES:
+            facility = Facility.objects.filter(pk=facility_id).first()
+            if not facility:
+                facility_error = 'Select a valid facility.'
         if form.is_valid():
+            if facility_error:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'errors': {'facility': [facility_error]}})
+                messages.error(request, facility_error)
+                return redirect('user_list')
             user = form.save()
-            role = request.POST.get('role')
-            valid_roles = {choice[0] for choice in UserProfile.ROLE_CHOICES}
             if role in valid_roles:
                 user.profile.role = role
+            user.profile.person_identity = person_identity or PersonIdentity.for_user_defaults(user)
+            user.profile.facility = facility if role in FACILITY_ASSIGNABLE_ROLES else None
             user.profile.must_change_password = request.POST.get('must_change_password') == 'on'
-            user.profile.save(update_fields=['role', 'must_change_password'])
+            user.profile.save(update_fields=['role', 'person_identity', 'facility', 'must_change_password'])
             
             # Handle AJAX requests
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -785,11 +1149,15 @@ def user_create(request):
                 errors = {}
                 for field, error_list in form.errors.items():
                     errors[field] = error_list
+                if facility_error:
+                    errors['facility'] = [facility_error]
                 return JsonResponse({'success': False, 'errors': errors})
             
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{field}: {error}")
+            if facility_error:
+                messages.error(request, facility_error)
     else:
         form = UserCreationForm()
     
@@ -812,7 +1180,14 @@ def user_edit(request, pk):
         
         if user_form.is_valid() and profile_form.is_valid():
             user_form.save()
-            profile_form.save()
+            profile = profile_form.save()
+            if not profile.person_identity_id:
+                profile.person_identity = PersonIdentity.for_user_defaults(
+                    user,
+                    phone=profile.phone or '',
+                    date_of_birth=profile.date_of_birth,
+                )
+                profile.save(update_fields=['person_identity'])
             
             # Handle AJAX requests
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -871,6 +1246,20 @@ def user_reset_password(request, pk):
     user.save(update_fields=['password'])
     sessions_invalidated = logout_user_sessions(user)
 
+    if settings.DEBUG:
+        logger.warning(
+            'Temporary password generated for user "%s" <%s>: %s',
+            user.get_username(),
+            user.email,
+            temporary_password,
+        )
+    else:
+        logger.info(
+            'Temporary password generated for user "%s" <%s>; password hidden because DEBUG is off.',
+            user.get_username(),
+            user.email,
+        )
+
     send_mail(
         subject='Your MyMoyo password has been reset',
         message=(
@@ -916,11 +1305,19 @@ def user_delete(request, pk):
 
 @role_required(*DASHBOARD_ROLES)
 def user_dashboard(request):
-    """User management dashboard"""
+    """Administrative dashboard for core portal areas."""
     total_users = User.objects.count()
     active_users = User.objects.filter(is_active=True).count()
     inactive_users = User.objects.filter(is_active=False).count()
     recent_users = User.objects.all().order_by('-date_joined')[:5]
+    total_facilities = Facility.objects.count()
+    mapped_facilities = Facility.objects.exclude(latitude__isnull=True).exclude(longitude__isnull=True).count()
+    total_appointments = Appointment.objects.count()
+    now = timezone.localtime()
+    upcoming_filter = (
+        Q(appointment_date__gt=now.date()) |
+        Q(appointment_date=now.date(), appointment_time__gt=now.time())
+    )
     
     role_counts = UserProfile.objects.values('role').annotate(count=Count('pk'))
     role_stats = [
@@ -931,20 +1328,53 @@ def user_dashboard(request):
         }
         for role_key, role_label in UserProfile.ROLE_CHOICES
     ]
+    dashboard_cards = [
+        {
+            'title': 'Users',
+            'icon': 'manage_accounts',
+            'value': total_users,
+            'meta': f'{active_users} active, {inactive_users} inactive',
+            'href': reverse('user_list'),
+        },
+        {
+            'title': 'Locations',
+            'icon': 'map',
+            'value': total_facilities,
+            'meta': f'{Province.objects.count()} provinces, {District.objects.count()} districts',
+            'href': reverse('location_management'),
+        },
+        {
+            'title': 'Mapped Facilities',
+            'icon': 'location_on',
+            'value': mapped_facilities,
+            'meta': f'{max(total_facilities - mapped_facilities, 0)} still need coordinates',
+            'href': f"{reverse('location_management_tab', kwargs={'tab': 'facilities'})}?mapped=unmapped",
+        },
+        {
+            'title': 'Appointments',
+            'icon': 'calendar_month',
+            'value': total_appointments,
+            'meta': f"{Appointment.objects.filter(status='upcoming').filter(upcoming_filter).count()} upcoming",
+            'href': reverse('appointment_list'),
+        },
+    ]
     
     context = {
+        'dashboard_cards': dashboard_cards,
         'total_users': total_users,
         'active_users': active_users,
         'inactive_users': inactive_users,
         'recent_users': recent_users,
         'role_stats': role_stats,
+        'recent_audit_events': AuditLog.objects.select_related('actor')[:5],
     }
     return render(request, 'users/dashboard.html', context)
 
 
-@role_required(*APPOINTMENT_ROLES)
+@active_login_required
 def appointment_list(request):
     """Display, filter, and create appointments."""
+    can_manage = can_manage_appointments(request.user)
     valid_statuses = {choice[0] for choice in Appointment.STATUS_CHOICES} | {'all'}
     selected_status = request.GET.get('status', 'all').strip()
     search_term = request.GET.get('q', '').strip()
@@ -970,7 +1400,9 @@ def appointment_list(request):
     previous_month = (calendar_start - timedelta(days=1)).replace(day=1)
     next_month = (calendar_end + timedelta(days=1)).replace(day=1)
 
-    form = AppointmentForm(request.POST or None)
+    form = AppointmentForm(request.POST or None, created_by=request.user)
+    if request.method == 'POST' and not can_manage:
+        raise PermissionDenied
     if request.method == 'POST' and form.is_valid():
         appointment = form.save()
         messages.success(
@@ -979,12 +1411,33 @@ def appointment_list(request):
         )
         return redirect('appointment_list')
 
-    appointments = Appointment.objects.select_related(
-        'beneficiary',
-        'province',
-        'district',
-        'facility',
-    )
+    appointments = get_visible_appointments(request.user)
+    appointment_clients = [
+        {
+            'id': client.pk,
+            'name': client.get_full_name().strip() or client.username,
+            'phone': client.profile.phone or '',
+        }
+        for client in User.objects.select_related('profile').filter(
+            profile__role='client',
+            profile__is_active=True,
+            is_active=True,
+        ).order_by('first_name', 'last_name', 'username')
+    ]
+    appointment_facilities = [
+        {
+            'id': facility.pk,
+            'name': facility.name,
+            'district': facility.district.name,
+            'province': facility.district.province.name,
+            'services': [service.code for service in facility.services.all() if service.is_active],
+        }
+        for facility in Facility.objects.select_related('district__province').prefetch_related('services').order_by(
+            'district__province__name',
+            'district__name',
+            'name',
+        )
+    ]
 
     if selected_status == 'upcoming':
         appointments = appointments.filter(status='upcoming').filter(future_appointment_filter)
@@ -994,9 +1447,11 @@ def appointment_list(request):
     if search_term:
         appointments = appointments.filter(
             Q(beneficiary__username__icontains=search_term) |
+            Q(beneficiary__profile__reference_number__icontains=search_term) |
             Q(beneficiary__first_name__icontains=search_term) |
             Q(beneficiary__last_name__icontains=search_term) |
             Q(beneficiary__email__icontains=search_term) |
+            Q(beneficiary__profile__phone__icontains=search_term) |
             Q(facility__name__icontains=search_term) |
             Q(district__name__icontains=search_term) |
             Q(province__name__icontains=search_term)
@@ -1017,6 +1472,7 @@ def appointment_list(request):
                 'date': day,
                 'in_month': day.month == calendar_start.month,
                 'is_today': day == today,
+                'is_past': day < today,
                 'appointments': appointments_by_date.get(day, []),
             }
             for day in week
@@ -1032,27 +1488,61 @@ def appointment_list(request):
         'weekday_labels': ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
         'month_appointment_count': month_appointments.count(),
         'form': form,
+        'appointment_clients': appointment_clients,
+        'appointment_facilities': appointment_facilities,
         'form_has_errors': request.method == 'POST' and form.errors,
-        'provinces': Province.objects.all(),
-        'districts': District.objects.select_related('province').all(),
-        'facilities': Facility.objects.select_related('district').all(),
+        'appointment_services': Service.objects.filter(is_active=True).order_by('name'),
+        'can_manage_appointments': can_manage,
+        'is_client_appointment_view': get_user_role(request.user) == 'client',
         'search_term': search_term,
         'selected_status': selected_status,
         'stats': {
-            'total': Appointment.objects.count(),
-            'upcoming': Appointment.objects.filter(status='upcoming').filter(future_appointment_filter).count(),
-            'completed': Appointment.objects.filter(status='completed').count(),
-            'missed': Appointment.objects.filter(status='missed').count(),
+            'total': get_visible_appointments(request.user).count(),
+            'upcoming': get_visible_appointments(request.user).filter(status='upcoming').filter(future_appointment_filter).count(),
+            'completed': get_visible_appointments(request.user).filter(status='completed').count(),
+            'missed': get_visible_appointments(request.user).filter(status='missed').count(),
         },
     }
     return render(request, 'users/appointments.html', context)
+
+
+@role_required(*APPOINTMENT_ROLES)
+def appointment_edit(request, pk):
+    """Edit an appointment from the calendar action modal."""
+    appointment = get_object_or_404(get_visible_appointments(request.user), pk=pk)
+    form = AppointmentEditForm(
+        request.POST or None,
+        instance=appointment,
+    )
+
+    next_url = request.POST.get('next') or request.GET.get('next') or reverse('appointment_list')
+    if not url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        next_url = reverse('appointment_list')
+
+    if request.method == 'POST' and form.is_valid():
+        updated_appointment = form.save()
+        messages.success(
+            request,
+            f'Appointment for "{updated_appointment.beneficiary.username}" updated successfully.'
+        )
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'ok': True, 'redirect': next_url})
+        return redirect(next_url)
+
+    context = {
+        'appointment': appointment,
+        'form': form,
+        'next_url': next_url,
+    }
+    status = 400 if request.method == 'POST' else 200
+    return render(request, 'users/_appointment_edit_form.html', context, status=status)
 
 
 @require_POST
 @role_required(*APPOINTMENT_ROLES)
 def appointment_update_status(request, pk):
     """Update an appointment status from the calendar action modal."""
-    appointment = get_object_or_404(Appointment, pk=pk)
+    appointment = get_object_or_404(get_visible_appointments(request.user), pk=pk)
     status_value = request.POST.get('status', '').strip()
     valid_statuses = {choice[0] for choice in Appointment.STATUS_CHOICES}
     if status_value not in valid_statuses:

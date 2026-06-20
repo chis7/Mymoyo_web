@@ -1,0 +1,11 @@
+<form method="post" action="{{ action_url }}" class="form-stack">
+    {% csrf_token %}
+    {% for field in form %}
+        <div>
+            {{ field.label_tag }}
+            {{ field }}
+            {{ field.errors }}
+        </div>
+    {% endfor %}
+    <button class="btn-primary" type="submit">{{ submit_label|default:"Save" }}</button>
+</form>

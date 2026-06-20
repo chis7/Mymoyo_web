@@ -4,17 +4,370 @@ from urllib.parse import urlencode
 from urllib.request import urlopen
 
 from django.conf import settings
+from django.core.paginator import EmptyPage, Paginator
+from django.db import IntegrityError
+from django.db.models.deletion import ProtectedError
 from django.db.models import Count, Q
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
+from django.contrib import messages
 from django.views.decorators.http import require_POST
 
-from users.access import active_login_required
+from users.access import USER_ADMIN_ROLES, active_login_required, role_required
 
-from .models import District, Facility, Province
+from .forms import DistrictForm, FacilityForm, ProvinceForm, ServiceForm
+from .models import District, Facility, Province, Service
 
 
 FACILITY_MAP_RESULT_LIMIT = 99
+
+
+LOCATION_MANAGEMENT_TABS = {
+    'provinces': {
+        'label': 'Provinces',
+        'singular': 'Province',
+        'icon': 'location_on',
+    },
+    'districts': {
+        'label': 'Districts',
+        'singular': 'District',
+        'icon': 'public',
+    },
+    'services': {
+        'label': 'Services',
+        'singular': 'Service',
+        'icon': 'medical_services',
+    },
+    'facilities': {
+        'label': 'Facilities',
+        'singular': 'Facility',
+        'icon': 'local_hospital',
+    },
+}
+LOCATION_VISIBLE_TABS = {
+    key: value
+    for key, value in LOCATION_MANAGEMENT_TABS.items()
+    if key != 'services'
+}
+
+LOCATION_PAGE_SIZE_CHOICES = {10, 25, 50}
+
+LOCATION_SORT_FIELDS = {
+    'provinces': {
+        'name': 'name',
+        'districts': 'district_count',
+        'facilities': 'facility_count',
+    },
+    'districts': {
+        'name': 'name',
+        'province': 'province__name',
+        'facilities': 'facility_count',
+    },
+    'services': {
+        'name': 'name',
+        'code': 'code',
+        'facilities': 'facility_count',
+        'status': 'is_active',
+    },
+    'facilities': {
+        'name': 'name',
+        'code': 'code',
+        'level': 'level',
+        'district': 'district__name',
+        'province': 'district__province__name',
+        'services': 'service_count',
+        'coordinates': 'latitude',
+    },
+}
+
+
+def get_unmapped_facility_filter():
+    return Q(latitude__isnull=True) | Q(longitude__isnull=True)
+
+
+def get_location_page(queryset, page_number, per_page):
+    paginator = Paginator(queryset, per_page)
+    try:
+        return paginator.page(page_number)
+    except (EmptyPage, ValueError):
+        return paginator.page(paginator.num_pages or 1)
+
+
+def get_location_management_context(
+    active_tab,
+    search_term='',
+    form=None,
+    mapped_filter='',
+    sort_key='name',
+    sort_dir='asc',
+    page_number=1,
+    per_page=10,
+    show_create_modal=False,
+    visible_tabs=None,
+    management_title='Manage Locations',
+    management_description='Maintain provinces, districts, and facilities from the portal.',
+    breadcrumb_current='Locations',
+):
+    provinces = Province.objects.annotate(
+        district_count=Count('districts', distinct=True),
+        facility_count=Count('districts__facilities', distinct=True),
+    )
+    districts = District.objects.select_related('province').annotate(
+        facility_count=Count('facilities', distinct=True),
+    )
+    services = Service.objects.annotate(facility_count=Count('facilities', distinct=True))
+    facilities = Facility.objects.select_related('district__province').prefetch_related('services').annotate(
+        service_count=Count('services', distinct=True),
+    )
+
+    if search_term:
+        provinces = provinces.filter(name__icontains=search_term)
+        districts = districts.filter(
+            Q(name__icontains=search_term) |
+            Q(province__name__icontains=search_term)
+        )
+        services = services.filter(
+            Q(name__icontains=search_term) |
+            Q(code__icontains=search_term) |
+            Q(description__icontains=search_term)
+        )
+        facilities = facilities.filter(
+            Q(name__icontains=search_term) |
+            Q(code__icontains=search_term) |
+            Q(level__icontains=search_term) |
+            Q(services__name__icontains=search_term) |
+            Q(district__name__icontains=search_term) |
+            Q(district__province__name__icontains=search_term)
+        ).distinct()
+
+    if active_tab == 'facilities' and mapped_filter == 'unmapped':
+        facilities = facilities.filter(get_unmapped_facility_filter())
+
+    unmapped_facility_count = Facility.objects.filter(get_unmapped_facility_filter()).count()
+    active_queryset = {
+        'provinces': provinces,
+        'districts': districts,
+        'services': services,
+        'facilities': facilities,
+    }[active_tab]
+    sort_fields = LOCATION_SORT_FIELDS[active_tab]
+    if sort_key not in sort_fields:
+        sort_key = 'name'
+    if sort_dir not in {'asc', 'desc'}:
+        sort_dir = 'asc'
+
+    order_field = sort_fields[sort_key]
+    if sort_dir == 'desc':
+        order_field = f'-{order_field}'
+    active_queryset = active_queryset.order_by(order_field, 'pk')
+
+    if per_page not in LOCATION_PAGE_SIZE_CHOICES:
+        per_page = 10
+    page_obj = get_location_page(active_queryset, page_number, per_page)
+
+    return {
+        'active_tab': active_tab,
+        'active_tab_label': LOCATION_MANAGEMENT_TABS[active_tab]['label'],
+        'active_tab_singular': LOCATION_MANAGEMENT_TABS[active_tab]['singular'],
+        'tabs': visible_tabs or LOCATION_VISIBLE_TABS,
+        'management_title': management_title,
+        'management_description': management_description,
+        'breadcrumb_current': breadcrumb_current,
+        'is_service_management': active_tab == 'services',
+        'search_term': search_term,
+        'mapped_filter': mapped_filter,
+        'sort_key': sort_key,
+        'sort_dir': sort_dir,
+        'page_obj': page_obj,
+        'page_size': per_page,
+        'page_size_choices': sorted(LOCATION_PAGE_SIZE_CHOICES),
+        'show_create_modal': show_create_modal,
+        'province_form': form if active_tab == 'provinces' and form else ProvinceForm(),
+        'district_form': form if active_tab == 'districts' and form else DistrictForm(),
+        'service_form': form if active_tab == 'services' and form else ServiceForm(),
+        'facility_form': form if active_tab == 'facilities' and form else FacilityForm(),
+        'provinces': provinces,
+        'districts': districts,
+        'services': services,
+        'facilities': facilities,
+        'stats': {
+            'provinces': Province.objects.count(),
+            'districts': District.objects.count(),
+            'services': Service.objects.count(),
+            'facilities': Facility.objects.count(),
+            'mapped': Facility.objects.exclude(latitude__isnull=True).exclude(longitude__isnull=True).count(),
+            'unmapped': unmapped_facility_count,
+        },
+    }
+
+
+def get_location_model_and_form(tab):
+    return {
+        'provinces': (Province, ProvinceForm),
+        'districts': (District, DistrictForm),
+        'services': (Service, ServiceForm),
+        'facilities': (Facility, FacilityForm),
+    }[tab]
+
+
+@role_required(*USER_ADMIN_ROLES)
+def location_management(request, tab='provinces'):
+    if tab == 'services':
+        return redirect('service_management')
+    if tab not in LOCATION_VISIBLE_TABS:
+        return redirect('location_management')
+
+    search_term = request.GET.get('q', '').strip()
+    mapped_filter = request.GET.get('mapped', '').strip()
+    if mapped_filter not in {'', 'unmapped'}:
+        mapped_filter = ''
+    sort_key = request.GET.get('sort', 'name').strip()
+    sort_dir = request.GET.get('dir', 'asc').strip()
+    try:
+        page_number = max(int(request.GET.get('page', 1)), 1)
+    except (TypeError, ValueError):
+        page_number = 1
+    try:
+        per_page = int(request.GET.get('per_page', 10))
+    except (TypeError, ValueError):
+        per_page = 10
+    form_class = {
+        'provinces': ProvinceForm,
+        'districts': DistrictForm,
+        'services': ServiceForm,
+        'facilities': FacilityForm,
+    }[tab]
+
+    form = None
+    if request.method == 'POST':
+        form = form_class(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, f"{LOCATION_MANAGEMENT_TABS[tab]['singular']} saved successfully.")
+            return redirect('location_management_tab', tab=tab)
+        messages.error(request, 'Please correct the highlighted fields.')
+        show_create_modal = True
+    else:
+        show_create_modal = False
+
+    return render(
+        request,
+        'locations/location_management.html',
+        get_location_management_context(
+            tab,
+            search_term,
+            form,
+            mapped_filter,
+            sort_key,
+            sort_dir,
+            page_number,
+            per_page,
+            show_create_modal,
+            LOCATION_VISIBLE_TABS,
+        ),
+    )
+
+
+@role_required(*USER_ADMIN_ROLES)
+def service_management(request):
+    search_term = request.GET.get('q', '').strip()
+    sort_key = request.GET.get('sort', 'name').strip()
+    sort_dir = request.GET.get('dir', 'asc').strip()
+    try:
+        page_number = max(int(request.GET.get('page', 1)), 1)
+    except (TypeError, ValueError):
+        page_number = 1
+    try:
+        per_page = int(request.GET.get('per_page', 10))
+    except (TypeError, ValueError):
+        per_page = 10
+
+    form = None
+    if request.method == 'POST':
+        form = ServiceForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Service saved successfully.')
+            return redirect('service_management')
+        messages.error(request, 'Please correct the highlighted fields.')
+        show_create_modal = True
+    else:
+        show_create_modal = False
+
+    return render(
+        request,
+        'locations/location_management.html',
+        get_location_management_context(
+            'services',
+            search_term,
+            form,
+            '',
+            sort_key,
+            sort_dir,
+            page_number,
+            per_page,
+            show_create_modal,
+            {'services': LOCATION_MANAGEMENT_TABS['services']},
+            'Manage Services',
+            'Maintain services and map facilities to what they provide.',
+            'Services',
+        ),
+    )
+
+
+@role_required(*USER_ADMIN_ROLES)
+def location_edit(request, tab, pk):
+    if tab not in LOCATION_MANAGEMENT_TABS:
+        return redirect('location_management')
+
+    model, form_class = get_location_model_and_form(tab)
+    location_object = get_object_or_404(model, pk=pk)
+    form = form_class(request.POST or None, instance=location_object)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, f"{LOCATION_MANAGEMENT_TABS[tab]['singular']} updated successfully.")
+        if tab == 'services':
+            return redirect('service_management')
+        return redirect('location_management_tab', tab=tab)
+
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return render(request, 'locations/_location_form_fields.html', {
+            'form': form,
+            'action_url': request.path,
+            'submit_label': 'Save Changes',
+        })
+
+    return render(request, 'locations/location_form.html', {
+        'active_tab': tab,
+        'active_tab_label': LOCATION_MANAGEMENT_TABS[tab]['label'],
+        'active_tab_singular': LOCATION_MANAGEMENT_TABS[tab]['singular'],
+        'form': form,
+        'location_object': location_object,
+        'management_url_name': 'service_management' if tab == 'services' else 'location_management_tab',
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+@require_POST
+def location_delete(request, tab, pk):
+    if tab not in LOCATION_MANAGEMENT_TABS:
+        return redirect('location_management')
+
+    model, _ = get_location_model_and_form(tab)
+    location_object = get_object_or_404(model, pk=pk)
+    object_name = str(location_object)
+    try:
+        location_object.delete()
+    except (ProtectedError, IntegrityError):
+        messages.error(
+            request,
+            f'{LOCATION_MANAGEMENT_TABS[tab]["singular"]} "{object_name}" cannot be deleted because it is still referenced.',
+        )
+    else:
+        messages.success(request, f'{LOCATION_MANAGEMENT_TABS[tab]["singular"]} "{object_name}" deleted successfully.')
+    if tab == 'services':
+        return redirect('service_management')
+    return redirect('location_management_tab', tab=tab)
 
 
 def get_facility_filters(request):

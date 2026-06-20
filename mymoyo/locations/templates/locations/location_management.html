@@ -1,0 +1,1049 @@
+{% extends "users/base.html" %}
+
+{% block title %}{{ management_title|default:"Manage Locations" }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .location-management-page {
+        display: flex;
+        flex-direction: column;
+        gap: 1.25rem;
+        min-height: 0;
+    }
+    .management-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+    }
+    .management-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--theme-text-muted);
+        font-size: 0.92rem;
+        font-weight: 700;
+    }
+    .management-breadcrumb a {
+        color: var(--theme-primary);
+        text-decoration: none;
+    }
+    .management-title h1 {
+        margin: 0;
+        color: var(--theme-text-strong);
+        font-size: 1.8rem;
+    }
+    .management-title p {
+        margin: 0.35rem 0 0;
+        color: var(--theme-text-muted);
+    }
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+    }
+    .stat-card {
+        display: block;
+        background: var(--theme-surface);
+        border-radius: 12px;
+        padding: 1.15rem;
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+        text-align: center;
+        text-decoration: none;
+        color: inherit;
+    }
+    .stat-card[href]:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(16, 32, 48, 0.12);
+    }
+    .stat-card .number {
+        font-size: 1.9rem;
+        font-weight: 800;
+        color: var(--theme-primary);
+    }
+    .stat-card .label {
+        margin-top: 0.4rem;
+        color: var(--theme-surface-muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .location-tabs {
+        display: flex;
+        gap: 0.6rem;
+        flex-wrap: wrap;
+    }
+    .location-tab {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        color: var(--theme-text-muted);
+        background: var(--theme-surface);
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.16);
+        border-radius: 8px;
+        padding: 0.72rem 0.9rem;
+        text-decoration: none;
+        font-weight: 800;
+    }
+    .location-tab.active {
+        color: var(--theme-primary);
+        border-color: rgba(var(--theme-primary-rgb), 0.4);
+        background: var(--theme-soft);
+    }
+    .management-grid {
+        display: block;
+        min-height: 0;
+    }
+    .panel {
+        background: var(--theme-surface);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+        overflow: hidden;
+    }
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        background: var(--theme-soft);
+    }
+    .panel-header h2 {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--theme-text-strong);
+    }
+    .search-form {
+        display: flex;
+        min-width: min(100%, 300px);
+    }
+    .search-form input,
+    .form-control,
+    .form-select {
+        width: 100%;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        padding: 0.72rem 0.85rem;
+        color: var(--theme-surface-text);
+        background: var(--theme-surface);
+    }
+    .location-table-wrapper {
+        overflow-x: auto;
+    }
+    .location-table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+    }
+    .location-table th,
+    .location-table td {
+        padding: 0.9rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.09);
+        color: var(--theme-surface-text);
+    }
+    .location-table th {
+        color: var(--theme-text-muted);
+        background: var(--theme-soft);
+        font-size: 0.78rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .sort-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        color: inherit;
+        font: inherit;
+        letter-spacing: inherit;
+        text-transform: inherit;
+        cursor: pointer;
+    }
+    .sort-button:hover {
+        color: var(--theme-primary);
+    }
+    .sort-button .material-symbols-outlined {
+        font-size: 1rem;
+        opacity: 0.5;
+    }
+    .sort-button[aria-sort="ascending"] .material-symbols-outlined,
+    .sort-button[aria-sort="descending"] .material-symbols-outlined {
+        color: var(--theme-primary);
+        opacity: 1;
+    }
+    .form-stack {
+        display: grid;
+        gap: 0.9rem;
+    }
+    .form-stack label {
+        display: block;
+        margin-bottom: 0.4rem;
+        color: var(--theme-text-muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .errorlist {
+        margin: 0.4rem 0 0;
+        padding-left: 1.1rem;
+        color: #b91c1c;
+        font-size: 0.82rem;
+    }
+    .btn-primary {
+        border: 0;
+        border-radius: 8px;
+        background: var(--theme-primary);
+        color: var(--theme-on-primary);
+        padding: 0.8rem 1rem;
+        font-weight: 900;
+        cursor: pointer;
+    }
+    .btn-primary.full-width {
+        width: 100%;
+    }
+    .btn-tool {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: 0;
+        border-radius: 8px;
+        background: var(--theme-primary);
+        color: var(--theme-on-primary);
+        padding: 0.75rem 1rem;
+        font-weight: 900;
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: nowrap;
+    }
+    .btn-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        font-size: 1.1rem;
+        transition: all 0.2s ease;
+        text-decoration: none;
+        color: var(--theme-surface-muted);
+        background: transparent;
+    }
+    .btn-edit {
+        background: #e1f5fe;
+        color: #01579b;
+    }
+    .btn-edit:hover {
+        background: #01579b;
+        color: #ffffff;
+    }
+    .btn-map {
+        background: #e8f5e9;
+        color: #1b5e20;
+    }
+    .btn-map:hover {
+        background: #1b5e20;
+        color: #ffffff;
+    }
+    .btn-history {
+        background: #fff8e1;
+        color: #795548;
+    }
+    .btn-history:hover {
+        background: #795548;
+        color: #ffffff;
+    }
+    .btn-delete {
+        background: #ffebee;
+        color: #c62828;
+    }
+    .btn-delete:hover {
+        background: #c62828;
+        color: #ffffff;
+    }
+    .btn-icon .material-symbols-outlined {
+        font-size: 1.1rem;
+    }
+    .history-table-wrapper {
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        border-radius: 10px;
+        overflow: auto;
+    }
+    .history-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .history-table th,
+    .history-table td {
+        padding: 0.8rem;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        text-align: left;
+        vertical-align: top;
+        font-size: 0.9rem;
+        color: var(--theme-surface-muted);
+    }
+    .history-table th {
+        background: var(--theme-soft);
+        color: var(--theme-surface-text);
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .history-action {
+        display: inline-flex;
+        padding: 0.3rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+    .history-action.create {
+        background: #c8e6c9;
+        color: #1b5e20;
+    }
+    .history-action.update {
+        background: #fff3cd;
+        color: #795548;
+    }
+    .history-action.delete {
+        background: #ffebee;
+        color: #b71c1c;
+    }
+    .history-empty,
+    .history-loading {
+        padding: 1rem;
+        border-radius: 10px;
+        background: var(--theme-soft);
+        color: var(--theme-surface-muted);
+        font-weight: 700;
+    }
+    .filter-note {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.75rem 1rem;
+        background: rgba(var(--theme-primary-rgb), 0.08);
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        color: var(--theme-text-muted);
+        font-size: 0.9rem;
+        font-weight: 700;
+    }
+    .filter-note a {
+        color: var(--theme-primary);
+        text-decoration: none;
+        font-weight: 900;
+    }
+    .table-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        padding: 0.9rem 1rem;
+        border-top: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        background: var(--theme-surface);
+    }
+    .table-pagination-summary,
+    .location-search-status {
+        color: var(--theme-text-muted);
+        font-size: 0.88rem;
+        font-weight: 700;
+    }
+    .table-pagination-controls,
+    .table-page-size {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .table-page-size select {
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        padding: 0.45rem 0.55rem;
+        background: var(--theme-surface);
+        color: var(--theme-surface-text);
+    }
+    .pagination-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 38px;
+        height: 38px;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        background: var(--theme-surface);
+        color: var(--theme-primary);
+        cursor: pointer;
+    }
+    .pagination-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.45;
+    }
+    .empty-state {
+        padding: 2rem;
+        color: var(--theme-text-muted);
+        text-align: center;
+    }
+    @media (max-width: 980px) {
+        .panel-header {
+            align-items: stretch;
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="location-management-page">
+    <nav class="management-breadcrumb" aria-label="Breadcrumb">
+        <a href="{% url 'user_dashboard' %}">Command Center</a>
+        <span class="material-symbols-outlined">chevron_right</span>
+        <span aria-current="page">{{ breadcrumb_current|default:"Locations" }}</span>
+    </nav>
+
+    <div class="management-header">
+        <div class="management-title">
+            <h1>{{ management_title|default:"Manage Locations" }}</h1>
+            <p>{{ management_description|default:"Maintain provinces, districts, and facilities from the portal." }}</p>
+        </div>
+        <button class="btn-tool" type="button" data-bs-toggle="modal" data-bs-target="#createLocationModal">
+            <span class="material-symbols-outlined">add</span>
+            Add {{ active_tab_singular }}
+        </button>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-card">
+            <div class="number">{{ stats.provinces }}</div>
+            <div class="label">Provinces</div>
+        </div>
+        <div class="stat-card">
+            <div class="number">{{ stats.districts }}</div>
+            <div class="label">Districts</div>
+        </div>
+        {% if is_service_management %}
+            <div class="stat-card">
+                <div class="number">{{ stats.services }}</div>
+                <div class="label">Services</div>
+            </div>
+        {% endif %}
+        <div class="stat-card">
+            <div class="number">{{ stats.facilities }}</div>
+            <div class="label">Facilities</div>
+        </div>
+        <a class="stat-card" href="{% url 'location_management_tab' tab='facilities' %}">
+            <div class="number">{{ stats.mapped }}</div>
+            <div class="label">Mapped</div>
+        </a>
+        <a class="stat-card" href="{% url 'location_management_tab' tab='facilities' %}?mapped=unmapped">
+            <div class="number">{{ stats.unmapped }}</div>
+            <div class="label">Unmapped</div>
+        </a>
+    </div>
+
+    <nav class="location-tabs" aria-label="Location management sections">
+        {% for tab_key, tab in tabs.items %}
+            <a class="location-tab {% if active_tab == tab_key %}active{% endif %}" href="{% if tab_key == 'services' %}{% url 'service_management' %}{% else %}{% url 'location_management_tab' tab=tab_key %}{% endif %}">
+                <span class="material-symbols-outlined">{{ tab.icon }}</span>
+                {{ tab.label }}
+            </a>
+        {% endfor %}
+    </nav>
+
+    <div class="management-grid">
+        <section class="panel" id="locationTablePanel" data-active-tab="{{ active_tab }}" data-sort-key="{{ sort_key }}" data-sort-dir="{{ sort_dir }}">
+            <div class="panel-header">
+                <h2>{{ active_tab_label }}</h2>
+                <form class="search-form" method="get" id="locationSearchForm">
+                    {% if mapped_filter %}
+                        <input type="hidden" name="mapped" value="{{ mapped_filter }}">
+                    {% endif %}
+                    <input type="hidden" name="sort" value="{{ sort_key }}">
+                    <input type="hidden" name="dir" value="{{ sort_dir }}">
+                    <input type="hidden" name="page" value="{{ page_obj.number }}">
+                    <input type="hidden" name="per_page" value="{{ page_size }}">
+                    <input type="search" name="q" value="{{ search_term }}" placeholder="Search locations..." autocomplete="off">
+                </form>
+            </div>
+            <div class="location-search-status" id="locationSearchStatus" aria-live="polite"></div>
+            {% if active_tab == 'facilities' and mapped_filter == 'unmapped' %}
+                <div class="filter-note">
+                    <span>Showing facilities without latitude or longitude.</span>
+                    <a href="{% url 'location_management_tab' tab='facilities' %}{% if search_term %}?q={{ search_term|urlencode }}{% endif %}">Show all facilities</a>
+                </div>
+            {% endif %}
+            <div class="location-table-wrapper">
+                {% if active_tab == 'provinces' %}
+                    <table class="location-table">
+                        <thead>
+                            <tr>
+                                <th><button class="sort-button" type="button" data-sort-key="name" aria-sort="{% if sort_key == 'name' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Province <span class="material-symbols-outlined">{% if sort_key == 'name' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="districts" aria-sort="{% if sort_key == 'districts' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Districts <span class="material-symbols-outlined">{% if sort_key == 'districts' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="facilities" aria-sort="{% if sort_key == 'facilities' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Facilities <span class="material-symbols-outlined">{% if sort_key == 'facilities' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for province in page_obj.object_list %}
+                                <tr>
+                                    <td>{{ province.name }}</td>
+                                    <td>{{ province.district_count }}</td>
+                                    <td>{{ province.facility_count }}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon btn-history js-location-history" type="button" data-history-url="{% url 'object_history_events' app_label='locations' model_name='province' object_pk=province.pk %}" data-history-title="{{ province.name }}" title="View history" aria-label="View history">
+                                                <span class="material-symbols-outlined" aria-hidden="true">history</span>
+                                            </button>
+                                            <a class="btn-icon btn-edit js-location-edit" href="{% url 'location_edit' tab='provinces' pk=province.pk %}" data-modal-title="Edit Province" title="Edit province" aria-label="Edit province">
+                                                <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                                            </a>
+                                            <button class="btn-icon btn-delete js-location-delete" type="button" data-delete-url="{% url 'location_delete' tab='provinces' pk=province.pk %}" data-delete-name="{{ province.name }}" title="Delete province" aria-label="Delete province">
+                                                <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="4" class="empty-state">No provinces found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% elif active_tab == 'districts' %}
+                    <table class="location-table">
+                        <thead>
+                            <tr>
+                                <th><button class="sort-button" type="button" data-sort-key="name" aria-sort="{% if sort_key == 'name' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">District <span class="material-symbols-outlined">{% if sort_key == 'name' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="province" aria-sort="{% if sort_key == 'province' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Province <span class="material-symbols-outlined">{% if sort_key == 'province' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="facilities" aria-sort="{% if sort_key == 'facilities' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Facilities <span class="material-symbols-outlined">{% if sort_key == 'facilities' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for district in page_obj.object_list %}
+                                <tr>
+                                    <td>{{ district.name }}</td>
+                                    <td>{{ district.province.name }}</td>
+                                    <td>{{ district.facility_count }}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon btn-history js-location-history" type="button" data-history-url="{% url 'object_history_events' app_label='locations' model_name='district' object_pk=district.pk %}" data-history-title="{{ district.name }}" title="View history" aria-label="View history">
+                                                <span class="material-symbols-outlined" aria-hidden="true">history</span>
+                                            </button>
+                                            <a class="btn-icon btn-edit js-location-edit" href="{% url 'location_edit' tab='districts' pk=district.pk %}" data-modal-title="Edit District" title="Edit district" aria-label="Edit district">
+                                                <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                                            </a>
+                                            <button class="btn-icon btn-delete js-location-delete" type="button" data-delete-url="{% url 'location_delete' tab='districts' pk=district.pk %}" data-delete-name="{{ district.name }}" title="Delete district" aria-label="Delete district">
+                                                <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="4" class="empty-state">No districts found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% elif active_tab == 'services' %}
+                    <table class="location-table">
+                        <thead>
+                            <tr>
+                                <th><button class="sort-button" type="button" data-sort-key="name" aria-sort="{% if sort_key == 'name' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Service <span class="material-symbols-outlined">{% if sort_key == 'name' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="code" aria-sort="{% if sort_key == 'code' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Code <span class="material-symbols-outlined">{% if sort_key == 'code' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="facilities" aria-sort="{% if sort_key == 'facilities' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Facilities <span class="material-symbols-outlined">{% if sort_key == 'facilities' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="status" aria-sort="{% if sort_key == 'status' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Status <span class="material-symbols-outlined">{% if sort_key == 'status' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for service in page_obj.object_list %}
+                                <tr>
+                                    <td>{{ service.name }}</td>
+                                    <td>{{ service.code }}</td>
+                                    <td>{{ service.facility_count }}</td>
+                                    <td>{% if service.is_active %}Active{% else %}Inactive{% endif %}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon btn-history js-location-history" type="button" data-history-url="{% url 'object_history_events' app_label='locations' model_name='service' object_pk=service.pk %}" data-history-title="{{ service.name }}" title="View history" aria-label="View history">
+                                                <span class="material-symbols-outlined" aria-hidden="true">history</span>
+                                            </button>
+                                            <a class="btn-icon btn-edit js-location-edit" href="{% url 'location_edit' tab='services' pk=service.pk %}" data-modal-title="Edit Service" title="Edit service" aria-label="Edit service">
+                                                <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                                            </a>
+                                            <button class="btn-icon btn-delete js-location-delete" type="button" data-delete-url="{% url 'location_delete' tab='services' pk=service.pk %}" data-delete-name="{{ service.name }}" title="Delete service" aria-label="Delete service">
+                                                <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="5" class="empty-state">No services found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <table class="location-table">
+                        <thead>
+                            <tr>
+                                <th><button class="sort-button" type="button" data-sort-key="name" aria-sort="{% if sort_key == 'name' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Facility <span class="material-symbols-outlined">{% if sort_key == 'name' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="code" aria-sort="{% if sort_key == 'code' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Code <span class="material-symbols-outlined">{% if sort_key == 'code' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="level" aria-sort="{% if sort_key == 'level' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Level <span class="material-symbols-outlined">{% if sort_key == 'level' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="services" aria-sort="{% if sort_key == 'services' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Services <span class="material-symbols-outlined">{% if sort_key == 'services' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="district" aria-sort="{% if sort_key == 'district' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">District <span class="material-symbols-outlined">{% if sort_key == 'district' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="province" aria-sort="{% if sort_key == 'province' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Province <span class="material-symbols-outlined">{% if sort_key == 'province' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="coordinates" aria-sort="{% if sort_key == 'coordinates' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Coordinates <span class="material-symbols-outlined">{% if sort_key == 'coordinates' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for facility in page_obj.object_list %}
+                                <tr>
+                                    <td>{{ facility.name }}</td>
+                                    <td>{{ facility.code|default:"-" }}</td>
+                                    <td>{{ facility.level|default:"-" }}</td>
+                                    <td>
+                                        {% for service in facility.services.all %}
+                                            {{ service.name }}{% if not forloop.last %}, {% endif %}
+                                        {% empty %}
+                                            -
+                                        {% endfor %}
+                                    </td>
+                                    <td>{{ facility.district.name }}</td>
+                                    <td>{{ facility.district.province.name }}</td>
+                                    <td>{% if facility.latitude and facility.longitude %}{{ facility.latitude }}, {{ facility.longitude }}{% else %}-{% endif %}</td>
+                                    <td>
+                                        <div class="action-buttons">
+                                            <button class="btn-icon btn-history js-location-history" type="button" data-history-url="{% url 'object_history_events' app_label='locations' model_name='facility' object_pk=facility.pk %}" data-history-title="{{ facility.name }}" title="View history" aria-label="View history">
+                                                <span class="material-symbols-outlined" aria-hidden="true">history</span>
+                                            </button>
+                                            <a class="btn-icon {% if not facility.latitude or not facility.longitude %}btn-map{% else %}btn-edit{% endif %} js-location-edit" href="{% url 'location_edit' tab='facilities' pk=facility.pk %}" data-modal-title="{% if not facility.latitude or not facility.longitude %}Add Facility Coordinates{% else %}Edit Facility{% endif %}" title="{% if not facility.latitude or not facility.longitude %}Add coordinates{% else %}Edit facility{% endif %}" aria-label="{% if not facility.latitude or not facility.longitude %}Add coordinates{% else %}Edit facility{% endif %}">
+                                                <span class="material-symbols-outlined" aria-hidden="true">{% if not facility.latitude or not facility.longitude %}add_location_alt{% else %}edit{% endif %}</span>
+                                            </a>
+                                            <button class="btn-icon btn-delete js-location-delete" type="button" data-delete-url="{% url 'location_delete' tab='facilities' pk=facility.pk %}" data-delete-name="{{ facility.name }}" title="Delete facility" aria-label="Delete facility">
+                                                <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="8" class="empty-state">No facilities found.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% endif %}
+            </div>
+            <div class="table-pagination">
+                <div class="table-page-size">
+                    <label for="locationPageSize">Rows</label>
+                    <select id="locationPageSize" aria-label="Rows per page">
+                        {% for size in page_size_choices %}
+                            <option value="{{ size }}" {% if page_size == size %}selected{% endif %}>{{ size }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="table-pagination-summary">
+                    {% if page_obj.paginator.count %}
+                        Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} {{ active_tab_label|lower }}
+                    {% else %}
+                        Showing 0 of 0 {{ active_tab_label|lower }}
+                    {% endif %}
+                </div>
+                <div class="table-pagination-controls">
+                    <button type="button" class="pagination-button" {% if page_obj.has_previous %}data-page="{{ page_obj.previous_page_number }}"{% else %}disabled{% endif %} aria-label="Previous page">
+                        <span class="material-symbols-outlined">chevron_left</span>
+                    </button>
+                    <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+                    <button type="button" class="pagination-button" {% if page_obj.has_next %}data-page="{{ page_obj.next_page_number }}"{% else %}disabled{% endif %} aria-label="Next page">
+                        <span class="material-symbols-outlined">chevron_right</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<div class="modal fade" id="createLocationModal" tabindex="-1" aria-labelledby="createLocationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createLocationModalLabel">Add {{ active_tab_singular }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post" class="form-stack">
+                    {% csrf_token %}
+                    {% if active_tab == 'provinces' %}
+                        {% for field in province_form %}
+                            <div>
+                                {{ field.label_tag }}
+                                {{ field }}
+                                {{ field.errors }}
+                            </div>
+                        {% endfor %}
+                    {% elif active_tab == 'districts' %}
+                        {% for field in district_form %}
+                            <div>
+                                {{ field.label_tag }}
+                                {{ field }}
+                                {{ field.errors }}
+                            </div>
+                        {% endfor %}
+                    {% elif active_tab == 'services' %}
+                        {% for field in service_form %}
+                            <div>
+                                {{ field.label_tag }}
+                                {{ field }}
+                                {{ field.errors }}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        {% for field in facility_form %}
+                            <div>
+                                {{ field.label_tag }}
+                                {{ field }}
+                                {{ field.errors }}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    <button class="btn-primary full-width" type="submit">Save</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="editLocationModal" tabindex="-1" aria-labelledby="editLocationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editLocationModalLabel">Edit Location</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="editLocationModalBody">
+                <div class="location-search-status">Loading form...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="historyLocationModal" tabindex="-1" aria-labelledby="historyLocationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="historyLocationModalLabel">Location History</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="historyLocationContent" class="history-loading">Loading history...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deleteLocationModal" tabindex="-1" aria-labelledby="deleteLocationModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteLocationModalLabel">Delete Location</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Delete <strong id="deleteLocationName"></strong>?</p>
+                <p class="text-muted mb-0">This action cannot be undone. Records still referenced by appointments cannot be deleted.</p>
+            </div>
+            <div class="modal-footer">
+                <form id="deleteLocationForm" method="post">
+                    {% csrf_token %}
+                    <button type="button" class="btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-primary">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if show_create_modal %}
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const modal = document.getElementById('createLocationModal');
+            if (modal && window.bootstrap) {
+                bootstrap.Modal.getOrCreateInstance(modal).show();
+            }
+        });
+    </script>
+{% endif %}
+<script>
+(() => {
+    let locationSearchTimeout;
+    let locationRequest;
+
+    function getPanel() {
+        return document.getElementById('locationTablePanel');
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function renderHistoryChanges(changes) {
+        if (!changes || !changes.length) return '<span class="text-muted">No field changes</span>';
+        return changes.map((change) => `
+            <div>
+                <strong>${escapeHtml(change.field)}</strong>:
+                <span>${escapeHtml(change.old)}</span>
+                <span class="material-symbols-outlined" aria-hidden="true" style="font-size: 0.9rem;">arrow_forward</span>
+                <span>${escapeHtml(change.new)}</span>
+            </div>
+        `).join('');
+    }
+
+    function renderHistoryTable(events) {
+        if (!events.length) {
+            return '<div class="history-empty">No history has been recorded for this location yet.</div>';
+        }
+
+        return `
+            <div class="history-table-wrapper">
+                <table class="history-table">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Actor</th>
+                            <th>Date</th>
+                            <th>Changes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${events.map((event) => `
+                            <tr>
+                                <td><span class="history-action ${escapeHtml(event.action)}">${escapeHtml(event.action_label)}</span></td>
+                                <td>${escapeHtml(event.actor)}</td>
+                                <td>${escapeHtml(event.created_at)}</td>
+                                <td>${renderHistoryChanges(event.changes)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    function getSearchValue() {
+        const form = document.getElementById('locationSearchForm');
+        const input = form ? form.querySelector('[name="q"]') : null;
+        return input ? input.value : '';
+    }
+
+    async function updateLocationTable(updates = {}, resetPage = false) {
+        const url = new URL(window.location.href);
+        const params = url.searchParams;
+        const activeElement = document.activeElement;
+        const shouldRestoreSearchFocus = activeElement && activeElement.matches('#locationSearchForm [name="q"]');
+        const searchSelectionStart = shouldRestoreSearchFocus ? activeElement.selectionStart : null;
+        const searchSelectionEnd = shouldRestoreSearchFocus ? activeElement.selectionEnd : null;
+
+        const currentQuery = getSearchValue();
+        if (currentQuery) {
+            params.set('q', currentQuery);
+        } else {
+            params.delete('q');
+        }
+
+        Object.entries(updates).forEach(([key, value]) => {
+            if (value === '' || value === null || value === undefined) {
+                params.delete(key);
+            } else {
+                params.set(key, value);
+            }
+        });
+
+        if (resetPage) {
+            params.set('page', '1');
+        }
+
+        if (locationRequest) {
+            locationRequest.abort();
+        }
+        locationRequest = new AbortController();
+
+        const status = document.getElementById('locationSearchStatus');
+        if (status) status.textContent = 'Updating locations...';
+
+        try {
+            const response = await fetch(url.toString(), {
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+                signal: locationRequest.signal,
+            });
+            if (!response.ok) throw new Error('Unable to load locations.');
+
+            const html = await response.text();
+            const nextDocument = new DOMParser().parseFromString(html, 'text/html');
+            const nextPanel = nextDocument.getElementById('locationTablePanel');
+            const currentPanel = getPanel();
+            if (!nextPanel || !currentPanel) throw new Error('Location table was not found.');
+
+            currentPanel.replaceWith(nextPanel);
+            window.history.replaceState({}, '', url.toString());
+            bindLocationTableControls();
+            if (shouldRestoreSearchFocus) {
+                const nextSearchInput = document.querySelector('#locationSearchForm [name="q"]');
+                if (nextSearchInput) {
+                    nextSearchInput.focus({preventScroll: true});
+                    if (searchSelectionStart !== null && searchSelectionEnd !== null) {
+                        nextSearchInput.setSelectionRange(searchSelectionStart, searchSelectionEnd);
+                    }
+                }
+            }
+            const nextStatus = document.getElementById('locationSearchStatus');
+            if (nextStatus) nextStatus.textContent = 'Locations updated.';
+        } catch (error) {
+            if (error.name === 'AbortError') return;
+            const currentStatus = document.getElementById('locationSearchStatus');
+            if (currentStatus) currentStatus.textContent = 'Could not update locations. Please try again.';
+        }
+    }
+
+    function bindLocationTableControls() {
+        const form = document.getElementById('locationSearchForm');
+        if (form && !form.dataset.boundAsyncSearch) {
+            form.dataset.boundAsyncSearch = '1';
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                updateLocationTable({}, true);
+            });
+
+            const input = form.querySelector('[name="q"]');
+            if (input) {
+                input.addEventListener('input', () => {
+                    clearTimeout(locationSearchTimeout);
+                    locationSearchTimeout = setTimeout(() => updateLocationTable({}, true), 300);
+                });
+            }
+        }
+
+        document.querySelectorAll('#locationTablePanel .sort-button').forEach((button) => {
+            if (button.dataset.boundSort) return;
+            button.dataset.boundSort = '1';
+            button.addEventListener('click', () => {
+                const panel = getPanel();
+                const currentSort = panel ? panel.dataset.sortKey : 'name';
+                const currentDir = panel ? panel.dataset.sortDir : 'asc';
+                const nextDir = currentSort === button.dataset.sortKey && currentDir === 'asc' ? 'desc' : 'asc';
+                updateLocationTable({sort: button.dataset.sortKey, dir: nextDir}, true);
+            });
+        });
+
+        document.querySelectorAll('#locationTablePanel .pagination-button[data-page]').forEach((button) => {
+            if (button.dataset.boundPage) return;
+            button.dataset.boundPage = '1';
+            button.addEventListener('click', () => {
+                updateLocationTable({page: button.dataset.page}, false);
+            });
+        });
+
+        const pageSize = document.getElementById('locationPageSize');
+        if (pageSize && !pageSize.dataset.boundPageSize) {
+            pageSize.dataset.boundPageSize = '1';
+            pageSize.addEventListener('change', () => {
+                updateLocationTable({per_page: pageSize.value}, true);
+            });
+        }
+
+        document.querySelectorAll('#locationTablePanel .js-location-edit').forEach((link) => {
+            if (link.dataset.boundEditModal) return;
+            link.dataset.boundEditModal = '1';
+            link.addEventListener('click', async (event) => {
+                if (!window.bootstrap) return;
+                event.preventDefault();
+
+                const modalElement = document.getElementById('editLocationModal');
+                const modalTitle = document.getElementById('editLocationModalLabel');
+                const modalBody = document.getElementById('editLocationModalBody');
+                if (!modalElement || !modalTitle || !modalBody) return;
+
+                modalTitle.textContent = link.dataset.modalTitle || 'Edit Location';
+                modalBody.innerHTML = '<div class="location-search-status">Loading form...</div>';
+                const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+                modal.show();
+
+                try {
+                    const response = await fetch(link.href, {
+                        headers: {'X-Requested-With': 'XMLHttpRequest'},
+                    });
+                    if (!response.ok) throw new Error('Unable to load form.');
+                    modalBody.innerHTML = await response.text();
+                } catch (error) {
+                    modalBody.innerHTML = '<div class="location-search-status">Could not load this form. Please try again.</div>';
+                }
+            });
+        });
+
+        document.querySelectorAll('#locationTablePanel .js-location-history').forEach((button) => {
+            if (button.dataset.boundHistoryModal) return;
+            button.dataset.boundHistoryModal = '1';
+            button.addEventListener('click', async () => {
+                if (!window.bootstrap) return;
+
+                const modalElement = document.getElementById('historyLocationModal');
+                const modalTitle = document.getElementById('historyLocationModalLabel');
+                const modalContent = document.getElementById('historyLocationContent');
+                if (!modalElement || !modalTitle || !modalContent) return;
+
+                modalTitle.textContent = `${button.dataset.historyTitle || 'Location'} History`;
+                modalContent.className = 'history-loading';
+                modalContent.textContent = 'Loading history...';
+                bootstrap.Modal.getOrCreateInstance(modalElement).show();
+
+                try {
+                    const response = await fetch(`${button.dataset.historyUrl}?per_page=10`, {
+                        headers: {'X-Requested-With': 'XMLHttpRequest'},
+                    });
+                    if (!response.ok) throw new Error('Unable to load history.');
+                    const data = await response.json();
+                    modalContent.className = '';
+                    modalContent.innerHTML = renderHistoryTable(data.events || []);
+                } catch (error) {
+                    modalContent.className = 'history-empty';
+                    modalContent.textContent = 'Could not load history. Please try again.';
+                }
+            });
+        });
+
+        document.querySelectorAll('#locationTablePanel .js-location-delete').forEach((button) => {
+            if (button.dataset.boundDeleteModal) return;
+            button.dataset.boundDeleteModal = '1';
+            button.addEventListener('click', () => {
+                if (!window.bootstrap) return;
+
+                const modalElement = document.getElementById('deleteLocationModal');
+                const form = document.getElementById('deleteLocationForm');
+                const name = document.getElementById('deleteLocationName');
+                if (!modalElement || !form || !name) return;
+
+                form.action = button.dataset.deleteUrl;
+                name.textContent = button.dataset.deleteName || 'this location';
+                bootstrap.Modal.getOrCreateInstance(modalElement).show();
+            });
+        });
+    }
+
+    bindLocationTableControls();
+})();
+</script>
+{% endblock %}

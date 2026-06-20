@@ -1,0 +1,55 @@
+<form method="post" action="{% url 'appointment_edit' appointment.pk %}" id="editAppointmentForm" data-appointment-edit-form>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next_url }}">
+    {{ form.non_field_errors }}
+
+    <div class="mb-4">
+        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; margin-bottom: 0.5rem;">Client</div>
+        <div style="padding: 0.75rem; border-radius: 8px; background: #f9fafb; color: #374151; font-weight: 700;">
+            {{ appointment.beneficiary.get_full_name|default:appointment.beneficiary.username }}
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <div style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; margin-bottom: 0.5rem;">Facility</div>
+        <div style="padding: 0.75rem; border-radius: 8px; background: #f9fafb; color: #374151; font-weight: 700;">
+            {{ appointment.facility.name }} <sup>{{ appointment.district.name }}</sup>
+        </div>
+    </div>
+
+    <div class="mb-4">
+        <label for="id_edit_visit_purpose" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Visit Purpose</label>
+        {{ form.visit_purpose }}
+        {% if form.visit_purpose.errors %}
+            <div class="text-danger" style="font-size:0.85rem;">{{ form.visit_purpose.errors }}</div>
+        {% endif %}
+    </div>
+
+    <div class="mb-4">
+        <label for="id_edit_appointment_date" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Date</label>
+        {{ form.appointment_date }}
+        {% if form.appointment_date.errors %}
+            <div class="text-danger" style="font-size:0.85rem;">{{ form.appointment_date.errors }}</div>
+        {% endif %}
+    </div>
+
+    <div class="mb-4">
+        <label for="id_edit_appointment_time" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Time</label>
+        {{ form.appointment_time }}
+        {% if form.appointment_time.errors %}
+            <div class="text-danger" style="font-size:0.85rem;">{{ form.appointment_time.errors }}</div>
+        {% endif %}
+    </div>
+
+    <div class="mb-4">
+        <label for="id_edit_status" style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280; font-weight: 600; display: block; margin-bottom: 0.5rem;">Status</label>
+        {{ form.status }}
+        {% if form.status.errors %}
+            <div class="text-danger" style="font-size:0.85rem;">{{ form.status.errors }}</div>
+        {% endif %}
+    </div>
+
+    <button type="submit" class="btn w-100" style="background: var(--theme-primary); color: white; border: none; padding: 0.75rem 1.5rem; border-radius: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;">
+        Save Changes
+    </button>
+</form>

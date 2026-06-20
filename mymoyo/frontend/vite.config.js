@@ -38,7 +38,7 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//, /^\/admin\//],
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname.startsWith('/api/app/') || url.pathname.startsWith('/api/facilities') || url.pathname.startsWith('/api/provinces') || url.pathname.startsWith('/api/districts'),
+            urlPattern: ({ url }) => url.pathname.startsWith('/api/app/') || url.pathname.startsWith('/api/dashboard/') || url.pathname.startsWith('/api/facilities') || url.pathname.startsWith('/api/provinces') || url.pathname.startsWith('/api/districts') || url.pathname.startsWith('/api/users') || url.pathname.startsWith('/api/appointments'),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'mymoyo-api-cache',

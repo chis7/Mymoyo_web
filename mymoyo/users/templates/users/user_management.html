@@ -148,23 +148,23 @@
     }
     .users-table th:nth-child(1),
     .users-table td:nth-child(1) {
-        width: 15%;
+        width: 14%;
     }
     .users-table th:nth-child(2),
     .users-table td:nth-child(2) {
-        width: 13%;
+        width: 12%;
     }
     .users-table th:nth-child(3),
     .users-table td:nth-child(3) {
-        width: 22%;
+        width: 18%;
     }
     .users-table th:nth-child(4),
     .users-table td:nth-child(4) {
-        width: 12%;
+        width: 11%;
     }
     .users-table th:nth-child(5),
     .users-table td:nth-child(5) {
-        width: 10%;
+        width: 15%;
     }
     .users-table th:nth-child(6),
     .users-table td:nth-child(6) {
@@ -172,7 +172,11 @@
     }
     .users-table th:nth-child(7),
     .users-table td:nth-child(7) {
-        width: 18%;
+        width: 10%;
+    }
+    .users-table th:nth-child(8),
+    .users-table td:nth-child(8) {
+        width: 10%;
     }
     .sort-button {
         display: inline-flex;
@@ -847,14 +851,19 @@
                             Username <span class="sort-icon" aria-hidden="true">↕</span>
                         </button>
                     </th>
-                    <th>
+                    <!-- <th>
                         <button type="button" class="sort-button" data-sort-key="email" data-sort-type="text" aria-sort="none">
                             Email <span class="sort-icon" aria-hidden="true">↕</span>
                         </button>
-                    </th>
+                    </th> -->
                     <th>
                         <button type="button" class="sort-button" data-sort-key="role" data-sort-type="text" aria-sort="none">
                             Role <span class="sort-icon" aria-hidden="true">↕</span>
+                        </button>
+                    </th>
+                    <th>
+                        <button type="button" class="sort-button" data-sort-key="facility" data-sort-type="text" aria-sort="none">
+                            Facility <span class="sort-icon" aria-hidden="true">↕</span>
                         </button>
                     </th>
                     <th>
@@ -986,6 +995,24 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="person_identity">Same Real Person</label>
+                    <select id="person_identity" name="person_identity">
+                        <option value="">Create separate identity</option>
+                        {% for identity in person_identity_choices %}
+                            <option value="{{ identity.pk }}">{{ identity.full_name }}{% if identity.phone %} - {{ identity.phone }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="facility">Facility</label>
+                    <select id="facility" name="facility">
+                        <option value="">Select facility</option>
+                        {% for facility in facility_choices %}
+                            <option value="{{ facility.pk }}">{{ facility.name }} - {{ facility.district.name }}, {{ facility.district.province.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="form-group full-width">
                     <label for="must_change_password">
                         <input type="checkbox" id="must_change_password" name="must_change_password" value="on">
@@ -1032,6 +1059,24 @@
                     <select id="edit_role" name="role">
                         {% for role_key, role_label in role_choices %}
                             <option value="{{ role_key }}">{{ role_label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit_person_identity">Same Real Person</label>
+                    <select id="edit_person_identity" name="person_identity">
+                        <option value="">Create separate identity</option>
+                        {% for identity in person_identity_choices %}
+                            <option value="{{ identity.pk }}">{{ identity.full_name }}{% if identity.phone %} - {{ identity.phone }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit_facility">Facility</label>
+                    <select id="edit_facility" name="facility">
+                        <option value="">Select facility</option>
+                        {% for facility in facility_choices %}
+                            <option value="{{ facility.pk }}">{{ facility.name }} - {{ facility.district.name }}, {{ facility.district.province.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -1401,13 +1446,15 @@
         document.getElementById('createForm').reset();
     }
     
-    function openEditModal(userId, username, firstName, lastName, email, role, isActive, mustChangePassword) {
+    function openEditModal(userId, username, firstName, lastName, email, role, personIdentityId, facilityId, isActive, mustChangePassword) {
         currentEditUserId = userId;
         document.getElementById('edit_username').value = username;
         document.getElementById('edit_first_name').value = firstName;
         document.getElementById('edit_last_name').value = lastName;
         document.getElementById('edit_email').value = email;
         document.getElementById('edit_role').value = role;
+        document.getElementById('edit_person_identity').value = personIdentityId || '';
+        document.getElementById('edit_facility').value = facilityId || '';
         document.getElementById('edit_is_active').checked = isActive;
         document.getElementById('edit_must_change_password').checked = mustChangePassword;
         document.getElementById('editModal').classList.add('active');

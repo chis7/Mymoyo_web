@@ -6,6 +6,7 @@
         data-sort-username="{{ item.user.username }}"
         data-sort-email="{{ item.user.email }}"
         data-sort-role="{{ item.profile.get_role_display }}"
+        data-sort-facility="{% if item.profile.facility %}{{ item.profile.facility.name }}{% endif %}"
         data-sort-status="{% if item.user.is_active %}Active{% else %}Inactive{% endif %}"
         data-sort-login="{% if item.is_logged_in %}1{% else %}0{% endif %}"
     >
@@ -14,20 +15,38 @@
                 {% if item.user.first_name or item.user.last_name %}
                     {{ item.user.first_name|add:" "|add:item.user.last_name|highlight_match:search_term }}
                 {% else %}
-                    <em>—</em>
+                    <em></em>
+                {% endif %}
+                {% if item.profile.person_identity %}
+                    <small style="display:block;color:var(--theme-surface-muted);font-weight:700;">Person: {{ item.profile.person_identity.full_name }}</small>
                 {% endif %}
             </div>
-        </td>
-        <td data-label="Username">{{ item.user.username|highlight_match:search_term }}</td>
-        <td data-label="Email">
-            {% if item.user.email %}
+             {% if item.user.email %}
                 {{ item.user.email|highlight_match:search_term }}
             {% else %}
                 <em style="color: var(--theme-surface-muted);">—</em>
             {% endif %}
         </td>
+        <td data-label="Username">{{ item.user.username|highlight_match:search_term }} <br/>  <span class="login-status-details">
+                
+            </span></td>
+        <!-- <td data-label="Email">
+            {% if item.user.email %}
+                {{ item.user.email|highlight_match:search_term }}
+            {% else %}
+                <em style="color: var(--theme-surface-muted);">—</em>
+            {% endif %}
+        </td> -->
         <td data-label="Role">
             <span class="user-role">{{ item.profile.get_role_display }}</span>
+        </td>
+        <td data-label="Facility">
+            {% if item.profile.facility %}
+                {{ item.profile.facility.name }}
+                <small style="display:block;color:var(--theme-surface-muted);font-weight:700;">{{ item.profile.facility.district.name }}</small>
+            {% else %}
+                <em style="color: var(--theme-surface-muted);">-</em>
+            {% endif %}
         </td>
         <td data-label="Status">
             <span class="user-status {% if item.user.is_active %}active{% else %}inactive{% endif %}">
@@ -37,7 +56,7 @@
         <td data-label="Login Status">
             <span class="login-status-details">
                 <span class="login-status {% if item.is_logged_in %}online{% else %}offline{% endif %}">
-                    {% if item.is_logged_in %}Logged In{% else %}Logged Out{% endif %}
+                    {% if item.is_logged_in %}online{% else %}offline{% endif %}
                 </span>
             </span>
         </td>
@@ -49,7 +68,7 @@
                 <button class="btn-icon btn-reset" onclick="openResetPasswordModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="Reset password">
                     <span class="material-symbols-outlined">key</span>
                 </button>
-                <button class="btn-icon btn-edit" onclick="openEditModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}', '{{ item.user.first_name|escapejs }}', '{{ item.user.last_name|escapejs }}', '{{ item.user.email|escapejs }}', '{{ item.profile.role }}', {{ item.user.is_active|lower }}, {{ item.profile.must_change_password|lower }})" title="Edit user">
+                <button class="btn-icon btn-edit" onclick="openEditModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}', '{{ item.user.first_name|escapejs }}', '{{ item.user.last_name|escapejs }}', '{{ item.user.email|escapejs }}', '{{ item.profile.role }}', '{{ item.profile.person_identity_id|default:'' }}', '{{ item.profile.facility_id|default:'' }}', {{ item.user.is_active|lower }}, {{ item.profile.must_change_password|lower }})" title="Edit user">
                     <span class="material-symbols-outlined">edit</span>
                 </button>
                 <button class="btn-icon btn-delete" onclick="openDeleteModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="Delete user">
@@ -60,7 +79,7 @@
     </tr>
 {% empty %}
     <tr>
-        <td colspan="7">
+        <td colspan="8">
             <div class="no-users">
                 <p style="font-size: 1.1rem; margin-bottom: 1rem;">No users found</p>
                 <p>

@@ -234,6 +234,18 @@
                     {% endif %}
                 </div>
 
+                <div class="field-full">
+                    <label for="{{ form.phone.id_for_label }}">Mobile number</label>
+                    {{ form.phone }}
+                    {% if form.phone.errors %}
+                        <ul class="error-list">
+                            {% for error in form.phone.errors %}
+                                <li>{{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+
                 <div>
                     <label for="{{ form.password1.id_for_label }}">Password</label>
                     {{ form.password1 }}

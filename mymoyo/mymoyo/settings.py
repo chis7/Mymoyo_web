@@ -120,14 +120,15 @@ POSTGRES_USER = os.environ.get('POSTGRES_USER', 'postgres')
 # keep the default password here in sync with your .env; .env should be used in development
 POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', '***REMOVED_POSTGRES_PASSWORD***')
 POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'db' if RUNNING_IN_DOCKER else '127.0.0.1')
-POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432' if RUNNING_IN_DOCKER else '55432')
+POSTGRES_LOCAL_PORT = os.environ.get('POSTGRES_LOCAL_PORT', '55461')
+POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432' if RUNNING_IN_DOCKER else POSTGRES_LOCAL_PORT)
 
 # The Compose service name `db` only resolves inside Docker. When running Django
 # directly on the host, use the database port published by docker-compose.yml.
 if not RUNNING_IN_DOCKER and POSTGRES_HOST == 'db':
     POSTGRES_HOST = '127.0.0.1'
     if POSTGRES_PORT == '5432':
-        POSTGRES_PORT = '55432'
+        POSTGRES_PORT = POSTGRES_LOCAL_PORT
 
 DATABASES = {
     'default': {
@@ -178,6 +179,7 @@ USE_TZ = True
 STATIC_URL = 'static/'
 
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # If you store custom assets in a top-level 'static' folder
 STATIC_DIR = BASE_DIR / 'static'
@@ -197,24 +199,40 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.JSONRenderer',
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
-    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'DEFAULT_PAGINATION_CLASS': 'api.pagination.StandardResultsSetPagination',
     'PAGE_SIZE': 50,
 }
 
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'portal_home'
 
+# Use the standard Django SMTP backend for production
 EMAIL_BACKEND = os.environ.get(
     'EMAIL_BACKEND',
-    'django.core.mail.backends.console.EmailBackend',
+    'django.core.mail.backends.smtp.EmailBackend',
 )
-DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'noreply@mymoyo.local')
-EMAIL_HOST = os.environ.get('EMAIL_HOST', '')
+
+# Google SMTP Server details
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'true').lower() == 'true'
-EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'false').lower() == 'true'
+
+# Your Gmail address
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '***REMOVED_EMAIL_ADDRESS***')
+
+# Your 16-character Google App Password (do not use your regular password)
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '***REMOVED_EMAIL_APP_PASSWORD***')
+
+# Security settings (Gmail uses TLS over port 587)
+EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'
+EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'False').lower() == 'true'
+
+# The email address that appears in the "From" field
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+
+ZAMTEL_SMS_URL = os.environ.get('ZAMTEL_SMS_URL', '')
+ZAMTEL_SMS_API_KEY = os.environ.get('ZAMTEL_SMS_API_KEY', '')
+ZAMTEL_SMS_SENDER_ID = os.environ.get('ZAMTEL_SMS_SENDER_ID', 'MyMoyo')
+ZAMTEL_SMS_TIMEOUT_SECONDS = int(os.environ.get('ZAMTEL_SMS_TIMEOUT_SECONDS', '10'))
 
 OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
 OPENAI_CHATBOT_MODEL = os.environ.get('OPENAI_CHATBOT_MODEL', 'gpt-5-mini')
@@ -228,5 +246,12 @@ if not RUNNING_IN_DOCKER and '://osrm-zambia:' in OSRM_BASE_URL:
     OSRM_BASE_URL = OSRM_BASE_URL.replace('://osrm-zambia:', '://127.0.0.1:')
 OSRM_ROUTE_PROFILE = os.environ.get('OSRM_ROUTE_PROFILE', 'driving')
 OSRM_DISTANCE_CANDIDATE_LIMIT = int(os.environ.get('OSRM_DISTANCE_CANDIDATE_LIMIT', '99'))
+
+HAPI_FHIR_BASE_URL = os.environ.get(
+    'HAPI_FHIR_BASE_URL',
+    'http://hapi-fhir:8080/fhir' if RUNNING_IN_DOCKER else 'http://127.0.0.1:7201/fhir',
+).rstrip('/')
+HAPI_FHIR_SYNC_ENABLED = env_bool('HAPI_FHIR_SYNC_ENABLED', True)
+HAPI_FHIR_TIMEOUT_SECONDS = int(os.environ.get('HAPI_FHIR_TIMEOUT_SECONDS', '5'))
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
