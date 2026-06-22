@@ -1,0 +1,383 @@
+{% extends "users/base.html" %}
+
+{% block title %}Medication Reminders{% endblock %}
+
+{% block extra_head %}
+<style>
+    .app-shell > .content-wrapper {
+        min-height: 0;
+        overflow: hidden;
+    }
+    .users-management-page {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+        overflow: hidden;
+    }
+    .management-breadcrumb {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        flex: 0 0 auto;
+        margin-bottom: 1.5rem;
+        color: var(--theme-text-muted);
+        font-size: 0.92rem;
+        font-weight: 700;
+    }
+    .management-breadcrumb a {
+        color: var(--theme-primary);
+        text-decoration: none;
+    }
+    .management-breadcrumb a:hover {
+        text-decoration: underline;
+    }
+    .management-breadcrumb .material-symbols-outlined {
+        color: var(--theme-text-muted);
+        font-size: 1rem;
+    }
+    .management-breadcrumb [aria-current="page"] {
+        color: var(--theme-text-strong);
+    }
+    .management-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        gap: 1rem;
+    }
+    .search-bar {
+        flex: 1 1 auto;
+        max-width: 520px;
+        min-width: min(100%, 280px);
+    }
+    .reminder-title {
+        margin: 0;
+        color: var(--theme-text-strong);
+        font-size: 1.35rem;
+        font-weight: 800;
+    }
+    .reminder-subtitle {
+        margin: 0.35rem 0 0;
+        color: var(--theme-text-muted);
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    .create-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.75rem 1.25rem;
+        border: none;
+        border-radius: 8px;
+        background: var(--theme-primary);
+        color: white;
+        font-weight: 700;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+    }
+    .create-btn:hover {
+        background: var(--theme-primary-hover);
+        color: white;
+    }
+    .users-table-wrapper {
+        flex: 1 1 auto;
+        min-height: 0;
+        background: var(--theme-surface);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+    .users-table {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: 100%;
+        min-width: 900px;
+        border-collapse: collapse;
+    }
+    .users-table thead {
+        display: block;
+        flex: 0 0 auto;
+        background: var(--theme-soft);
+        border-bottom: 2px solid rgba(var(--theme-primary-rgb), 0.16);
+    }
+    .users-table tbody {
+        display: block;
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+    }
+    .users-table thead tr,
+    .users-table tbody tr {
+        display: table;
+        width: 100%;
+        table-layout: fixed;
+    }
+    .users-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--theme-surface-text);
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    .users-table td {
+        padding: 1rem;
+        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        color: var(--theme-surface-muted);
+        font-size: 0.95rem;
+        vertical-align: middle;
+    }
+    .users-table tbody tr:hover {
+        background: rgba(var(--theme-primary-rgb), 0.04);
+    }
+    .users-table th:nth-child(1),
+    .users-table td:nth-child(1) {
+        width: 30%;
+    }
+    .users-table th:nth-child(2),
+    .users-table td:nth-child(2) {
+        width: 18%;
+    }
+    .users-table th:nth-child(3),
+    .users-table td:nth-child(3) {
+        width: 16%;
+    }
+    .users-table th:nth-child(4),
+    .users-table td:nth-child(4) {
+        width: 18%;
+    }
+    .users-table th:nth-child(5),
+    .users-table td:nth-child(5) {
+        width: 18%;
+    }
+    .reminder-method {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        min-width: 0;
+    }
+    .reminder-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 38px;
+        height: 38px;
+        flex: 0 0 auto;
+        border-radius: 8px;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.14);
+        background: rgba(var(--theme-primary-rgb), 0.08);
+        color: var(--theme-primary);
+    }
+    .reminder-icon .material-symbols-outlined {
+        font-size: 1.25rem;
+    }
+    .user-name {
+        font-weight: 600;
+        color: var(--theme-surface-text);
+    }
+    .user-role,
+    .user-status {
+        display: inline-block;
+        padding: 0.3rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    .user-role {
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.16);
+        background: rgba(var(--theme-primary-rgb), 0.1);
+        color: var(--theme-primary);
+    }
+    .user-status.active {
+        border: 1px solid rgba(var(--theme-life-rgb), 0.28);
+        background: rgba(var(--theme-life-rgb), 0.16);
+        color: var(--theme-text-strong);
+    }
+    .reminder-control {
+        width: 100%;
+        max-width: 180px;
+        padding: 0.65rem 0.75rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        background: var(--theme-surface);
+        color: var(--theme-surface-text);
+        font: inherit;
+        font-weight: 700;
+    }
+    .reminder-control:focus {
+        outline: none;
+        border-color: var(--theme-primary);
+        box-shadow: 0 0 0 3px var(--theme-focus);
+    }
+    .reminder-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--theme-surface-text);
+        font-weight: 700;
+    }
+    .reminder-toggle input {
+        width: 1rem;
+        height: 1rem;
+        accent-color: var(--theme-primary);
+    }
+    .table-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-top: 1rem;
+        padding: 0.85rem 1rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        border-radius: 12px;
+        background: var(--theme-surface);
+        color: var(--theme-surface-muted);
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.06);
+    }
+    .table-pagination-summary {
+        font-size: 0.88rem;
+        font-weight: 700;
+    }
+    .reminder-save-status {
+        color: var(--theme-primary);
+    }
+    @media (max-width: 768px) {
+        .management-header,
+        .table-pagination {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .create-btn {
+            justify-content: center;
+            width: 100%;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="users-management-page">
+    <nav class="management-breadcrumb" aria-label="Breadcrumb">
+        <a href="{% url 'portal_home' %}">Home</a>
+        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+        <span aria-current="page">Medication Reminders</span>
+    </nav>
+
+    <div class="management-header">
+        <div class="search-bar">
+            <h1 class="reminder-title">Medication Reminders</h1>
+            <p class="reminder-subtitle">Configure reminder timing for each supported HIV prevention method.</p>
+        </div>
+        <button class="create-btn" id="saveReminderSettings" type="button">
+            <span class="material-symbols-outlined" style="font-size: 1.2rem;">save</span>
+            Save Settings
+        </button>
+    </div>
+
+    <div class="users-table-wrapper">
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>Prevention Method</th>
+                    <th>Schedule</th>
+                    <th>Status</th>
+                    <th>Reminder Time</th>
+                    <th>Daily Reminder</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for method in prevention_methods %}
+                    <tr>
+                        <td>
+                            <div class="reminder-method">
+                                <span class="reminder-icon" aria-hidden="true">
+                                    <span class="material-symbols-outlined">{{ method.icon }}</span>
+                                </span>
+                                <span class="user-name">{{ method.name }}</span>
+                            </div>
+                        </td>
+                        <td><span class="user-role">{{ method.schedule }}</span></td>
+                        <td><span class="user-status active">{{ method.status }}</span></td>
+                        <td>
+                            <input class="reminder-control" data-reminder-time="{{ forloop.counter0 }}" type="time" value="08:00" aria-label="{{ method.name }} reminder time">
+                        </td>
+                        <td>
+                            <label class="reminder-toggle">
+                                <input data-reminder-enabled="{{ forloop.counter0 }}" type="checkbox" aria-label="Enable reminders for {{ method.name }}">
+                                Enabled
+                            </label>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="table-pagination">
+        <div class="table-pagination-summary" aria-live="polite">{{ prevention_methods|length }} reminder options</div>
+        <div class="table-pagination-summary reminder-save-status" id="reminderSaveStatus" aria-live="polite">Default reminder time: 08:00</div>
+    </div>
+</div>
+<script>
+    (function () {
+        const storageKey = 'mythanziMedicationReminders';
+        const saveButton = document.getElementById('saveReminderSettings');
+        const status = document.getElementById('reminderSaveStatus');
+        const timeInputs = Array.from(document.querySelectorAll('[data-reminder-time]'));
+        const enabledInputs = Array.from(document.querySelectorAll('[data-reminder-enabled]'));
+
+        function setStatus(message) {
+            status.textContent = message;
+        }
+
+        function readSettings() {
+            return timeInputs.map((input) => {
+                const index = input.dataset.reminderTime;
+                const enabled = document.querySelector(`[data-reminder-enabled="${index}"]`);
+                return {
+                    time: input.value,
+                    enabled: Boolean(enabled && enabled.checked),
+                };
+            });
+        }
+
+        function applySettings(settings) {
+            if (!Array.isArray(settings)) {
+                return;
+            }
+            settings.forEach((setting, index) => {
+                const timeInput = document.querySelector(`[data-reminder-time="${index}"]`);
+                const enabledInput = document.querySelector(`[data-reminder-enabled="${index}"]`);
+                if (timeInput && setting.time) {
+                    timeInput.value = setting.time;
+                }
+                if (enabledInput) {
+                    enabledInput.checked = Boolean(setting.enabled);
+                }
+            });
+            setStatus('Saved settings restored');
+        }
+
+        try {
+            applySettings(JSON.parse(localStorage.getItem(storageKey)));
+        } catch (error) {
+            localStorage.removeItem(storageKey);
+        }
+
+        saveButton.addEventListener('click', function () {
+            localStorage.setItem(storageKey, JSON.stringify(readSettings()));
+            setStatus('Settings saved');
+        });
+
+        timeInputs.concat(enabledInputs).forEach((input) => {
+            input.addEventListener('change', function () {
+                setStatus('Unsaved changes');
+            });
+        });
+    })();
+</script>
+{% endblock %}

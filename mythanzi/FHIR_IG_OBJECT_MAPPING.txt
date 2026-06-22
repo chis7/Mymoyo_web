@@ -1,0 +1,354 @@
+MyThanzi FHIR Implementation Guide Object Mapping
+Generated for project objects in this repository.
+
+FHIR version target
+- FHIR R5, based on mythanzi/hapi/application.yaml.
+
+Current local IG namespace used by code
+- Base StructureDefinition: https://mythanzi.local/fhir/StructureDefinition/mythanzi-resource
+- NamingSystem: https://mythanzi.local/fhir/NamingSystem/facility-code
+- NamingSystem: https://mythanzi.local/fhir/NamingSystem/service-code
+- NamingSystem: https://mythanzi.local/fhir/NamingSystem/client-reference
+- Extension: https://mythanzi.local/fhir/StructureDefinition/person-identity
+- Extension: https://mythanzi.local/fhir/StructureDefinition/worker-facility
+
+Current FHIR API resource types
+- Appointment
+- HealthcareService
+- Location
+- Patient
+- Person
+- Practitioner
+- Provenance
+
+Current tracked models
+These models are already converted to FHIR resources by api/fhir.py and versioned in api/models.py:
+- locations.Province
+- locations.District
+- locations.Service
+- locations.Facility
+- users.PersonIdentity
+- users.UserProfile
+- users.Appointment
+- users.AuditLog
+
+Recommended IG artifacts
+- StructureDefinition/mythanzi-resource
+  Base shared profile applied to every exported MyThanzi FHIR resource through meta.profile.
+- StructureDefinition/mythanzi-province-location
+  Profile on Location for province records.
+- StructureDefinition/mythanzi-district-location
+  Profile on Location for district records.
+- StructureDefinition/mythanzi-facility-location
+  Profile on Location for service delivery facilities.
+- StructureDefinition/mythanzi-healthcare-service
+  Profile on HealthcareService for the service catalogue.
+- StructureDefinition/mythanzi-person-identity
+  Profile on Person for one real person who may have multiple login personas.
+- StructureDefinition/mythanzi-client-patient
+  Profile on Patient for client UserProfile records.
+- StructureDefinition/mythanzi-worker-practitioner
+  Profile on Practitioner for non-client UserProfile records.
+- StructureDefinition/mythanzi-appointment
+  Profile on Appointment for booked, fulfilled, or missed visits.
+- StructureDefinition/mythanzi-provenance
+  Profile on Provenance for project audit log events.
+- StructureDefinition/mythanzi-fhir-resource-version
+  Internal persistence/audit object. Usually not exported as a clinical FHIR resource; document it as IG implementation infrastructure.
+- StructureDefinition/person-identity
+  Extension linking Patient or Practitioner back to a Person resource.
+- StructureDefinition/worker-facility
+  Extension linking Practitioner records to their assigned facility Location.
+- NamingSystem/facility-code
+  Identifier system for locations.Facility.code.
+- NamingSystem/service-code
+  Identifier system for locations.Service.code.
+- NamingSystem/client-reference
+  Identifier system for users.UserProfile.reference_number.
+- CodeSystem/mythanzi-user-role
+  Codes: client, mobiliser, chw, provider, supervisor, admin.
+- ValueSet/mythanzi-user-role
+  Permitted UserProfile.role codes.
+- CodeSystem/mythanzi-appointment-purpose
+  Codes: clinical_review, lab_collection, medication_refill, follow_up.
+- ValueSet/mythanzi-appointment-purpose
+  Permitted Appointment.visit_purpose codes.
+- CodeSystem/mythanzi-appointment-status
+  Local status codes: upcoming, completed, missed. Map to FHIR Appointment.status booked, fulfilled, noshow.
+- CodeSystem/mythanzi-submission-type
+  Codes for self-risk assessment, self-test report, side-effect report, and clinic feedback.
+
+Object mappings
+
+1. locations.Province
+- FHIR resource: Location
+- Recommended profile: StructureDefinition/mythanzi-province-location
+- Logical id pattern: province-{pk}
+- Field mapping:
+  - name -> Location.name
+  - fixed status active -> Location.status
+  - fixed mode instance -> Location.mode
+  - type Jurisdiction / Province -> Location.type
+- Relationships:
+  - Parent of District resources.
+- Current implementation: implemented in api.fhir._location_for_province.
+
+2. locations.District
+- FHIR resource: Location
+- Recommended profile: StructureDefinition/mythanzi-district-location
+- Logical id pattern: district-{pk}
+- Field mapping:
+  - name -> Location.name
+  - fixed status active -> Location.status
+  - fixed mode instance -> Location.mode
+  - fixed type District -> Location.type.text
+  - province -> Location.partOf reference to Location/province-{province.pk}
+- Relationships:
+  - Child of Province.
+  - Parent of Facility resources.
+- Current implementation: implemented in api.fhir._location_for_district.
+
+3. locations.Service
+- FHIR resource: HealthcareService
+- Recommended profile: StructureDefinition/mythanzi-healthcare-service
+- Logical id pattern: service-{pk}
+- Field mapping:
+  - is_active -> HealthcareService.active
+  - name -> HealthcareService.name
+  - code -> HealthcareService.identifier using NamingSystem/service-code
+  - description -> HealthcareService.comment
+- Relationships:
+  - Many-to-many with Facility. Consider HealthcareService.location references if service availability at facilities must be exported directly.
+- Current implementation: implemented in api.fhir._healthcare_service.
+
+4. locations.Facility
+- FHIR resource: Location
+- Recommended profile: StructureDefinition/mythanzi-facility-location
+- Logical id pattern: facility-{pk}
+- Field mapping:
+  - name -> Location.name
+  - fixed status active -> Location.status
+  - fixed mode instance -> Location.mode
+  - level or "Facility" -> Location.type.text
+  - code -> Location.identifier using NamingSystem/facility-code
+  - latitude -> Location.position.latitude
+  - longitude -> Location.position.longitude
+  - district -> Location.partOf reference to Location/district-{district.pk}
+- Relationships:
+  - Child of District.
+  - Linked from Practitioner through worker-facility extension.
+  - Linked from Appointment.supportingInformation.
+  - Linked from ClinicFeedbackSubmission if that object is exported.
+- Current implementation: implemented in api.fhir._location_for_facility.
+
+5. django.contrib.auth.models.User
+- FHIR resource: not exported directly.
+- Recommended IG treatment: implementation source object only.
+- Field mapping through UserProfile:
+  - first_name, last_name, username -> Patient.name or Practitioner.name
+  - email -> Patient.telecom or Practitioner.telecom
+  - is_active combines with UserProfile.is_active -> Patient.active or Practitioner.active
+- Relationships:
+  - One-to-one with UserProfile.
+- Current implementation: User fields are embedded through UserProfile in api.fhir._person_resource.
+
+6. users.PersonIdentity
+- FHIR resource: Person
+- Recommended profile: StructureDefinition/mythanzi-person-identity
+- Logical id pattern: person-{pk}
+- Field mapping:
+  - full_name -> Person.name.text
+  - phone -> Person.telecom
+  - date_of_birth -> Person.birthDate
+  - fixed active true -> Person.active
+- Relationships:
+  - linked profiles -> Person.link.target references Patient or Practitioner resources.
+- Current implementation: implemented in api.fhir._identity_resource.
+
+7. users.UserProfile with role = client
+- FHIR resource: Patient
+- Recommended profile: StructureDefinition/mythanzi-client-patient
+- Logical id pattern: user-{user_id}
+- Field mapping:
+  - reference_number -> Patient.identifier using NamingSystem/client-reference
+  - user first_name, last_name, username -> Patient.name
+  - phone -> Patient.telecom phone
+  - user.email -> Patient.telecom email
+  - date_of_birth -> Patient.birthDate
+  - is_active and user.is_active -> Patient.active
+  - person_identity -> person-identity extension with reference to Person/person-{pk}
+- Relationships:
+  - Appointment.beneficiary points to this Patient.
+  - PersonIdentity links to this Patient when present.
+- Current implementation: implemented in api.fhir._person_resource.
+
+8. users.UserProfile with role != client
+- FHIR resource: Practitioner
+- Recommended profile: StructureDefinition/mythanzi-worker-practitioner
+- Logical id pattern: user-{user_id}
+- Field mapping:
+  - reference_number -> Practitioner.identifier using NamingSystem/client-reference
+  - user first_name, last_name, username -> Practitioner.name
+  - phone -> Practitioner.telecom phone
+  - user.email -> Practitioner.telecom email
+  - date_of_birth -> Practitioner.birthDate
+  - is_active and user.is_active -> Practitioner.active
+  - role display -> Practitioner.qualification.code.text
+  - person_identity -> person-identity extension with reference to Person/person-{pk}
+  - facility -> worker-facility extension with reference to Location/facility-{pk}
+- Relationships:
+  - Appointment.created_by can point to this Practitioner.
+  - AuditLog.actor can point to this Practitioner.
+- Current implementation: implemented in api.fhir._person_resource.
+- IG note:
+  - If staff roles need formal authorization, consider PractitionerRole in a future version. Current code uses Practitioner plus qualification and extension.
+
+9. users.Appointment
+- FHIR resource: Appointment
+- Recommended profile: StructureDefinition/mythanzi-appointment
+- Logical id pattern: appointment-{pk}
+- Field mapping:
+  - status upcoming -> Appointment.status booked
+  - status completed -> Appointment.status fulfilled
+  - status missed -> Appointment.status noshow
+  - visit_purpose display -> Appointment.serviceType.concept.text
+  - appointment_date + appointment_time -> Appointment.start
+  - created_at -> Appointment.created
+  - notes -> Appointment.comment
+  - beneficiary -> Appointment.participant.actor reference to Patient or Practitioner
+  - created_by -> Appointment.participant.actor reference to Patient or Practitioner
+  - province, district, facility -> Appointment.supportingInformation Location references
+- Relationships:
+  - Uses UserProfile for participant resource type.
+  - Uses Location for province, district, and facility.
+- Current implementation: implemented in api.fhir._appointment_resource.
+
+10. users.AuditLog
+- FHIR resource: Provenance
+- Recommended profile: StructureDefinition/mythanzi-provenance
+- Logical id pattern: audit-{pk}
+- Field mapping:
+  - created_at -> Provenance.recorded
+  - action display -> Provenance.activity.text
+  - app_label, model_name, object_pk -> Provenance.target.identifier and Provenance.entity.what.identifier
+  - object_repr -> Provenance.target.display
+  - actor -> Provenance.agent.who reference to Patient or Practitioner if actor has a profile
+  - changes, snapshot -> currently not exported; consider Provenance.entity.extension if the IG needs detailed before/after audit payloads
+- Current implementation: implemented in api.fhir._provenance_resource.
+
+11. api.FHIRResourceVersion
+- FHIR resource: not exported as a FHIR domain resource.
+- Recommended IG treatment: implementation infrastructure for resource history.
+- Field mapping:
+  - resource_type -> stored FHIR resource type
+  - logical_id -> stored FHIR logical id
+  - version_id -> stored FHIR version id
+  - action -> create, update, delete event
+  - source_app, source_model, source_pk -> source Django object identity
+  - resource -> full FHIR JSON payload snapshot
+  - recorded_at -> local version record timestamp
+- Current implementation: model exists in api/models.py and is exposed through /api/fhir/_versions/.
+
+12. users.AnonymousOrUserSubmission
+- FHIR resource: abstract base model, not exported directly.
+- Recommended IG treatment: shared submission pattern.
+- Shared fields:
+  - user -> subject reference where available
+  - session_key -> anonymous/session identifier, if policy permits export
+  - answers -> QuestionnaireResponse.item or Observation.component
+  - guidance -> detected outcome/advice as note or derived observation
+  - submitted_at -> authored/effective/issued timestamp
+- Current implementation: abstract Django model only.
+
+13. users.SelfRiskAssessmentSubmission
+- Current FHIR resource: not implemented.
+- Recommended FHIR resource: QuestionnaireResponse, with optional derived RiskAssessment or Observation.
+- Recommended profile: StructureDefinition/mythanzi-self-risk-assessment-response
+- Suggested logical id pattern: self-risk-assessment-{pk}
+- Field mapping:
+  - user -> QuestionnaireResponse.subject reference to Patient if present
+  - session_key -> QuestionnaireResponse.identifier or extension for anonymous session
+  - answers -> QuestionnaireResponse.item
+  - guidance -> QuestionnaireResponse.note or derived Observation.note
+  - submitted_at -> QuestionnaireResponse.authored
+  - score -> Observation.valueInteger or RiskAssessment.prediction.probability
+  - level -> RiskAssessment.prediction.qualitativeRisk or Observation.interpretation
+- IG note:
+  - Use QuestionnaireResponse as the canonical record if you need to preserve exact user answers.
+  - Use RiskAssessment only if the application needs a clinical risk summary.
+
+14. users.SelfTestReportSubmission
+- Current FHIR resource: not implemented.
+- Recommended FHIR resource: Observation, with optional QuestionnaireResponse for full form answers.
+- Recommended profile: StructureDefinition/mythanzi-hiv-self-test-observation
+- Suggested logical id pattern: self-test-report-{pk}
+- Field mapping:
+  - user -> Observation.subject reference to Patient if present
+  - session_key -> Observation.identifier or extension for anonymous session
+  - answers -> Observation.component or linked QuestionnaireResponse.item
+  - guidance -> Observation.note
+  - submitted_at -> Observation.issued
+  - test_date -> Observation.effectiveDateTime or effectiveDate
+  - result -> Observation.valueCodeableConcept
+- IG note:
+  - If the exact kit answers matter, pair Observation with QuestionnaireResponse.
+
+15. users.SideEffectReportSubmission
+- Current FHIR resource: not implemented.
+- Recommended FHIR resource: AdverseEvent, with optional QuestionnaireResponse for full form answers.
+- Recommended profile: StructureDefinition/mythanzi-side-effect-adverse-event
+- Suggested logical id pattern: side-effect-report-{pk}
+- Field mapping:
+  - user -> AdverseEvent.subject reference to Patient if present
+  - session_key -> AdverseEvent.identifier or extension for anonymous session
+  - answers -> AdverseEvent.note or supporting QuestionnaireResponse.item
+  - guidance -> AdverseEvent.note
+  - submitted_at -> AdverseEvent.recordedDate
+  - symptom_start_date -> AdverseEvent.occurrenceDateTime
+  - severity -> AdverseEvent.seriousness or severity extension, depending on final IG constraints
+  - follow_up_requested -> AdverseEvent.extension or supporting ServiceRequest
+- IG note:
+  - If follow-up creates work for staff, model that follow-up as ServiceRequest or Task in a later IG iteration.
+
+16. users.ClinicFeedbackSubmission
+- Current FHIR resource: not implemented.
+- Recommended FHIR resource: QuestionnaireResponse, with optional Observation summary.
+- Recommended profile: StructureDefinition/mythanzi-clinic-feedback-response
+- Suggested logical id pattern: clinic-feedback-{pk}
+- Field mapping:
+  - user -> QuestionnaireResponse.subject reference to Patient if present
+  - session_key -> QuestionnaireResponse.identifier or extension for anonymous session
+  - facility -> QuestionnaireResponse.encounter/location context or item answer reference to Location/facility-{pk}
+  - visit_date -> QuestionnaireResponse.authored or item answer date
+  - average_rating -> Observation.valueDecimal or QuestionnaireResponse.item answer
+  - follow_up_requested -> QuestionnaireResponse.item answer, optional Task/ServiceRequest if it creates follow-up work
+  - answers -> QuestionnaireResponse.item
+  - guidance -> QuestionnaireResponse.note
+  - submitted_at -> QuestionnaireResponse.authored
+- IG note:
+  - QuestionnaireResponse best preserves patient-reported experience data.
+
+Potential future FHIR resources
+- PractitionerRole
+  Use when role, organization, facility, service, and availability need formal representation beyond Practitioner.qualification and worker-facility extension.
+- Organization
+  Use if facilities need ownership/administration separate from physical Location.
+- Task
+  Use for requested follow-up from side-effect reports or clinic feedback.
+- ServiceRequest
+  Use for clinical follow-up orders, referrals, or requested interventions.
+- Questionnaire
+  Use to publish formal definitions for self-risk assessment, self-test report, side-effect report, and clinic feedback forms.
+- Observation
+  Use for derived scores, test results, satisfaction ratings, or summarized form outcomes.
+- RiskAssessment
+  Use for HIV prevention risk level if a clinical decision summary is required.
+- AdverseEvent
+  Use for side-effect reporting tied to prevention medicines or products.
+
+Implementation notes
+- The active project code currently uses one broad profile URL, StructureDefinition/mythanzi-resource, for all exported resources.
+- A fuller IG should replace or supplement that broad profile with model-specific profile URLs listed above.
+- FHIR sync is resilient by design: api/signals.py records versions after transaction commit and suppresses sync failures so application saves continue.
+- HAPI sync strips local meta.versionId and meta.lastUpdated before PUT because the HAPI server owns persisted resource version metadata.
+- Current HAPI configuration is R5, and api/hapi.py includes an R5 repair for Appointment.serviceType.

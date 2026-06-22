@@ -1,0 +1,1063 @@
+{
+  "resourceType": "Bundle",
+  "id": "mythanzi-ig-upload",
+  "type": "transaction",
+  "timestamp": "2026-06-21T00:00:00+02:00",
+  "entry": [
+    {
+      "fullUrl": "https://mythanzi.local/fhir/ImplementationGuide/mythanzi",
+      "resource": {
+        "resourceType": "ImplementationGuide",
+        "id": "mythanzi",
+        "url": "https://mythanzi.local/fhir/ImplementationGuide/mythanzi",
+        "version": "0.1.0",
+        "name": "MyThanziImplementationGuide",
+        "title": "MyThanzi FHIR Implementation Guide",
+        "status": "draft",
+        "date": "2026-06-21",
+        "publisher": "MyThanzi",
+        "description": "Local FHIR R5 implementation guide artifacts for the MyThanzi application.",
+        "fhirVersion": [
+          "5.0.0"
+        ],
+        "definition": {
+          "resource": [
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-resource"
+              },
+              "name": "MyThanzi Base Resource"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-client-patient"
+              },
+              "name": "MyThanzi Client Patient"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-worker-practitioner"
+              },
+              "name": "MyThanzi Worker Practitioner"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-facility-location"
+              },
+              "name": "MyThanzi Facility Location"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-province-location"
+              },
+              "name": "MyThanzi Province Location"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-district-location"
+              },
+              "name": "MyThanzi District Location"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-healthcare-service"
+              },
+              "name": "MyThanzi Healthcare Service"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-person-identity"
+              },
+              "name": "MyThanzi Person Identity"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-appointment"
+              },
+              "name": "MyThanzi Appointment"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-provenance"
+              },
+              "name": "MyThanzi Provenance"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-self-risk-assessment-response"
+              },
+              "name": "MyThanzi Self Risk Assessment Response"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-hiv-self-test-observation"
+              },
+              "name": "MyThanzi HIV Self Test Observation"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-side-effect-adverse-event"
+              },
+              "name": "MyThanzi Side Effect Adverse Event"
+            },
+            {
+              "reference": {
+                "reference": "StructureDefinition/mythanzi-clinic-feedback-response"
+              },
+              "name": "MyThanzi Clinic Feedback Response"
+            }
+          ],
+          "page": {
+            "nameUrl": "index.html",
+            "title": "MyThanzi FHIR IG",
+            "generation": "markdown"
+          }
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "ImplementationGuide/mythanzi"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/NamingSystem/client-reference",
+      "resource": {
+        "resourceType": "NamingSystem",
+        "id": "client-reference",
+        "url": "https://mythanzi.local/fhir/NamingSystem/client-reference",
+        "name": "MyThanziClientReference",
+        "title": "MyThanzi Client Reference Number",
+        "status": "active",
+        "kind": "identifier",
+        "date": "2026-06-21",
+        "publisher": "MyThanzi",
+        "description": "Identifier system for users.UserProfile.reference_number.",
+        "uniqueId": [
+          {
+            "type": "uri",
+            "value": "https://mythanzi.local/fhir/NamingSystem/client-reference",
+            "preferred": true
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "NamingSystem/client-reference"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/NamingSystem/facility-code",
+      "resource": {
+        "resourceType": "NamingSystem",
+        "id": "facility-code",
+        "url": "https://mythanzi.local/fhir/NamingSystem/facility-code",
+        "name": "MyThanziFacilityCode",
+        "title": "MyThanzi Facility Code",
+        "status": "active",
+        "kind": "identifier",
+        "date": "2026-06-21",
+        "publisher": "MyThanzi",
+        "description": "Identifier system for locations.Facility.code.",
+        "uniqueId": [
+          {
+            "type": "uri",
+            "value": "https://mythanzi.local/fhir/NamingSystem/facility-code",
+            "preferred": true
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "NamingSystem/facility-code"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/NamingSystem/service-code",
+      "resource": {
+        "resourceType": "NamingSystem",
+        "id": "service-code",
+        "url": "https://mythanzi.local/fhir/NamingSystem/service-code",
+        "name": "MyThanziServiceCode",
+        "title": "MyThanzi Service Code",
+        "status": "active",
+        "kind": "identifier",
+        "date": "2026-06-21",
+        "publisher": "MyThanzi",
+        "description": "Identifier system for locations.Service.code.",
+        "uniqueId": [
+          {
+            "type": "uri",
+            "value": "https://mythanzi.local/fhir/NamingSystem/service-code",
+            "preferred": true
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "NamingSystem/service-code"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/CodeSystem/mythanzi-user-role",
+      "resource": {
+        "resourceType": "CodeSystem",
+        "id": "mythanzi-user-role",
+        "url": "https://mythanzi.local/fhir/CodeSystem/mythanzi-user-role",
+        "version": "0.1.0",
+        "name": "MyThanziUserRole",
+        "title": "MyThanzi User Role",
+        "status": "active",
+        "content": "complete",
+        "concept": [
+          {
+            "code": "client",
+            "display": "Client"
+          },
+          {
+            "code": "mobiliser",
+            "display": "Mobiliser / Outreach Worker"
+          },
+          {
+            "code": "chw",
+            "display": "CHW / Case Manager"
+          },
+          {
+            "code": "provider",
+            "display": "Provider / Clinician"
+          },
+          {
+            "code": "supervisor",
+            "display": "Supervisor"
+          },
+          {
+            "code": "admin",
+            "display": "Admin"
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "CodeSystem/mythanzi-user-role"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/ValueSet/mythanzi-user-role",
+      "resource": {
+        "resourceType": "ValueSet",
+        "id": "mythanzi-user-role",
+        "url": "https://mythanzi.local/fhir/ValueSet/mythanzi-user-role",
+        "version": "0.1.0",
+        "name": "MyThanziUserRoleValueSet",
+        "title": "MyThanzi User Role ValueSet",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "https://mythanzi.local/fhir/CodeSystem/mythanzi-user-role"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "ValueSet/mythanzi-user-role"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/CodeSystem/mythanzi-appointment-purpose",
+      "resource": {
+        "resourceType": "CodeSystem",
+        "id": "mythanzi-appointment-purpose",
+        "url": "https://mythanzi.local/fhir/CodeSystem/mythanzi-appointment-purpose",
+        "version": "0.1.0",
+        "name": "MyThanziAppointmentPurpose",
+        "title": "MyThanzi Appointment Purpose",
+        "status": "active",
+        "content": "complete",
+        "concept": [
+          {
+            "code": "clinical_review",
+            "display": "Clinical Review (Checkup)"
+          },
+          {
+            "code": "lab_collection",
+            "display": "Lab Collection"
+          },
+          {
+            "code": "medication_refill",
+            "display": "Medication Refill"
+          },
+          {
+            "code": "follow_up",
+            "display": "Follow-up Visit"
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "CodeSystem/mythanzi-appointment-purpose"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/ValueSet/mythanzi-appointment-purpose",
+      "resource": {
+        "resourceType": "ValueSet",
+        "id": "mythanzi-appointment-purpose",
+        "url": "https://mythanzi.local/fhir/ValueSet/mythanzi-appointment-purpose",
+        "version": "0.1.0",
+        "name": "MyThanziAppointmentPurposeValueSet",
+        "title": "MyThanzi Appointment Purpose ValueSet",
+        "status": "active",
+        "compose": {
+          "include": [
+            {
+              "system": "https://mythanzi.local/fhir/CodeSystem/mythanzi-appointment-purpose"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "ValueSet/mythanzi-appointment-purpose"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/CodeSystem/mythanzi-appointment-status",
+      "resource": {
+        "resourceType": "CodeSystem",
+        "id": "mythanzi-appointment-status",
+        "url": "https://mythanzi.local/fhir/CodeSystem/mythanzi-appointment-status",
+        "version": "0.1.0",
+        "name": "MyThanziAppointmentStatus",
+        "title": "MyThanzi Appointment Status",
+        "status": "active",
+        "content": "complete",
+        "concept": [
+          {
+            "code": "upcoming",
+            "display": "Upcoming"
+          },
+          {
+            "code": "completed",
+            "display": "Completed"
+          },
+          {
+            "code": "missed",
+            "display": "Missed"
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "CodeSystem/mythanzi-appointment-status"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/CodeSystem/mythanzi-submission-type",
+      "resource": {
+        "resourceType": "CodeSystem",
+        "id": "mythanzi-submission-type",
+        "url": "https://mythanzi.local/fhir/CodeSystem/mythanzi-submission-type",
+        "version": "0.1.0",
+        "name": "MyThanziSubmissionType",
+        "title": "MyThanzi Submission Type",
+        "status": "active",
+        "content": "complete",
+        "concept": [
+          {
+            "code": "self-risk-assessment",
+            "display": "Self Risk Assessment"
+          },
+          {
+            "code": "self-test-report",
+            "display": "Self-Test Report"
+          },
+          {
+            "code": "side-effect-report",
+            "display": "Side-Effect Report"
+          },
+          {
+            "code": "clinic-feedback",
+            "display": "Clinic Feedback"
+          }
+        ]
+      },
+      "request": {
+        "method": "PUT",
+        "url": "CodeSystem/mythanzi-submission-type"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-resource",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-resource",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-resource",
+        "version": "0.1.0",
+        "name": "MyThanziResource",
+        "title": "MyThanzi Base Resource",
+        "status": "draft",
+        "publisher": "MyThanzi",
+        "description": "Base documentation profile for resources generated from the MyThanzi application.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": true,
+        "type": "Resource",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Resource",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Resource",
+              "path": "Resource"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-resource"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/person-identity",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "person-identity",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/person-identity",
+        "version": "0.1.0",
+        "name": "MyThanziPersonIdentityExtension",
+        "title": "MyThanzi Person Identity Extension",
+        "status": "draft",
+        "description": "Links a Patient or Practitioner resource to a MyThanzi Person identity.",
+        "fhirVersion": "5.0.0",
+        "kind": "complex-type",
+        "abstract": false,
+        "context": [
+          {
+            "type": "element",
+            "expression": "Patient"
+          },
+          {
+            "type": "element",
+            "expression": "Practitioner"
+          }
+        ],
+        "type": "Extension",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Extension",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Extension",
+              "path": "Extension"
+            },
+            {
+              "id": "Extension.url",
+              "path": "Extension.url",
+              "fixedUri": "https://mythanzi.local/fhir/StructureDefinition/person-identity"
+            },
+            {
+              "id": "Extension.valueReference",
+              "path": "Extension.valueReference",
+              "min": 1,
+              "type": [
+                {
+                  "code": "Reference",
+                  "targetProfile": [
+                    "http://hl7.org/fhir/StructureDefinition/Person"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/person-identity"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/worker-facility",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "worker-facility",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/worker-facility",
+        "version": "0.1.0",
+        "name": "MyThanziWorkerFacilityExtension",
+        "title": "MyThanzi Worker Facility Extension",
+        "status": "draft",
+        "description": "Links a Practitioner to the facility where the worker is assigned.",
+        "fhirVersion": "5.0.0",
+        "kind": "complex-type",
+        "abstract": false,
+        "context": [
+          {
+            "type": "element",
+            "expression": "Practitioner"
+          }
+        ],
+        "type": "Extension",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Extension",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Extension",
+              "path": "Extension"
+            },
+            {
+              "id": "Extension.url",
+              "path": "Extension.url",
+              "fixedUri": "https://mythanzi.local/fhir/StructureDefinition/worker-facility"
+            },
+            {
+              "id": "Extension.valueReference",
+              "path": "Extension.valueReference",
+              "min": 1,
+              "type": [
+                {
+                  "code": "Reference",
+                  "targetProfile": [
+                    "http://hl7.org/fhir/StructureDefinition/Location"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/worker-facility"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-client-patient",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-client-patient",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-client-patient",
+        "version": "0.1.0",
+        "name": "MyThanziClientPatient",
+        "title": "MyThanzi Client Patient",
+        "status": "draft",
+        "description": "Patient profile for MyThanzi client UserProfile records.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "Patient",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Patient",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Patient",
+              "path": "Patient",
+              "short": "MyThanzi client profile"
+            },
+            {
+              "id": "Patient.identifier",
+              "path": "Patient.identifier",
+              "min": 1
+            },
+            {
+              "id": "Patient.name",
+              "path": "Patient.name",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-client-patient"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-worker-practitioner",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-worker-practitioner",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-worker-practitioner",
+        "version": "0.1.0",
+        "name": "MyThanziWorkerPractitioner",
+        "title": "MyThanzi Worker Practitioner",
+        "status": "draft",
+        "description": "Practitioner profile for MyThanzi staff UserProfile records.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "Practitioner",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Practitioner",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Practitioner",
+              "path": "Practitioner",
+              "short": "MyThanzi worker profile"
+            },
+            {
+              "id": "Practitioner.identifier",
+              "path": "Practitioner.identifier",
+              "min": 1
+            },
+            {
+              "id": "Practitioner.name",
+              "path": "Practitioner.name",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-worker-practitioner"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-facility-location",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-facility-location",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-facility-location",
+        "version": "0.1.0",
+        "name": "MyThanziFacilityLocation",
+        "title": "MyThanzi Facility Location",
+        "status": "draft",
+        "description": "Location profile for MyThanzi health facilities.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "Location",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Location",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Location",
+              "path": "Location",
+              "short": "MyThanzi facility"
+            },
+            {
+              "id": "Location.name",
+              "path": "Location.name",
+              "min": 1
+            },
+            {
+              "id": "Location.partOf",
+              "path": "Location.partOf",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-facility-location"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-province-location",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-province-location",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-province-location",
+        "version": "0.1.0",
+        "name": "MyThanziProvinceLocation",
+        "title": "MyThanzi Province Location",
+        "status": "draft",
+        "description": "Location profile for MyThanzi province records.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "Location",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Location",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Location",
+              "path": "Location",
+              "short": "MyThanzi province"
+            },
+            {
+              "id": "Location.name",
+              "path": "Location.name",
+              "min": 1
+            },
+            {
+              "id": "Location.type",
+              "path": "Location.type",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-province-location"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-district-location",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-district-location",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-district-location",
+        "version": "0.1.0",
+        "name": "MyThanziDistrictLocation",
+        "title": "MyThanzi District Location",
+        "status": "draft",
+        "description": "Location profile for MyThanzi district records.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "Location",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Location",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Location",
+              "path": "Location",
+              "short": "MyThanzi district"
+            },
+            {
+              "id": "Location.name",
+              "path": "Location.name",
+              "min": 1
+            },
+            {
+              "id": "Location.partOf",
+              "path": "Location.partOf",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-district-location"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-healthcare-service",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-healthcare-service",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-healthcare-service",
+        "version": "0.1.0",
+        "name": "MyThanziHealthcareService",
+        "title": "MyThanzi Healthcare Service",
+        "status": "draft",
+        "description": "HealthcareService profile for the MyThanzi service catalogue.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "HealthcareService",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/HealthcareService",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "HealthcareService",
+              "path": "HealthcareService",
+              "short": "MyThanzi service catalogue item"
+            },
+            {
+              "id": "HealthcareService.identifier",
+              "path": "HealthcareService.identifier",
+              "min": 1
+            },
+            {
+              "id": "HealthcareService.name",
+              "path": "HealthcareService.name",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-healthcare-service"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-person-identity",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-person-identity",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-person-identity",
+        "version": "0.1.0",
+        "name": "MyThanziPersonIdentity",
+        "title": "MyThanzi Person Identity",
+        "status": "draft",
+        "description": "Person profile for a real person that may have more than one login persona.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "Person",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Person",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Person",
+              "path": "Person",
+              "short": "MyThanzi person identity"
+            },
+            {
+              "id": "Person.name",
+              "path": "Person.name",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-person-identity"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-appointment",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-appointment",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-appointment",
+        "version": "0.1.0",
+        "name": "MyThanziAppointment",
+        "title": "MyThanzi Appointment",
+        "status": "draft",
+        "description": "Appointment profile for MyThanzi visits.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "Appointment",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Appointment",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Appointment",
+              "path": "Appointment",
+              "short": "MyThanzi booked, fulfilled, or missed visit"
+            },
+            {
+              "id": "Appointment.status",
+              "path": "Appointment.status",
+              "min": 1
+            },
+            {
+              "id": "Appointment.participant",
+              "path": "Appointment.participant",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-appointment"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-provenance",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-provenance",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-provenance",
+        "version": "0.1.0",
+        "name": "MyThanziProvenance",
+        "title": "MyThanzi Provenance",
+        "status": "draft",
+        "description": "Provenance profile for MyThanzi audit log events.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "Provenance",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Provenance",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Provenance",
+              "path": "Provenance",
+              "short": "MyThanzi audit event"
+            },
+            {
+              "id": "Provenance.recorded",
+              "path": "Provenance.recorded",
+              "min": 1
+            },
+            {
+              "id": "Provenance.target",
+              "path": "Provenance.target",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-provenance"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-self-risk-assessment-response",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-self-risk-assessment-response",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-self-risk-assessment-response",
+        "version": "0.1.0",
+        "name": "MyThanziSelfRiskAssessmentResponse",
+        "title": "MyThanzi Self Risk Assessment Response",
+        "status": "draft",
+        "description": "QuestionnaireResponse profile for self risk assessment submissions.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "QuestionnaireResponse",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/QuestionnaireResponse",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "QuestionnaireResponse",
+              "path": "QuestionnaireResponse",
+              "short": "MyThanzi self risk assessment"
+            },
+            {
+              "id": "QuestionnaireResponse.status",
+              "path": "QuestionnaireResponse.status",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-self-risk-assessment-response"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-hiv-self-test-observation",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-hiv-self-test-observation",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-hiv-self-test-observation",
+        "version": "0.1.0",
+        "name": "MyThanziHivSelfTestObservation",
+        "title": "MyThanzi HIV Self Test Observation",
+        "status": "draft",
+        "description": "Observation profile for self-reported HIV self-test results.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "Observation",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/Observation",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "Observation",
+              "path": "Observation",
+              "short": "MyThanzi HIV self-test result"
+            },
+            {
+              "id": "Observation.status",
+              "path": "Observation.status",
+              "min": 1
+            },
+            {
+              "id": "Observation.code",
+              "path": "Observation.code",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-hiv-self-test-observation"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-side-effect-adverse-event",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-side-effect-adverse-event",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-side-effect-adverse-event",
+        "version": "0.1.0",
+        "name": "MyThanziSideEffectAdverseEvent",
+        "title": "MyThanzi Side Effect Adverse Event",
+        "status": "draft",
+        "description": "AdverseEvent profile for side-effect reports.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "AdverseEvent",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/AdverseEvent",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "AdverseEvent",
+              "path": "AdverseEvent",
+              "short": "MyThanzi side-effect report"
+            },
+            {
+              "id": "AdverseEvent.subject",
+              "path": "AdverseEvent.subject",
+              "min": 0
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-side-effect-adverse-event"
+      }
+    },
+    {
+      "fullUrl": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-clinic-feedback-response",
+      "resource": {
+        "resourceType": "StructureDefinition",
+        "id": "mythanzi-clinic-feedback-response",
+        "url": "https://mythanzi.local/fhir/StructureDefinition/mythanzi-clinic-feedback-response",
+        "version": "0.1.0",
+        "name": "MyThanziClinicFeedbackResponse",
+        "title": "MyThanzi Clinic Feedback Response",
+        "status": "draft",
+        "description": "QuestionnaireResponse profile for clinic feedback submissions.",
+        "fhirVersion": "5.0.0",
+        "kind": "resource",
+        "abstract": false,
+        "type": "QuestionnaireResponse",
+        "baseDefinition": "http://hl7.org/fhir/StructureDefinition/QuestionnaireResponse",
+        "derivation": "constraint",
+        "differential": {
+          "element": [
+            {
+              "id": "QuestionnaireResponse",
+              "path": "QuestionnaireResponse",
+              "short": "MyThanzi clinic feedback"
+            },
+            {
+              "id": "QuestionnaireResponse.status",
+              "path": "QuestionnaireResponse.status",
+              "min": 1
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "StructureDefinition/mythanzi-clinic-feedback-response"
+      }
+    }
+  ]
+}

@@ -5,12 +5,12 @@
             "name": "Django: MyThanzi (Postgres)",
             "type": "debugpy",
             "request": "launch",
-            "python": "${workspaceFolder}/.venv/bin/python",
-            "program": "${workspaceFolder}/mythanzi/manage.py",
-            "cwd": "${workspaceFolder}/mythanzi",
+            "python": "${workspaceFolder}/../.venv/bin/python",
+            "program": "${workspaceFolder}/manage.py",
+            "cwd": "${workspaceFolder}",
             "args": [
                 "runserver",
-                "127.0.0.1:7000"
+                "0.0.0.0:7000"
             ],
             "django": true,
             "justMyCode": true,
