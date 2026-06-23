@@ -5,6 +5,7 @@ frontend/dist
 static/vue
 staticfiles
 db.sqlite3
+backups
 osrm-data
 __pycache__
 *.pyc

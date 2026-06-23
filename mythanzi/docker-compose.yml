@@ -9,6 +9,34 @@ services:
       - "55462:5432"
     volumes:
       - mythanzi-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - mythanzi-network
+
+  db-backup:
+    image: postgres:15-alpine
+    command: ["sh", "/usr/local/bin/postgres-backup.sh"]
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      BACKUP_PREFIX: mythanzi
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_RETENTION_COUNT: ${BACKUP_RETENTION_COUNT:-30}
+    volumes:
+      - ./docker/postgres-backup/backup.sh:/usr/local/bin/postgres-backup.sh:ro
+      - mythanzi-db-backups:/backups
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - mythanzi-network
 
@@ -63,6 +91,29 @@ services:
     networks:
       - mythanzi-network
 
+  hapi-db-backup:
+    image: postgres:16-alpine
+    command: ["sh", "/usr/local/bin/postgres-backup.sh"]
+    environment:
+      POSTGRES_HOST: hapi-db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: hapi
+      POSTGRES_USER: hapi
+      POSTGRES_PASSWORD: ${HAPI_POSTGRES_PASSWORD:?Set HAPI_POSTGRES_PASSWORD in .env}
+      BACKUP_PREFIX: hapi
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+      BACKUP_RETENTION_COUNT: ${BACKUP_RETENTION_COUNT:-30}
+    volumes:
+      - ./docker/postgres-backup/backup.sh:/usr/local/bin/postgres-backup.sh:ro
+      - hapi-db-backups:/backups
+    depends_on:
+      hapi-db:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - mythanzi-network
+
   osrm-zambia:
     image: osrm/osrm-backend:latest
     command: ["osrm-routed", "--algorithm", "mld", "/data/zambia-latest.osrm"]
@@ -93,5 +144,7 @@ networks:
 
 volumes:
   mythanzi-db-data:
+  mythanzi-db-backups:
   hapi-db-data:
+  hapi-db-backups:
   static_volume:
