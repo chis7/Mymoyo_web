@@ -12,7 +12,8 @@ mythanzi/.env
 mythanzi/backups/
 
 # Local/generated OSRM map data
-mymoyo/osrm-data/zambia-260602*
+mythanzi/osrm-data/
+mymoyo/osrm-data/
 
 # Python bytecode/cache files
 __pycache__/
