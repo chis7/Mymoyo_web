@@ -1,6 +1,8 @@
 /.agents
 /.codex
 /.venv
+/.vscode
+mythanzi/.vscode
 
 # Local environment/secrets
 .env
