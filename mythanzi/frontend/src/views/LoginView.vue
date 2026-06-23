@@ -15,7 +15,11 @@ async function submit() {
   error.value = ''
   loading.value = true
   try {
-    await login(username.value, password.value)
+    const data = await login(username.value, password.value)
+    if (data.must_change_password) {
+      window.location.href = '/users/change-password/'
+      return
+    }
     emit('authenticated')
     router.push('/')
   } catch (err) {

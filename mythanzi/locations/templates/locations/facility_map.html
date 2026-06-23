@@ -295,6 +295,27 @@
             animation: none;
         }
     }
+    .selected-facility-pin {
+        position: relative;
+        width: 24px;
+        height: 24px;
+        border: 3px solid #ffffff;
+        border-radius: 50% 50% 50% 0;
+        background: #d97706;
+        box-shadow: 0 4px 10px rgba(16, 32, 48, 0.3);
+        transform: rotate(-45deg);
+    }
+    .selected-facility-pin::after {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #ffffff;
+        content: "";
+        transform: translate(-50%, -50%);
+    }
     .clinic-map-summary {
         flex: 0 0 auto;
         margin: 0.6rem 0 0;
@@ -631,7 +652,7 @@
 {% block content %}
 <div class="facilities-management-page">
     <nav class="management-breadcrumb" aria-label="Breadcrumb">
-        <a href="{% url 'portal_home' %}">Home</a>
+        <a href="/app/">Home</a>
         <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
         <span aria-current="page">Find a Clinic</span>
     </nav>
@@ -900,15 +921,26 @@
             const bounds = [];
             facilities.forEach(function (facility) {
                 const isNearest = getFacilityKey(facility) === nearestFacilityKey;
+                const isSelected = getFacilityKey(facility) === selectedFacilityKey;
                 const distanceLabel = getRoadDistanceLabel(facility);
                 const distanceText = distanceLabel ? `<br>${distanceLabel} by road` : '';
-                const marker = L.circleMarker([facility.latitude, facility.longitude], {
-                    radius: isNearest ? 8 : 5,
-                    color: '#ffffff',
-                    weight: isNearest ? 2 : 1,
-                    fillColor: isNearest ? '#d97706' : '#00796b',
-                    fillOpacity: isNearest ? 0.95 : 0.85,
-                }).addTo(markerLayer);
+                const marker = isSelected
+                    ? L.marker([facility.latitude, facility.longitude], {
+                        icon: L.divIcon({
+                            className: '',
+                            html: '<div class="selected-facility-pin" aria-hidden="true"></div>',
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 24],
+                        }),
+                        zIndexOffset: 900,
+                    }).addTo(markerLayer)
+                    : L.circleMarker([facility.latitude, facility.longitude], {
+                        radius: isNearest ? 8 : 5,
+                        color: '#ffffff',
+                        weight: isNearest ? 2 : 1,
+                        fillColor: isNearest ? '#d97706' : '#00796b',
+                        fillOpacity: isNearest ? 0.95 : 0.85,
+                    }).addTo(markerLayer);
                 marker.bindPopup(
                     `<strong>${escapeHtml(facility.name)}</strong><br>` +
                     `${escapeHtml(facility.district)}, ${escapeHtml(facility.province)}<br>` +

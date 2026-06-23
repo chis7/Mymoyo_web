@@ -494,12 +494,7 @@ def update_theme(request):
 
 @active_login_required
 def portal_home(request):
-    role = get_user_role(request.user)
-    if role in DASHBOARD_ROLES:
-        return redirect('user_dashboard')
-    if role in APPOINTMENT_ROLES:
-        return redirect('appointment_list')
-    return redirect('user_detail', pk=request.user.pk)
+    return redirect('/app/')
 
 
 @active_login_required

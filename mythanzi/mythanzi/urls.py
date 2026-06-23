@@ -31,7 +31,7 @@ def vue_frontend(request, path=''):
 
 
 urlpatterns = [
-    path('', RedirectView.as_view(pattern_name='portal_home', permanent=False)),
+    path('', RedirectView.as_view(url='/app/', permanent=False)),
     path('api/', include('api.urls')),
     path('api-auth/', include('rest_framework.urls')),
     path('app/', vue_frontend, name='vue_frontend'),

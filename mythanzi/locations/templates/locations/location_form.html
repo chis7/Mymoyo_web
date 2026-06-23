@@ -97,7 +97,7 @@
 {% block content %}
 <div class="location-form-page">
     <div class="management-breadcrumb">
-        <a href="{% url 'user_dashboard' %}">Command Center</a>
+        <a href="/app/dashboard">Command Center</a>
         <span class="material-symbols-outlined">chevron_right</span>
         {% if active_tab == 'services' %}
             <a href="{% url 'service_management' %}">{{ active_tab_label }}</a>

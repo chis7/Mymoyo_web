@@ -52,7 +52,7 @@ class PortalAccessTests(TestCase):
         self.client.force_login(user)
 
         response = self.client.get(reverse('portal_home'))
-        self.assertRedirects(response, reverse('user_detail', args=[user.pk]))
+        self.assertRedirects(response, '/app/', fetch_redirect_response=False)
 
         response = self.client.get(reverse('user_list'))
         self.assertEqual(response.status_code, 403)
@@ -63,7 +63,7 @@ class PortalAccessTests(TestCase):
 
         response = self.client.get(reverse('portal_home'))
 
-        self.assertRedirects(response, reverse('appointment_list'))
+        self.assertRedirects(response, '/app/', fetch_redirect_response=False)
 
     def test_admin_can_manage_users(self):
         user = self.create_user('admin-user', 'admin')
