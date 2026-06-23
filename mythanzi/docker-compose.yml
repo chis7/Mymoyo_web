@@ -2,11 +2,11 @@ services:
   db:
     image: postgres:15
     environment:
-      POSTGRES_DB: mythanzi
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ***REMOVED_POSTGRES_PASSWORD***
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     ports:
-      - "55461:5432"
+      - "55462:5432"
     volumes:
       - mythanzi-db-data:/var/lib/postgresql/data
     networks:
@@ -38,7 +38,7 @@ services:
     environment:
       POSTGRES_DB: hapi
       POSTGRES_USER: hapi
-      POSTGRES_PASSWORD: ${HAPI_POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${HAPI_POSTGRES_PASSWORD:?Set HAPI_POSTGRES_PASSWORD in .env}
     volumes:
       - hapi-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -51,6 +51,8 @@ services:
 
   hapi-fhir:
     image: hapiproject/hapi:latest
+    environment:
+      HAPI_POSTGRES_PASSWORD: ${HAPI_POSTGRES_PASSWORD:?Set HAPI_POSTGRES_PASSWORD in .env}
     ports:
       - "7201:8080"
     volumes:

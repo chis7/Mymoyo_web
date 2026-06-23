@@ -47,11 +47,16 @@ RUNNING_IN_DOCKER = env_bool('RUNNING_IN_DOCKER') or Path('/.dockerenv').exists(
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.0/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '***REMOVED_SECRET_KEY***'
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env_bool('DEBUG', True)
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = os.environ.get('SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-dev-only-set-secret-key-in-env'
+    else:
+        raise RuntimeError('SECRET_KEY must be set when DEBUG is false.')
 
 ALLOWED_HOSTS = ['*']
 
@@ -114,13 +119,12 @@ AUTHENTICATION_BACKENDS = [
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-# Read Postgres connection values from environment (fall back to sensible defaults).
+# Read Postgres connection values from environment.
 POSTGRES_DB = os.environ.get('POSTGRES_DB', 'mythanzi')
 POSTGRES_USER = os.environ.get('POSTGRES_USER', 'postgres')
-# keep the default password here in sync with your .env; .env should be used in development
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', '***REMOVED_POSTGRES_PASSWORD***')
+POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', '')
 POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'db' if RUNNING_IN_DOCKER else '127.0.0.1')
-POSTGRES_LOCAL_PORT = os.environ.get('POSTGRES_LOCAL_PORT', '55461')
+POSTGRES_LOCAL_PORT = os.environ.get('POSTGRES_LOCAL_PORT', '55462')
 POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432' if RUNNING_IN_DOCKER else POSTGRES_LOCAL_PORT)
 
 # The Compose service name `db` only resolves inside Docker. When running Django
@@ -204,7 +208,7 @@ REST_FRAMEWORK = {
 }
 
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'portal_home'
+LOGIN_REDIRECT_URL = '/app/'
 
 # Use the standard Django SMTP backend for production
 EMAIL_BACKEND = os.environ.get(
@@ -216,11 +220,8 @@ EMAIL_BACKEND = os.environ.get(
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.gmail.com')
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 
-# Your Gmail address
-EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '***REMOVED_EMAIL_ADDRESS***')
-
-# Your 16-character Google App Password (do not use your regular password)
-EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '***REMOVED_EMAIL_APP_PASSWORD***')
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
 
 # Security settings (Gmail uses TLS over port 587)
 EMAIL_USE_TLS = os.environ.get('EMAIL_USE_TLS', 'True').lower() == 'true'

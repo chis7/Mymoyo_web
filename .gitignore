@@ -2,6 +2,15 @@
 /.codex
 /.venv
 
+# Local environment/secrets
+.env
+*.env
+!.env.example
+mythanzi/.env
+
+# Local database backups created by mythanzi/safe-compose-up.ps1
+mythanzi/backups/
+
 # Local/generated OSRM map data
 mymoyo/osrm-data/zambia-260602*
 
