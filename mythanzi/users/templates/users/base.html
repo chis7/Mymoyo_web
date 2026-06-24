@@ -793,11 +793,11 @@
             </button>
             <nav class="nav flex-column nav-section-items">
                 
-                <a class="nav-link" href="/app/users">
+                <a class="nav-link" href="{% url 'user_list' %}">
                     <span class="nav-icon material-symbols-outlined">manage_accounts</span>
                     Manage Users
                 </a>
-                <a class="nav-link" href="/app/locations">
+                <a class="nav-link" href="{% url 'location_management' %}">
                     <span class="nav-icon material-symbols-outlined">map</span>
                     Manage Locations
                 </a>
@@ -815,19 +815,25 @@
         </button>
         <nav class="nav flex-column nav-section-items">
             {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'supervisor' %}
-                <a class="nav-link" href="/app/dashboard">
+                <a class="nav-link" href="{% url 'user_dashboard' %}">
                     <span class="nav-icon material-symbols-outlined">home</span>
                     Command Center
                 </a>
             {% endif %}
             {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'supervisor' or request.user.profile.role == 'provider' or request.user.profile.role == 'chw' or request.user.profile.role == 'mobiliser' or request.user.profile.role == 'client' %}
-                <a class="nav-link" href="/app/appointments">
+                <a class="nav-link" href="{% url 'appointment_list' %}">
                     <span class="nav-icon material-symbols-outlined">calendar_month</span>
                     Appointments
                 </a>
             {% endif %}
+            {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'supervisor' or request.user.profile.role == 'provider' or request.user.profile.role == 'chw' or request.user.profile.role == 'mobiliser' %}
+                <a class="nav-link" href="{% url 'client_management' %}">
+                    <span class="nav-icon material-symbols-outlined">clinical_notes</span>
+                    Client Management
+                </a>
+            {% endif %}
             {% if request.user.is_authenticated %}
-                <a class="nav-link" href="/app/profile">
+                <a class="nav-link" href="{% url 'user_detail' pk=request.user.pk %}">
                     <span class="nav-icon material-symbols-outlined">account_circle</span>
                     My Profile
                 </a>
@@ -841,9 +847,9 @@
                     Create Account
                 </a>
             {% endif %}
-            <a class="nav-link" href="/app/">
-                <span class="nav-icon material-symbols-outlined">download</span>
-                Open App
+            <a class="nav-link" href="{% url 'user_dashboard' %}">
+                <span class="nav-icon material-symbols-outlined">home</span>
+                Portal Home
             </a>
             {% if request.user.is_staff %}
                 <a class="nav-link" href="{% url 'admin:index' %}">
@@ -933,7 +939,7 @@
     </div>
     <div class="sidebar-footer">
         <div class="user-pill">
-            <a class="topbar-life topbar-brand" href="/app/">
+            <a class="topbar-life topbar-brand" href="{% url 'user_dashboard' %}">
             <span class="topbar-life-icon material-symbols-outlined">health_and_safety</span>
             <span>
                 {% comment %} <strong>MyThanzi</strong> {% endcomment %}
@@ -954,7 +960,7 @@
             <span class="material-symbols-outlined">menu</span>
         </button>
         
-        <a class="brand" href="/app/">
+        <a class="brand" href="{% url 'user_dashboard' %}">
             <div class="brand-icon material-symbols-outlined">health_and_safety</div>
             <div class="brand-name">
                 MyThanzi

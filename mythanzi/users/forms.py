@@ -4,7 +4,16 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm as DjangoUserCreationForm
 from django.contrib.auth.models import User
 from django.utils import timezone
-from .models import Appointment, PersonIdentity, UserProfile
+from .models import (
+    Appointment,
+    ClientConsent,
+    ClientJourneyEvent,
+    ClientLocator,
+    FollowUpTask,
+    PersonIdentity,
+    ReferralRecord,
+    UserProfile,
+)
 from locations.models import Facility
 
 FACILITY_REQUIRED_ROLES = {'supervisor', 'provider', 'chw', 'mobiliser'}
@@ -372,6 +381,107 @@ class AppointmentEditForm(forms.ModelForm):
             if not active_services.filter(code=visit_purpose).exists():
                 self.add_error('visit_purpose', 'This facility is not mapped to that service.')
         return cleaned_data
+
+
+class ClientLocatorForm(forms.ModelForm):
+    class Meta:
+        model = ClientLocator
+        fields = [
+            'location_notes',
+            'preferred_visit_time',
+            'mobiliser_zone',
+            'service_point',
+            'preferred_contact_method',
+            'outreach_follow_up_details',
+        ]
+        widgets = {
+            'location_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'preferred_visit_time': forms.TextInput(attrs={'class': 'form-control'}),
+            'mobiliser_zone': forms.TextInput(attrs={'class': 'form-control'}),
+            'service_point': forms.Select(attrs={'class': 'form-select'}),
+            'preferred_contact_method': forms.Select(attrs={'class': 'form-select'}),
+            'outreach_follow_up_details': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['service_point'].queryset = Facility.objects.select_related('district__province').order_by(
+            'district__province__name',
+            'district__name',
+            'name',
+        )
+        self.fields['service_point'].required = False
+
+
+class ClientJourneyEventForm(forms.ModelForm):
+    class Meta:
+        model = ClientJourneyEvent
+        fields = ['stage', 'event_date', 'outcome', 'notes']
+        widgets = {
+            'stage': forms.Select(attrs={'class': 'form-select'}),
+            'event_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'outcome': forms.Select(attrs={'class': 'form-select'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+
+class ReferralRecordForm(forms.ModelForm):
+    class Meta:
+        model = ReferralRecord
+        fields = ['referral_code', 'receiving_hub', 'confirmation_status', 'initiation_outcome', 'referred_on', 'notes']
+        widgets = {
+            'referral_code': forms.TextInput(attrs={'class': 'form-control'}),
+            'receiving_hub': forms.TextInput(attrs={'class': 'form-control'}),
+            'confirmation_status': forms.Select(attrs={'class': 'form-select'}),
+            'initiation_outcome': forms.Select(attrs={'class': 'form-select'}),
+            'referred_on': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+
+class FollowUpTaskForm(forms.ModelForm):
+    class Meta:
+        model = FollowUpTask
+        fields = ['assigned_to', 'reason', 'status', 'priority', 'due_date', 'notes', 'outcome_notes']
+        widgets = {
+            'assigned_to': forms.Select(attrs={'class': 'form-select'}),
+            'reason': forms.Select(attrs={'class': 'form-select'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'priority': forms.Select(attrs={'class': 'form-select'}),
+            'due_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'outcome_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['assigned_to'].queryset = User.objects.select_related('profile').filter(
+            profile__role__in=FACILITY_USER_ROLES,
+            profile__is_active=True,
+            is_active=True,
+        ).order_by('first_name', 'last_name', 'username')
+        self.fields['assigned_to'].required = False
+
+
+class ClientConsentForm(forms.ModelForm):
+    class Meta:
+        model = ClientConsent
+        fields = [
+            'code_based_management',
+            'consent_to_follow_up',
+            'consent_to_sms',
+            'consent_to_whatsapp',
+            'share_with_facility',
+            'privacy_notes',
+        ]
+        widgets = {
+            'code_based_management': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'consent_to_follow_up': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'consent_to_sms': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'consent_to_whatsapp': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'share_with_facility': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'privacy_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
 
 
 class SelfRiskAssessmentForm(forms.Form):

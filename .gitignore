@@ -1,8 +1,13 @@
 /.agents
 /.codex
-/.venv
-/.vscode
-mythanzi/.vscode
+/.venv/
+/.venv/**
+mythanzi/.venv/
+mythanzi/.venv/**
+/.vscode/
+/.vscode/**
+mythanzi/.vscode/
+mythanzi/.vscode/**
 
 # Local environment/secrets
 .env
@@ -16,6 +21,8 @@ mythanzi/backups/
 # Local/generated OSRM map data
 mythanzi/osrm-data/
 mymoyo/osrm-data/
+mythanzi/*.osm.pbf
+mymoyo/*.osm.pbf
 
 # Python bytecode/cache files
 __pycache__/

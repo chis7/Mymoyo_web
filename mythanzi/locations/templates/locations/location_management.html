@@ -408,7 +408,7 @@
 {% block content %}
 <div class="location-management-page">
     <nav class="management-breadcrumb" aria-label="Breadcrumb">
-        <a href="/app/dashboard">Command Center</a>
+        <a href="{% url 'user_dashboard' %}">Command Center</a>
         <span class="material-symbols-outlined">chevron_right</span>
         <span aria-current="page">{{ breadcrumb_current|default:"Locations" }}</span>
     </nav>

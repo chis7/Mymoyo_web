@@ -203,6 +203,200 @@ class Appointment(models.Model):
             raise ValidationError(errors)
 
 
+class ClientLocator(models.Model):
+    CONTACT_METHOD_CHOICES = [
+        ('phone', 'Phone call'),
+        ('sms', 'SMS'),
+        ('whatsapp', 'WhatsApp'),
+        ('clinic', 'Clinic visit'),
+        ('mobiliser', 'Mobiliser follow-up'),
+    ]
+
+    client = models.OneToOneField(User, on_delete=models.CASCADE, related_name='client_locator')
+    location_notes = models.TextField(blank=True)
+    preferred_visit_time = models.CharField(max_length=120, blank=True)
+    mobiliser_zone = models.CharField(max_length=120, blank=True)
+    service_point = models.ForeignKey(
+        'locations.Facility',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='client_locators',
+    )
+    preferred_contact_method = models.CharField(max_length=20, choices=CONTACT_METHOD_CHOICES, blank=True)
+    outreach_follow_up_details = models.TextField(blank=True)
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='updated_client_locators',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['client__username']
+
+    def __str__(self):
+        return f'Locator for {self.client.username}'
+
+
+class ClientJourneyEvent(models.Model):
+    STAGE_CHOICES = [
+        ('contact', 'Contact'),
+        ('risk_assessment', 'Risk assessment'),
+        ('referral', 'Referral'),
+        ('hivst', 'HIVST'),
+        ('prep_len_initiation', 'PrEP/LEN initiation'),
+        ('follow_up', 'Follow-up'),
+        ('continuation', 'Continuation'),
+    ]
+    OUTCOME_CHOICES = [
+        ('pending', 'Pending'),
+        ('completed', 'Completed'),
+        ('missed', 'Missed'),
+        ('referred', 'Referred'),
+        ('continued', 'Continued'),
+        ('stopped', 'Stopped'),
+    ]
+
+    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='journey_events')
+    stage = models.CharField(max_length=40, choices=STAGE_CHOICES)
+    event_date = models.DateField(default=timezone.localdate)
+    outcome = models.CharField(max_length=30, choices=OUTCOME_CHOICES, default='pending')
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='recorded_journey_events',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-event_date', '-created_at']
+
+    def __str__(self):
+        return f'{self.client.username} - {self.get_stage_display()}'
+
+
+class ReferralRecord(models.Model):
+    STATUS_CHOICES = [
+        ('issued', 'Issued'),
+        ('received', 'Received by hub'),
+        ('confirmed', 'Confirmed'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    OUTCOME_CHOICES = [
+        ('pending', 'Pending'),
+        ('initiated', 'Initiated'),
+        ('not_eligible', 'Not eligible'),
+        ('declined', 'Declined'),
+        ('lost_to_follow_up', 'Lost to follow-up'),
+    ]
+
+    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referral_records')
+    referral_code = models.CharField(max_length=40, blank=True)
+    receiving_hub = models.CharField(max_length=180)
+    confirmation_status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='issued')
+    initiation_outcome = models.CharField(max_length=30, choices=OUTCOME_CHOICES, default='pending')
+    referred_on = models.DateField(default=timezone.localdate)
+    notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='recorded_referrals',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-referred_on', '-created_at']
+
+    def __str__(self):
+        return f'{self.client.username} referral to {self.receiving_hub}'
+
+
+class FollowUpTask(models.Model):
+    REASON_CHOICES = [
+        ('missed_appointment', 'Missed appointment'),
+        ('tracing', 'Tracing'),
+        ('re_engagement', 'Re-engagement'),
+        ('referral_confirmation', 'Referral confirmation'),
+        ('other', 'Other'),
+    ]
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('in_progress', 'In progress'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('normal', 'Normal'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+
+    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='follow_up_tasks')
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='assigned_follow_up_tasks',
+    )
+    reason = models.CharField(max_length=40, choices=REASON_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='normal')
+    due_date = models.DateField()
+    notes = models.TextField(blank=True)
+    outcome_notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='created_follow_up_tasks',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['status', 'due_date', '-priority']
+
+    def __str__(self):
+        return f'{self.get_reason_display()} for {self.client.username}'
+
+
+class ClientConsent(models.Model):
+    client = models.OneToOneField(User, on_delete=models.CASCADE, related_name='client_consent')
+    code_based_management = models.BooleanField(default=True)
+    consent_to_follow_up = models.BooleanField(default=False)
+    consent_to_sms = models.BooleanField(default=False)
+    consent_to_whatsapp = models.BooleanField(default=False)
+    share_with_facility = models.BooleanField(default=False)
+    privacy_notes = models.TextField(blank=True)
+    recorded_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='recorded_client_consents',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['client__username']
+
+    def __str__(self):
+        return f'Consent for {self.client.username}'
+
+
 class AnonymousOrUserSubmission(models.Model):
     user = models.ForeignKey(
         User,

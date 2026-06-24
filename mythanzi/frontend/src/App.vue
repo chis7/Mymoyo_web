@@ -20,6 +20,7 @@ const navIcons = {
   Dashboard: 'home',
   Locations: 'map',
   Users: 'manage_accounts',
+  Clients: 'clinical_notes',
   Appointments: 'calendar_month',
   Profile: 'account_circle'
 }

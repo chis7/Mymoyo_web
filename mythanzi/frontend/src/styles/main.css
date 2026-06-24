@@ -93,6 +93,29 @@ select {
   gap: 1rem;
 }
 
+.panel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.primary-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--theme-primary);
+  color: var(--theme-surface);
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.primary-action:hover {
+  background: var(--theme-primary-hover);
+}
+
 .metric-card {
   border: 1px solid #dcebe5;
   border-radius: 8px;

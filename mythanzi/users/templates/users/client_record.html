@@ -1,0 +1,194 @@
+{% extends "users/base.html" %}
+
+{% block title %}Client Record{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
+        <div>
+            <a class="text-decoration-none small" href="{% url 'client_management' %}">&larr; Client Management</a>
+            <h1 class="h3 mt-2 mb-1">{{ client.profile.reference_number }}</h1>
+            <p class="text-muted mb-0">
+                {{ client.get_full_name|default:client.username }}{% if client.profile.phone %} · {{ client.profile.phone }}{% endif %}
+            </p>
+        </div>
+        <a class="btn btn-outline-primary" href="{% url 'appointment_list' %}?q={{ client.profile.reference_number }}">Appointment History</a>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5">Client Locator</h2>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="locator">
+                        {% for field in locator_form %}
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% endfor %}
+                        <button class="btn btn-primary" type="submit">Save Locator</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5">Consent And Privacy</h2>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="consent">
+                        {% for field in consent_form %}
+                            {% if field.field.widget.input_type == "checkbox" %}
+                                <div class="form-check mb-2">
+                                    {{ field }}
+                                    <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                </div>
+                            {% else %}
+                                <div class="mb-3">
+                                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                    {{ field }}
+                                </div>
+                            {% endif %}
+                            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        {% endfor %}
+                        <button class="btn btn-primary" type="submit">Save Consent</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5">Add Journey Event</h2>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="journey">
+                        {% for field in journey_form %}
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% endfor %}
+                        <button class="btn btn-primary" type="submit">Record Event</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5">Add Referral</h2>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="referral">
+                        {% for field in referral_form %}
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% endfor %}
+                        <button class="btn btn-primary" type="submit">Save Referral</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5">Add Follow-Up Task</h2>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="followup">
+                        {% for field in follow_up_form %}
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% endfor %}
+                        <button class="btn btn-primary" type="submit">Save Task</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mt-1">
+        <div class="col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">Journey Tracking</h2>
+                    {% for event in journey_events %}
+                        <div class="border-bottom py-2">
+                            <strong>{{ event.get_stage_display }}</strong>
+                            <div class="text-muted small">{{ event.event_date }} · {{ event.get_outcome_display }}</div>
+                            {% if event.notes %}<div class="small">{{ event.notes }}</div>{% endif %}
+                        </div>
+                    {% empty %}
+                        <p class="text-muted mb-0">No journey events yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">Referral History</h2>
+                    {% for referral in referrals %}
+                        <div class="border-bottom py-2">
+                            <strong>{{ referral.receiving_hub }}</strong>
+                            <div class="text-muted small">{{ referral.referred_on }} · {{ referral.get_confirmation_status_display }}</div>
+                            <div class="small">{{ referral.get_initiation_outcome_display }}</div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted mb-0">No referrals yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">Follow-Up Tasks</h2>
+                    {% for task in follow_up_tasks %}
+                        <div class="border-bottom py-2">
+                            <strong>{{ task.get_reason_display }}</strong>
+                            <div class="text-muted small">{{ task.due_date }} · {{ task.get_status_display }} · {{ task.get_priority_display }}</div>
+                            {% if task.assigned_to %}<div class="small">Assigned to {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}</div>{% endif %}
+                        </div>
+                    {% empty %}
+                        <p class="text-muted mb-0">No follow-up tasks yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">Appointment History</h2>
+                    {% for appointment in appointments %}
+                        <div class="border-bottom py-2">
+                            <strong>{{ appointment.get_visit_purpose_display }}</strong>
+                            <div class="text-muted small">{{ appointment.appointment_date }} · {{ appointment.get_status_display }}</div>
+                            <div class="small">{{ appointment.facility.name }}</div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted mb-0">No visible appointments yet.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

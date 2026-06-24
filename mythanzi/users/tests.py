@@ -12,12 +12,65 @@ from django.utils import timezone
 from .models import (
     Appointment,
     AuditLog,
+    ClientConsent,
+    ClientJourneyEvent,
+    ClientLocator,
     ClinicFeedbackSubmission,
+    FollowUpTask,
+    ReferralRecord,
     SelfRiskAssessmentSubmission,
     SelfTestReportSubmission,
     SideEffectReportSubmission,
 )
 from locations.models import District, Facility, Province, Service
+
+
+class ClientManagementModelTests(TestCase):
+    def setUp(self):
+        self.worker = User.objects.create_user(username='worker', password='test-password')
+        self.worker.profile.role = 'provider'
+        self.worker.profile.save(update_fields=['role'])
+        self.client_user = User.objects.create_user(username='client', password='test-password')
+        self.client_user.profile.role = 'client'
+        self.client_user.profile.save(update_fields=['role'])
+
+    def test_client_management_records_link_to_client(self):
+        locator = ClientLocator.objects.create(
+            client=self.client_user,
+            mobiliser_zone='Zone A',
+            preferred_contact_method='sms',
+            updated_by=self.worker,
+        )
+        journey = ClientJourneyEvent.objects.create(
+            client=self.client_user,
+            stage='risk_assessment',
+            outcome='completed',
+            recorded_by=self.worker,
+        )
+        referral = ReferralRecord.objects.create(
+            client=self.client_user,
+            receiving_hub='Central Hub',
+            confirmation_status='confirmed',
+            recorded_by=self.worker,
+        )
+        task = FollowUpTask.objects.create(
+            client=self.client_user,
+            assigned_to=self.worker,
+            reason='tracing',
+            due_date=timezone.localdate(),
+            created_by=self.worker,
+        )
+        consent = ClientConsent.objects.create(
+            client=self.client_user,
+            consent_to_follow_up=True,
+            recorded_by=self.worker,
+        )
+
+        self.assertEqual(locator.client, self.client_user)
+        self.assertEqual(journey.get_stage_display(), 'Risk assessment')
+        self.assertEqual(referral.get_confirmation_status_display(), 'Confirmed')
+        self.assertEqual(task.get_reason_display(), 'Tracing')
+        self.assertTrue(consent.consent_to_follow_up)
 
 
 class PortalAccessTests(TestCase):

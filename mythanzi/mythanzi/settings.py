@@ -208,7 +208,7 @@ REST_FRAMEWORK = {
 }
 
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = '/app/'
+LOGIN_REDIRECT_URL = '/users/dashboard/'
 
 # Use the standard Django SMTP backend for production
 EMAIL_BACKEND = os.environ.get(

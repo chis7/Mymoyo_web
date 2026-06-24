@@ -31,7 +31,9 @@ from django.views.decorators.http import require_POST
 from .models import (
     Appointment,
     AuditLog,
+    ClientConsent,
     ClinicFeedbackSubmission,
+    ClientLocator,
     PersonIdentity,
     SelfRiskAssessmentSubmission,
     SelfTestReportSubmission,
@@ -42,10 +44,15 @@ from .audit import should_audit_model
 from .forms import (
     AppointmentForm,
     AppointmentEditForm,
+    ClientConsentForm,
     ClinicFeedbackForm,
+    ClientJourneyEventForm,
+    ClientLocatorForm,
     FACILITY_ASSIGNABLE_ROLES,
     FACILITY_REQUIRED_ROLES,
+    FollowUpTaskForm,
     PublicRegistrationForm,
+    ReferralRecordForm,
     SideEffectReportForm,
     SelfProfileForm,
     SelfRiskAssessmentForm,
@@ -231,6 +238,41 @@ def get_visible_appointments(user):
         'facility',
     )
     return queryset.filter(visible_appointment_filter(user))
+
+
+def get_visible_clients(user):
+    clients = User.objects.select_related(
+        'profile__facility',
+        'profile__person_identity',
+    ).filter(
+        profile__role='client',
+        profile__is_active=True,
+        is_active=True,
+    )
+    role = get_user_role(user)
+
+    if user.is_superuser or role in USER_ADMIN_ROLES or role == 'supervisor':
+        return clients
+
+    if role in APPOINTMENT_ROLES:
+        facility_id = getattr(getattr(user, 'profile', None), 'facility_id', None)
+        if facility_id:
+            return clients.filter(
+                Q(profile__facility_id=facility_id) |
+                Q(appointments__facility_id=facility_id) |
+                Q(client_locator__service_point_id=facility_id)
+            ).distinct()
+
+        return clients.filter(
+            Q(appointments__created_by=user) |
+            Q(follow_up_tasks__assigned_to=user)
+        ).distinct()
+
+    return clients.filter(pk=user.pk)
+
+
+def get_client_for_management(user, pk):
+    return get_object_or_404(get_visible_clients(user), pk=pk)
 
 
 def get_selected_person_identity(identity_id):
@@ -494,7 +536,7 @@ def update_theme(request):
 
 @active_login_required
 def portal_home(request):
-    return redirect('/app/')
+    return redirect('user_dashboard')
 
 
 @active_login_required
@@ -900,6 +942,115 @@ def user_list(request):
         ),
     }
     return render(request, 'users/user_management.html', context)
+
+
+@role_required(*APPOINTMENT_ROLES)
+def client_management(request):
+    """Client management workspace for locator, journey, referral, and follow-up workflows."""
+    search_term = request.GET.get('q', '').strip()
+    clients = get_visible_clients(request.user)
+
+    if search_term:
+        clients = clients.filter(
+            Q(username__icontains=search_term) |
+            Q(first_name__icontains=search_term) |
+            Q(last_name__icontains=search_term) |
+            Q(email__icontains=search_term) |
+            Q(profile__reference_number__icontains=search_term) |
+            Q(profile__phone__icontains=search_term) |
+            Q(client_locator__mobiliser_zone__icontains=search_term)
+        )
+
+    client_rows = []
+    for client in clients.order_by('first_name', 'last_name', 'username'):
+        client_rows.append({
+            'client': client,
+            'latest_journey': client.journey_events.first(),
+            'open_tasks': client.follow_up_tasks.exclude(status__in=['completed', 'cancelled']).count(),
+            'referrals': client.referral_records.count(),
+        })
+
+    return render(request, 'users/client_management.html', {
+        'client_rows': client_rows,
+        'search_term': search_term,
+    })
+
+
+@role_required(*APPOINTMENT_ROLES)
+def client_record(request, pk):
+    """Single client record for non-identifying profile, locator, journey, referral, and consent controls."""
+    client = get_client_for_management(request.user, pk)
+    locator, _ = ClientLocator.objects.get_or_create(client=client)
+    consent, _ = ClientConsent.objects.get_or_create(client=client)
+
+    locator_form = ClientLocatorForm(instance=locator, prefix='locator')
+    journey_form = ClientJourneyEventForm(prefix='journey')
+    referral_form = ReferralRecordForm(prefix='referral')
+    follow_up_form = FollowUpTaskForm(prefix='followup')
+    consent_form = ClientConsentForm(instance=consent, prefix='consent')
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'locator':
+            locator_form = ClientLocatorForm(request.POST, instance=locator, prefix='locator')
+            if locator_form.is_valid():
+                locator = locator_form.save(commit=False)
+                locator.client = client
+                locator.updated_by = request.user
+                locator.save()
+                messages.success(request, 'Client locator details saved.')
+                return redirect('client_record', pk=client.pk)
+        elif action == 'journey':
+            journey_form = ClientJourneyEventForm(request.POST, prefix='journey')
+            if journey_form.is_valid():
+                event = journey_form.save(commit=False)
+                event.client = client
+                event.recorded_by = request.user
+                event.save()
+                messages.success(request, 'Journey event recorded.')
+                return redirect('client_record', pk=client.pk)
+        elif action == 'referral':
+            referral_form = ReferralRecordForm(request.POST, prefix='referral')
+            if referral_form.is_valid():
+                referral = referral_form.save(commit=False)
+                referral.client = client
+                referral.recorded_by = request.user
+                referral.save()
+                messages.success(request, 'Referral record saved.')
+                return redirect('client_record', pk=client.pk)
+        elif action == 'followup':
+            follow_up_form = FollowUpTaskForm(request.POST, prefix='followup')
+            if follow_up_form.is_valid():
+                task = follow_up_form.save(commit=False)
+                task.client = client
+                task.created_by = request.user
+                task.save()
+                messages.success(request, 'Follow-up task saved.')
+                return redirect('client_record', pk=client.pk)
+        elif action == 'consent':
+            consent_form = ClientConsentForm(request.POST, instance=consent, prefix='consent')
+            if consent_form.is_valid():
+                consent = consent_form.save(commit=False)
+                consent.client = client
+                consent.recorded_by = request.user
+                consent.save()
+                messages.success(request, 'Consent and privacy controls saved.')
+                return redirect('client_record', pk=client.pk)
+
+    return render(request, 'users/client_record.html', {
+        'client': client,
+        'locator': locator,
+        'consent': consent,
+        'locator_form': locator_form,
+        'journey_form': journey_form,
+        'referral_form': referral_form,
+        'follow_up_form': follow_up_form,
+        'consent_form': consent_form,
+        'journey_events': client.journey_events.all()[:10],
+        'referrals': client.referral_records.all()[:10],
+        'follow_up_tasks': client.follow_up_tasks.all()[:10],
+        'appointments': get_visible_appointments(request.user).filter(beneficiary=client)[:10],
+    })
 
 
 @role_required(*USER_ADMIN_ROLES)

@@ -60,6 +60,8 @@ def _portal_links(user):
     ]
     if user.is_superuser or role in APPOINTMENT_ROLES or role == 'client':
         links.append({'label': 'Appointments', 'path': '/app/appointments'})
+    if user.is_superuser or role in APPOINTMENT_ROLES:
+        links.append({'label': 'Clients', 'path': '/app/clients'})
     if user.is_superuser or role in {'admin', 'supervisor'}:
         links.append({'label': 'Command Center', 'path': '/app/dashboard'})
     if user.is_superuser or role == 'admin':
