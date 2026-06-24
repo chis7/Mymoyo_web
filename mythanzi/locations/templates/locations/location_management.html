@@ -177,6 +177,14 @@
         color: var(--theme-primary);
         opacity: 1;
     }
+    .record-link {
+        color: var(--theme-primary);
+        font-weight: 800;
+        text-decoration: none;
+    }
+    .record-link:hover {
+        text-decoration: underline;
+    }
     .form-stack {
         display: grid;
         gap: 0.9rem;
@@ -195,6 +203,60 @@
         padding-left: 1.1rem;
         color: #b91c1c;
         font-size: 0.82rem;
+    }
+    .multi-select-control {
+        position: relative;
+    }
+    .multi-select-button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        padding: 0.72rem 0.85rem;
+        background: var(--theme-surface);
+        color: var(--theme-surface-text);
+        text-align: left;
+        font-weight: 700;
+    }
+    .multi-select-menu {
+        width: 100%;
+        max-height: 260px;
+        overflow: auto;
+        padding: 0.45rem;
+        border-radius: 8px;
+    }
+    .multi-select-search {
+        width: 100%;
+        margin-bottom: 0.4rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        padding: 0.55rem 0.65rem;
+        color: var(--theme-surface-text);
+        background: var(--theme-surface);
+    }
+    .multi-select-empty {
+        padding: 0.65rem;
+        color: var(--theme-text-muted);
+        font-weight: 700;
+    }
+    .multi-select-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        padding: 0.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        color: var(--theme-surface-text);
+        white-space: normal;
+    }
+    .multi-select-option:hover {
+        background: var(--theme-soft);
+    }
+    .multi-select-option input {
+        margin-top: 0.2rem;
     }
     .btn-primary {
         border: 0;
@@ -599,6 +661,9 @@
                                 <th><button class="sort-button" type="button" data-sort-key="name" aria-sort="{% if sort_key == 'name' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Facility <span class="material-symbols-outlined">{% if sort_key == 'name' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
                                 <th><button class="sort-button" type="button" data-sort-key="code" aria-sort="{% if sort_key == 'code' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Code <span class="material-symbols-outlined">{% if sort_key == 'code' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
                                 <th><button class="sort-button" type="button" data-sort-key="level" aria-sort="{% if sort_key == 'level' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Level <span class="material-symbols-outlined">{% if sort_key == 'level' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="facility_type" aria-sort="{% if sort_key == 'facility_type' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Type <span class="material-symbols-outlined">{% if sort_key == 'facility_type' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="hub" aria-sort="{% if sort_key == 'hub' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Hub <span class="material-symbols-outlined">{% if sort_key == 'hub' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
+                                <th><button class="sort-button" type="button" data-sort-key="spokes" aria-sort="{% if sort_key == 'spokes' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Spokes <span class="material-symbols-outlined">{% if sort_key == 'spokes' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
                                 <th><button class="sort-button" type="button" data-sort-key="services" aria-sort="{% if sort_key == 'services' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Services <span class="material-symbols-outlined">{% if sort_key == 'services' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
                                 <th><button class="sort-button" type="button" data-sort-key="district" aria-sort="{% if sort_key == 'district' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">District <span class="material-symbols-outlined">{% if sort_key == 'district' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
                                 <th><button class="sort-button" type="button" data-sort-key="province" aria-sort="{% if sort_key == 'province' %}{% if sort_dir == 'asc' %}ascending{% else %}descending{% endif %}{% else %}none{% endif %}">Province <span class="material-symbols-outlined">{% if sort_key == 'province' and sort_dir == 'desc' %}arrow_downward{% else %}arrow_upward{% endif %}</span></button></th>
@@ -609,9 +674,12 @@
                         <tbody>
                             {% for facility in page_obj.object_list %}
                                 <tr>
-                                    <td>{{ facility.name }}</td>
+                                    <td><a class="record-link" href="{% url 'facility_detail' pk=facility.pk %}">{{ facility.name }}</a></td>
                                     <td>{{ facility.code|default:"-" }}</td>
                                     <td>{{ facility.level|default:"-" }}</td>
+                                    <td>{{ facility.get_facility_type_display|default:"-" }}</td>
+                                    <td>{{ facility.hub.name|default:"-" }}</td>
+                                    <td>{{ facility.spoke_count|default:0 }}</td>
                                     <td>
                                         {% for service in facility.services.all %}
                                             {{ service.name }}{% if not forloop.last %}, {% endif %}
@@ -637,7 +705,7 @@
                                     </td>
                                 </tr>
                             {% empty %}
-                                <tr><td colspan="8" class="empty-state">No facilities found.</td></tr>
+                                <tr><td colspan="11" class="empty-state">No facilities found.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
@@ -787,6 +855,125 @@
 (() => {
     let locationSearchTimeout;
     let locationRequest;
+
+    function enhanceSpokesMultiSelect(scope = document) {
+        scope.querySelectorAll('select.js-spokes-multiselect[multiple]').forEach((select) => {
+            if (select.dataset.enhancedMultiSelect) return;
+            select.dataset.enhancedMultiSelect = '1';
+            select.hidden = true;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'multi-select-control dropdown';
+
+            const button = document.createElement('button');
+            button.className = 'multi-select-button dropdown-toggle';
+            button.type = 'button';
+            button.setAttribute('data-bs-toggle', 'dropdown');
+            button.setAttribute('data-bs-auto-close', 'outside');
+            button.setAttribute('aria-expanded', 'false');
+
+            const menu = document.createElement('div');
+            menu.className = 'multi-select-menu dropdown-menu';
+            const search = document.createElement('input');
+            search.className = 'multi-select-search';
+            search.type = 'search';
+            search.placeholder = 'Search spokes...';
+            search.autocomplete = 'off';
+            const empty = document.createElement('div');
+            empty.className = 'multi-select-empty';
+            empty.textContent = 'No matching facilities';
+            empty.hidden = true;
+            menu.append(search);
+
+            const updateButton = () => {
+                const selected = Array.from(select.selectedOptions);
+                button.textContent = selected.length ? `${selected.length} spoke${selected.length === 1 ? '' : 's'} selected` : 'Select spokes';
+            };
+
+            const updateFilter = () => {
+                const query = search.value.trim().toLowerCase();
+                let visibleCount = 0;
+                menu.querySelectorAll('.multi-select-option').forEach((label) => {
+                    const isVisible = !query || label.textContent.toLowerCase().includes(query);
+                    label.hidden = !isVisible;
+                    if (isVisible) visibleCount += 1;
+                });
+                empty.hidden = visibleCount > 0;
+            };
+
+            Array.from(select.options).forEach((option) => {
+                const label = document.createElement('label');
+                label.className = 'multi-select-option';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = option.selected;
+                checkbox.disabled = option.disabled;
+                const text = document.createElement('span');
+                text.textContent = option.textContent;
+                label.append(checkbox, text);
+                checkbox.addEventListener('change', () => {
+                    option.selected = checkbox.checked;
+                    updateButton();
+                });
+                menu.append(label);
+            });
+            menu.append(empty);
+            search.addEventListener('click', (event) => event.stopPropagation());
+            search.addEventListener('keydown', (event) => event.stopPropagation());
+            search.addEventListener('input', updateFilter);
+
+            wrapper.append(button, menu);
+            select.after(wrapper);
+            updateButton();
+            updateFilter();
+        });
+    }
+
+    function bindFacilityRelationshipFields(scope = document) {
+        enhanceSpokesMultiSelect(scope);
+        const facilityType = scope.querySelector('[name="facility_type"]');
+        const hub = scope.querySelector('[name="hub"]');
+        const spokes = scope.querySelector('[name="spokes"]');
+        if (!facilityType || (!hub && !spokes) || facilityType.dataset.boundFacilityRelationships) return;
+
+        facilityType.dataset.boundFacilityRelationships = '1';
+        const hubGroup = hub ? hub.closest('div') : null;
+        const spokesGroup = spokes ? spokes.closest('div') : null;
+        const updateRelationshipVisibility = () => {
+            const isSpoke = facilityType.value === 'spoke';
+            const isHub = facilityType.value === 'hub';
+            if (hub) {
+                if (hubGroup) hubGroup.hidden = !isSpoke;
+                hub.disabled = !isSpoke;
+                if (!isSpoke) hub.value = '';
+            }
+            if (spokes) {
+                if (spokesGroup) spokesGroup.hidden = !isHub;
+                spokes.disabled = !isHub;
+                const multiSelect = spokes.nextElementSibling;
+                if (multiSelect && multiSelect.classList.contains('multi-select-control')) {
+                    multiSelect.querySelectorAll('button, input').forEach((control) => {
+                        control.disabled = !isHub;
+                    });
+                }
+                if (!isHub) {
+                    Array.from(spokes.options).forEach((option) => {
+                        option.selected = false;
+                    });
+                    if (multiSelect && multiSelect.classList.contains('multi-select-control')) {
+                        multiSelect.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+                            checkbox.checked = false;
+                        });
+                        const button = multiSelect.querySelector('.multi-select-button');
+                        if (button) button.textContent = 'Select spokes';
+                    }
+                }
+            }
+        };
+
+        facilityType.addEventListener('change', updateRelationshipVisibility);
+        updateRelationshipVisibility();
+    }
 
     function getPanel() {
         return document.getElementById('locationTablePanel');
@@ -988,6 +1175,7 @@
                     });
                     if (!response.ok) throw new Error('Unable to load form.');
                     modalBody.innerHTML = await response.text();
+                    bindFacilityRelationshipFields(modalBody);
                 } catch (error) {
                     modalBody.innerHTML = '<div class="location-search-status">Could not load this form. Please try again.</div>';
                 }
@@ -1044,6 +1232,7 @@
     }
 
     bindLocationTableControls();
+    bindFacilityRelationshipFields(document);
 })();
 </script>
 {% endblock %}

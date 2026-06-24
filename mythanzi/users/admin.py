@@ -125,10 +125,10 @@ class ClientJourneyEventAdmin(admin.ModelAdmin):
 
 @admin.register(ReferralRecord)
 class ReferralRecordAdmin(admin.ModelAdmin):
-    list_display = ('client', 'receiving_hub', 'confirmation_status', 'initiation_outcome', 'referred_on')
-    list_filter = ('confirmation_status', 'initiation_outcome', 'referred_on')
-    search_fields = ('client__username', 'client__profile__reference_number', 'referral_code', 'receiving_hub')
-    readonly_fields = ('created_at', 'updated_at')
+    list_display = ('referral_code', 'client', 'receiving_facility', 'assigned_mobiliser', 'confirmation_status', 'initiation_outcome', 'referred_on')
+    list_filter = ('confirmation_status', 'initiation_outcome', 'receiving_facility__district', 'referred_on')
+    search_fields = ('client__username', 'client__profile__reference_number', 'referral_code', 'receiving_hub', 'receiving_facility__name')
+    readonly_fields = ('referral_code', 'created_at', 'updated_at', 'confirmed_at', 'sent_at', 'received_at', 'attended_at', 'closed_at')
 
 
 @admin.register(FollowUpTask)

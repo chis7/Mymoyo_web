@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
+from django.utils.crypto import get_random_string
 
 
 class PersonIdentity(models.Model):
@@ -305,26 +306,56 @@ class ClientJourneyEvent(models.Model):
 
 class ReferralRecord(models.Model):
     STATUS_CHOICES = [
-        ('issued', 'Issued'),
-        ('received', 'Received by hub'),
-        ('confirmed', 'Confirmed'),
-        ('completed', 'Completed'),
-        ('cancelled', 'Cancelled'),
+        ('generated', 'Generated'),
+        ('sent', 'Sent'),
+        ('received', 'Received'),
+        ('attended', 'Attended'),
+        ('initiated', 'Initiated'),
+        ('not_attended', 'Not attended'),
+        ('closed', 'Closed'),
     ]
     OUTCOME_CHOICES = [
         ('pending', 'Pending'),
-        ('initiated', 'Initiated'),
-        ('not_eligible', 'Not eligible'),
+        ('len_prep_initiated', 'LEN/PrEP initiated'),
+        ('hivst_received', 'HIVST received'),
+        ('referred_elsewhere', 'Referred elsewhere'),
         ('declined', 'Declined'),
-        ('lost_to_follow_up', 'Lost to follow-up'),
     ]
+    COMPLETED_STATUSES = {'attended', 'initiated', 'closed'}
+    FOLLOW_UP_STATUSES = {'not_attended'}
 
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referral_records')
-    referral_code = models.CharField(max_length=40, blank=True)
-    receiving_hub = models.CharField(max_length=180)
-    confirmation_status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='issued')
+    referral_code = models.CharField(max_length=40, unique=True, blank=True)
+    receiving_facility = models.ForeignKey(
+        'locations.Facility',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='referrals_received',
+    )
+    receiving_hub = models.CharField(max_length=180, blank=True)
+    assigned_mobiliser = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='assigned_referrals',
+    )
+    confirmation_status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='generated')
     initiation_outcome = models.CharField(max_length=30, choices=OUTCOME_CHOICES, default='pending')
     referred_on = models.DateField(default=timezone.localdate)
+    confirmed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='confirmed_referrals',
+    )
+    confirmed_at = models.DateTimeField(blank=True, null=True)
+    sent_at = models.DateTimeField(blank=True, null=True)
+    received_at = models.DateTimeField(blank=True, null=True)
+    attended_at = models.DateTimeField(blank=True, null=True)
+    closed_at = models.DateTimeField(blank=True, null=True)
     notes = models.TextField(blank=True)
     recorded_by = models.ForeignKey(
         User,
@@ -340,7 +371,67 @@ class ReferralRecord(models.Model):
         ordering = ['-referred_on', '-created_at']
 
     def __str__(self):
-        return f'{self.client.username} referral to {self.receiving_hub}'
+        destination = self.receiving_facility or self.receiving_hub or 'service point'
+        return f'{self.referral_code or "Referral"} to {destination}'
+
+    @property
+    def is_complete(self):
+        return self.confirmation_status in self.COMPLETED_STATUSES
+
+    @property
+    def receiving_point_name(self):
+        if self.receiving_facility:
+            return self.receiving_facility.name
+        return self.receiving_hub
+
+    def save(self, *args, **kwargs):
+        if not self.referral_code:
+            self.referral_code = self.generate_referral_code()
+        if self.receiving_facility_id:
+            self.receiving_hub = self.receiving_facility.name
+
+        now = timezone.now()
+        if self.confirmation_status == 'sent' and not self.sent_at:
+            self.sent_at = now
+        if self.confirmation_status == 'received' and not self.received_at:
+            self.received_at = now
+        if self.confirmation_status in {'attended', 'initiated'} and not self.attended_at:
+            self.attended_at = now
+        if self.confirmation_status == 'closed' and not self.closed_at:
+            self.closed_at = now
+        if self.confirmed_by_id and not self.confirmed_at:
+            self.confirmed_at = now
+
+        super().save(*args, **kwargs)
+        if self.confirmation_status in self.FOLLOW_UP_STATUSES:
+            self.ensure_follow_up_task()
+
+    @classmethod
+    def generate_referral_code(cls):
+        while True:
+            code = f'REF-{get_random_string(10, allowed_chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789")}'
+            if not cls.objects.filter(referral_code=code).exists():
+                return code
+
+    def ensure_follow_up_task(self):
+        marker = f'Referral code: {self.referral_code}'
+        duplicate = self.client.follow_up_tasks.filter(
+            reason='referral_confirmation',
+            status__in=['open', 'in_progress'],
+            notes__icontains=marker,
+        ).exists()
+        if duplicate:
+            return
+        FollowUpTask.objects.create(
+            client=self.client,
+            assigned_to=self.assigned_mobiliser or self.recorded_by,
+            reason='referral_confirmation',
+            status='open',
+            priority='high',
+            due_date=timezone.localdate() + timedelta(days=2),
+            notes=f'{marker}\nFollow up because referral status is Not attended.',
+            created_by=self.recorded_by,
+        )
 
 
 class FollowUpTask(models.Model):

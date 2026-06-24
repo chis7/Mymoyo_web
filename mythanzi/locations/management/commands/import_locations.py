@@ -23,6 +23,18 @@ def clean_coordinate(value, max_absolute_value):
     return coordinate
 
 
+def clean_facility_type(value):
+    value = clean_text(value)
+    if value is None:
+        return None
+    normalized = value.lower()
+    if normalized in {'hub', 'spoke'}:
+        return normalized
+    if normalized in {'n/a', 'na', 'not applicable'}:
+        return 'na'
+    return None
+
+
 class Command(BaseCommand):
     help = 'Import provinces, districts and facilities from an Excel file (xlsx).'
 
@@ -58,13 +70,25 @@ class Command(BaseCommand):
                 col_map['province'] = idx
             if 'district' in h:
                 col_map['district'] = idx
+            if 'site type' in h or h in {'hub/spoke', 'hub spoke', 'facility type'}:
+                col_map.setdefault('facility_type', idx)
+            if h == 'hub':
+                col_map.setdefault('hub', idx)
             # common facility/name headers
-            if 'facility' in h or 'health facility' in h or 'facility name' in h or h == 'name' or 'site name' in h:
-                col_map['facility'] = idx
+            if (
+                'code' not in h and
+                (
+                    h in {'facility', 'health facility', 'facility name', 'site name', 'name'} or
+                    'health facility' in h
+                )
+            ):
+                col_map.setdefault('facility', idx)
             # possible code columns
-            if 'mfl' in h or 'code' in h or 'facility code' in h or 'hims' in h:
+            if 'facility code' in h or 'mfl' in h or 'hims' in h:
+                col_map['code'] = idx
+            elif 'code' in h and 'hub code' not in h:
                 col_map.setdefault('code', idx)
-            if 'level' in h or 'facility level' in h or 'type' in h:
+            if 'level' in h or 'facility level' in h or h == 'type':
                 col_map.setdefault('level', idx)
             if 'latitude' in h or h == 'lat':
                 col_map.setdefault('latitude', idx)
@@ -77,6 +101,7 @@ class Command(BaseCommand):
         from locations.models import Province, District, Facility
         created = {'provinces': 0, 'districts': 0, 'facilities': 0}
         updated_facilities = 0
+        hub_spoke_links = []
 
         for row in rows:
             province_name = row[col_map['province']]
@@ -101,6 +126,10 @@ class Command(BaseCommand):
                 defaults['code'] = clean_text(row[col_map['code']])
             if 'level' in col_map:
                 defaults['level'] = clean_text(row[col_map['level']])
+            if 'facility_type' in col_map:
+                facility_type = clean_facility_type(row[col_map['facility_type']])
+                if facility_type is not None:
+                    defaults['facility_type'] = facility_type
             if 'latitude' in col_map:
                 defaults['latitude'] = clean_coordinate(row[col_map['latitude']], 90)
             if 'longitude' in col_map:
@@ -110,10 +139,27 @@ class Command(BaseCommand):
                 district=district_obj,
                 defaults=defaults,
             )
+            if defaults.get('facility_type') == Facility.FACILITY_TYPE_SPOKE and 'hub' in col_map:
+                hub_name = clean_text(row[col_map['hub']])
+                if hub_name:
+                    hub_spoke_links.append((province_name, district_name, hub_name, facility_obj.pk))
             if f_created:
                 created['facilities'] += 1
             else:
                 updated_facilities += 1
+
+        for province_name, district_name, hub_name, spoke_pk in hub_spoke_links:
+            hub = Facility.objects.filter(
+                name__iexact=hub_name,
+                district__name__iexact=district_name,
+                district__province__name__iexact=province_name,
+            ).first()
+            if hub:
+                hub.facility_type = Facility.FACILITY_TYPE_HUB
+                hub.save(update_fields=['facility_type'])
+                Facility.objects.filter(pk=spoke_pk).update(hub=hub)
+
+        wb.close()
 
         self.stdout.write(self.style.SUCCESS(
             f"Import complete - provinces: {created['provinces']}, districts: {created['districts']}, "

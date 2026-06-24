@@ -63,6 +63,60 @@
         color: #b91c1c;
         font-size: 0.82rem;
     }
+    .multi-select-control {
+        position: relative;
+    }
+    .multi-select-button {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        padding: 0.72rem 0.85rem;
+        background: var(--theme-surface);
+        color: var(--theme-surface-text);
+        text-align: left;
+        font-weight: 700;
+    }
+    .multi-select-menu {
+        width: 100%;
+        max-height: 260px;
+        overflow: auto;
+        padding: 0.45rem;
+        border-radius: 8px;
+    }
+    .multi-select-search {
+        width: 100%;
+        margin-bottom: 0.4rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
+        border-radius: 8px;
+        padding: 0.55rem 0.65rem;
+        color: var(--theme-surface-text);
+        background: var(--theme-surface);
+    }
+    .multi-select-empty {
+        padding: 0.65rem;
+        color: var(--theme-text-muted);
+        font-weight: 700;
+    }
+    .multi-select-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.55rem;
+        padding: 0.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        color: var(--theme-surface-text);
+        white-space: normal;
+    }
+    .multi-select-option:hover {
+        background: var(--theme-soft);
+    }
+    .multi-select-option input {
+        margin-top: 0.2rem;
+    }
     .form-actions {
         display: flex;
         gap: 0.75rem;
@@ -121,4 +175,124 @@
         </div>
     </section>
 </div>
+<script>
+(() => {
+    function enhanceSpokesMultiSelect() {
+        document.querySelectorAll('select.js-spokes-multiselect[multiple]').forEach((select) => {
+            if (select.dataset.enhancedMultiSelect) return;
+            select.dataset.enhancedMultiSelect = '1';
+            select.hidden = true;
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'multi-select-control dropdown';
+
+            const button = document.createElement('button');
+            button.className = 'multi-select-button dropdown-toggle';
+            button.type = 'button';
+            button.setAttribute('data-bs-toggle', 'dropdown');
+            button.setAttribute('data-bs-auto-close', 'outside');
+            button.setAttribute('aria-expanded', 'false');
+
+            const menu = document.createElement('div');
+            menu.className = 'multi-select-menu dropdown-menu';
+            const search = document.createElement('input');
+            search.className = 'multi-select-search';
+            search.type = 'search';
+            search.placeholder = 'Search spokes...';
+            search.autocomplete = 'off';
+            const empty = document.createElement('div');
+            empty.className = 'multi-select-empty';
+            empty.textContent = 'No matching facilities';
+            empty.hidden = true;
+            menu.append(search);
+
+            const updateButton = () => {
+                const selected = Array.from(select.selectedOptions);
+                button.textContent = selected.length ? `${selected.length} spoke${selected.length === 1 ? '' : 's'} selected` : 'Select spokes';
+            };
+
+            const updateFilter = () => {
+                const query = search.value.trim().toLowerCase();
+                let visibleCount = 0;
+                menu.querySelectorAll('.multi-select-option').forEach((label) => {
+                    const isVisible = !query || label.textContent.toLowerCase().includes(query);
+                    label.hidden = !isVisible;
+                    if (isVisible) visibleCount += 1;
+                });
+                empty.hidden = visibleCount > 0;
+            };
+
+            Array.from(select.options).forEach((option) => {
+                const label = document.createElement('label');
+                label.className = 'multi-select-option';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = option.selected;
+                checkbox.disabled = option.disabled;
+                const text = document.createElement('span');
+                text.textContent = option.textContent;
+                label.append(checkbox, text);
+                checkbox.addEventListener('change', () => {
+                    option.selected = checkbox.checked;
+                    updateButton();
+                });
+                menu.append(label);
+            });
+            menu.append(empty);
+            search.addEventListener('click', (event) => event.stopPropagation());
+            search.addEventListener('keydown', (event) => event.stopPropagation());
+            search.addEventListener('input', updateFilter);
+
+            wrapper.append(button, menu);
+            select.after(wrapper);
+            updateButton();
+            updateFilter();
+        });
+    }
+
+    enhanceSpokesMultiSelect();
+
+    const facilityType = document.querySelector('[name="facility_type"]');
+    const hub = document.querySelector('[name="hub"]');
+    const spokes = document.querySelector('[name="spokes"]');
+    if (!facilityType || (!hub && !spokes)) return;
+
+    const hubGroup = hub ? hub.closest('div') : null;
+    const spokesGroup = spokes ? spokes.closest('div') : null;
+    function updateRelationshipVisibility() {
+        const isSpoke = facilityType.value === 'spoke';
+        const isHub = facilityType.value === 'hub';
+        if (hub) {
+            if (hubGroup) hubGroup.hidden = !isSpoke;
+            hub.disabled = !isSpoke;
+            if (!isSpoke) hub.value = '';
+        }
+        if (spokes) {
+            if (spokesGroup) spokesGroup.hidden = !isHub;
+            spokes.disabled = !isHub;
+            const multiSelect = spokes.nextElementSibling;
+            if (multiSelect && multiSelect.classList.contains('multi-select-control')) {
+                multiSelect.querySelectorAll('button, input').forEach((control) => {
+                    control.disabled = !isHub;
+                });
+            }
+            if (!isHub) {
+                Array.from(spokes.options).forEach((option) => {
+                    option.selected = false;
+                });
+                if (multiSelect && multiSelect.classList.contains('multi-select-control')) {
+                    multiSelect.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+                        checkbox.checked = false;
+                    });
+                    const button = multiSelect.querySelector('.multi-select-button');
+                    if (button) button.textContent = 'Select spokes';
+                }
+            }
+        }
+    }
+
+    facilityType.addEventListener('change', updateRelationshipVisibility);
+    updateRelationshipVisibility();
+})();
+</script>
 {% endblock %}

@@ -339,12 +339,16 @@ class FacilityViewSet(AdminWriteOrActiveReadMixin, viewsets.ModelViewSet):
     serializer_class = FacilitySerializer
 
     def get_queryset(self):
-        queryset = Facility.objects.select_related('district__province').prefetch_related('services')
+        queryset = Facility.objects.select_related('district__province', 'hub').prefetch_related('services').annotate(
+            spoke_count=Count('spokes', distinct=True),
+        )
         search_term = self.request.query_params.get('q', '').strip()
         province_id = self.request.query_params.get('province', '').strip()
         district_id = self.request.query_params.get('district', '').strip()
         service_code = self.request.query_params.get('service', '').strip()
         level = self.request.query_params.get('level', '').strip()
+        facility_type = self.request.query_params.get('facility_type', '').strip()
+        hub_id = self.request.query_params.get('hub', '').strip()
         mapped = self.request.query_params.get('mapped', '').strip()
 
         if search_term:
@@ -363,6 +367,10 @@ class FacilityViewSet(AdminWriteOrActiveReadMixin, viewsets.ModelViewSet):
             queryset = queryset.filter(services__code=service_code, services__is_active=True)
         if level:
             queryset = queryset.filter(level=level)
+        if facility_type:
+            queryset = queryset.filter(facility_type=facility_type)
+        if hub_id.isdigit():
+            queryset = queryset.filter(hub_id=hub_id)
         if mapped == 'unmapped':
             queryset = queryset.filter(Q(latitude__isnull=True) | Q(longitude__isnull=True))
         ordering = self.request.query_params.get('ordering', '').strip()
@@ -373,6 +381,12 @@ class FacilityViewSet(AdminWriteOrActiveReadMixin, viewsets.ModelViewSet):
             '-code',
             'level',
             '-level',
+            'facility_type',
+            '-facility_type',
+            'hub__name',
+            '-hub__name',
+            'spoke_count',
+            '-spoke_count',
             'district__name',
             '-district__name',
             'district__province__name',

@@ -89,6 +89,8 @@ class FacilitySerializer(serializers.ModelSerializer):
     district_name = serializers.CharField(source='district.name', read_only=True)
     province = serializers.IntegerField(source='district.province_id', read_only=True)
     province_name = serializers.CharField(source='district.province.name', read_only=True)
+    hub_name = serializers.CharField(source='hub.name', read_only=True)
+    spoke_count = serializers.IntegerField(read_only=True)
     service_names = serializers.SerializerMethodField()
 
     class Meta:
@@ -98,6 +100,10 @@ class FacilitySerializer(serializers.ModelSerializer):
             'name',
             'code',
             'level',
+            'facility_type',
+            'hub',
+            'hub_name',
+            'spoke_count',
             'district',
             'district_name',
             'province',

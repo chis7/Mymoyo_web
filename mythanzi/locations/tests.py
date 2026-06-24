@@ -7,6 +7,7 @@ from django.test import TestCase
 from django.urls import reverse
 from openpyxl import Workbook
 
+from .forms import FacilityForm
 from .models import District, Facility, Province
 
 
@@ -130,10 +131,113 @@ class FacilityMapTests(TestCase):
             ' 22.76034052\t',
         ])
 
-        with NamedTemporaryFile(suffix='.xlsx') as export:
-            workbook.save(export.name)
-            call_command('import_locations', Path(export.name))
+        with NamedTemporaryFile(suffix='.xlsx', delete=False) as export:
+            export_path = Path(export.name)
+        try:
+            workbook.save(export_path)
+            call_command('import_locations', export_path)
+        finally:
+            export_path.unlink(missing_ok=True)
 
         self.facility.refresh_from_db()
         self.assertEqual(str(self.facility.latitude), '-14.4488826')
         self.assertEqual(str(self.facility.longitude), '22.7603405')
+
+    def test_import_command_maps_site_type_without_using_facility_code_as_name(self):
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(['Province', 'District', 'Hub', 'Spoke', 'Health Facility', 'Site Type', 'Hub Code', 'Facility Code'])
+        sheet.append([
+            self.province.name,
+            self.district.name,
+            self.facility.name,
+            None,
+            self.facility.name,
+            'Hub',
+            'hub-code',
+            'facility-code',
+        ])
+
+        with NamedTemporaryFile(suffix='.xlsx', delete=False) as export:
+            export_path = Path(export.name)
+        try:
+            workbook.save(export_path)
+            call_command('import_locations', export_path)
+        finally:
+            export_path.unlink(missing_ok=True)
+
+        self.facility.refresh_from_db()
+        self.assertEqual(self.facility.facility_type, 'hub')
+        self.assertEqual(self.facility.code, 'facility-code')
+        self.assertFalse(Facility.objects.filter(name='facility-code').exists())
+
+    def test_import_command_links_spoke_to_hub(self):
+        self.facility.facility_type = Facility.FACILITY_TYPE_HUB
+        self.facility.save(update_fields=['facility_type'])
+        spoke = Facility.objects.create(
+            name='Spoke Facility',
+            district=self.district,
+            facility_type=Facility.FACILITY_TYPE_SPOKE,
+        )
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(['Province', 'District', 'Hub', 'Spoke', 'Health Facility', 'Site Type', 'Facility Code'])
+        sheet.append([
+            self.province.name,
+            self.district.name,
+            self.facility.name,
+            spoke.name,
+            spoke.name,
+            'Spoke',
+            'spoke-code',
+        ])
+
+        with NamedTemporaryFile(suffix='.xlsx', delete=False) as export:
+            export_path = Path(export.name)
+        try:
+            workbook.save(export_path)
+            call_command('import_locations', export_path)
+        finally:
+            export_path.unlink(missing_ok=True)
+
+        spoke.refresh_from_db()
+        self.assertEqual(spoke.hub, self.facility)
+        self.assertEqual(spoke.facility_type, Facility.FACILITY_TYPE_SPOKE)
+
+    def test_hub_form_assigns_selected_non_hub_facilities_as_spokes(self):
+        hub = self.facility
+        hub.facility_type = Facility.FACILITY_TYPE_HUB
+        hub.save(update_fields=['facility_type'])
+        candidate = Facility.objects.create(
+            name='Candidate Spoke',
+            district=self.district,
+            facility_type=Facility.FACILITY_TYPE_NA,
+        )
+        other_hub = Facility.objects.create(
+            name='Other Hub',
+            district=self.district,
+            facility_type=Facility.FACILITY_TYPE_HUB,
+        )
+        form = FacilityForm(
+            data={
+                'name': hub.name,
+                'district': hub.district_id,
+                'services': [],
+                'code': hub.code or '',
+                'level': hub.level or '',
+                'facility_type': Facility.FACILITY_TYPE_HUB,
+                'hub': '',
+                'spokes': [candidate.pk],
+                'latitude': hub.latitude or '',
+                'longitude': hub.longitude or '',
+            },
+            instance=hub,
+        )
+
+        self.assertNotIn(other_hub, form.fields['spokes'].queryset)
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+
+        candidate.refresh_from_db()
+        self.assertEqual(candidate.facility_type, Facility.FACILITY_TYPE_SPOKE)
+        self.assertEqual(candidate.hub, hub)

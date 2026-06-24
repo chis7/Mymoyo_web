@@ -193,8 +193,11 @@
                     <h2 class="h6">Referral History</h2>
                     {% for referral in referrals %}
                         <div class="border-bottom py-2">
-                            <strong>{{ referral.receiving_hub }}</strong>
+                            <a class="fw-semibold text-decoration-none" href="{% url 'referral_slip' referral_code=referral.referral_code %}">
+                                {{ referral.receiving_point_name|default:"Referral slip" }}
+                            </a>
                             <div class="text-muted small">{{ referral.referred_on }} · {{ referral.get_confirmation_status_display }}</div>
+                            <div class="text-muted small">{{ referral.referral_code }}</div>
                             <div class="small">{{ referral.get_initiation_outcome_display }}</div>
                         </div>
                     {% empty %}

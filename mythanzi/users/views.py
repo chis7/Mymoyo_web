@@ -1,3 +1,4 @@
+import base64
 import calendar
 import csv
 import io
@@ -43,6 +44,7 @@ from .models import (
     GrievanceCase,
     PersonIdentity,
     PopulationGroup,
+    ReferralRecord,
     SafeguardingCase,
     SelfRiskAssessmentSubmission,
     SelfTestReportSubmission,
@@ -66,6 +68,7 @@ from .forms import (
     GrievanceSubmissionForm,
     PopulationGroupForm,
     PublicRegistrationForm,
+    ReferralConfirmationForm,
     ReferralRecordForm,
     SafeguardingCaseUpdateForm,
     SafeguardingReportForm,
@@ -110,8 +113,8 @@ CLIENT_BULK_UPLOAD_SPECS = {
         'label': 'Referrals',
         'filename': 'referrals-template.csv',
         'fields': [
-            'referral_code',
-            'receiving_hub',
+            'receiving_facility',
+            'assigned_mobiliser',
             'confirmation_status',
             'initiation_outcome',
             'referred_on',
@@ -119,8 +122,9 @@ CLIENT_BULK_UPLOAD_SPECS = {
         ],
         'form_class': ReferralRecordForm,
         'help_text': (
-            'Use confirmation_status values: issued, received, confirmed, completed, cancelled. '
-            'Use initiation_outcome values: pending, initiated, not_eligible, declined, lost_to_follow_up.'
+            'receiving_facility can be a facility id, code, or exact facility name. assigned_mobiliser is optional username. '
+            'Use confirmation_status values: generated, sent, received, attended, initiated, not_attended, closed. '
+            'Use initiation_outcome values: pending, len_prep_initiated, hivst_received, referred_elsewhere, declined.'
         ),
     },
     'follow-ups': {
@@ -167,13 +171,14 @@ def get_client_bulk_template_rows(kind):
             'notes': 'Initial contact completed',
         }]
     if kind == 'referrals':
+        facility = Facility.objects.order_by('name').first()
         return [{
-            'referral_code': 'REF-001',
-            'receiving_hub': 'Main Hub',
-            'confirmation_status': 'issued',
+            'receiving_facility': facility.code or facility.name if facility else '',
+            'assigned_mobiliser': '',
+            'confirmation_status': 'generated',
             'initiation_outcome': 'pending',
             'referred_on': today.isoformat(),
-            'notes': 'Referral issued',
+            'notes': 'Referral generated',
         }]
     if kind == 'follow-ups':
         return [{
@@ -223,6 +228,13 @@ def normalize_client_bulk_row(kind, row, fields):
     errors = []
     if kind == 'follow-ups':
         normalized['assigned_to'], error = resolve_bulk_assigned_user(normalized.get('assigned_to'))
+        if error:
+            errors.append(error)
+    elif kind == 'referrals':
+        normalized['receiving_facility'], error = resolve_bulk_facility(normalized.get('receiving_facility'))
+        if error:
+            errors.append(error)
+        normalized['assigned_mobiliser'], error = resolve_bulk_assigned_user(normalized.get('assigned_mobiliser'))
         if error:
             errors.append(error)
     elif kind == 'appointments':
@@ -555,6 +567,8 @@ def login_view(request):
                 return redirect('password_change_required')
             next_url = request.POST.get('next', '')
             if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                if next_url == reverse('user_dashboard') and get_user_role(user) not in DASHBOARD_ROLES and not user.is_superuser:
+                    return redirect(get_portal_landing_url(user))
                 return redirect(next_url)
             return redirect('portal_home')
 
@@ -742,7 +756,16 @@ def update_theme(request):
 
 @active_login_required
 def portal_home(request):
-    return redirect('user_dashboard')
+    return redirect(get_portal_landing_url(request.user))
+
+
+def get_portal_landing_url(user):
+    role = get_user_role(user)
+    if user.is_superuser or role in DASHBOARD_ROLES:
+        return reverse('user_dashboard')
+    if role in APPOINTMENT_ROLES:
+        return reverse('client_management')
+    return '/app/'
 
 
 @active_login_required
@@ -1567,6 +1590,176 @@ def client_record(request, pk):
     })
 
 
+def build_referral_qr_data_uri(value):
+    try:
+        import qrcode
+    except ImportError:
+        return ''
+
+    image = qrcode.make(value)
+    buffer = io.BytesIO()
+    image.save(buffer, format='PNG')
+    encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
+    return f'data:image/png;base64,{encoded}'
+
+
+@role_required(*APPOINTMENT_ROLES)
+def referral_slip(request, referral_code):
+    referral = get_object_or_404(
+        ReferralRecord.objects.select_related(
+            'receiving_facility',
+            'receiving_facility__district',
+            'client',
+            'recorded_by',
+        ),
+        referral_code=referral_code,
+    )
+    record_url = request.build_absolute_uri(reverse('referral_scan', kwargs={'referral_code': referral.referral_code}))
+    return render(request, 'users/referral_slip.html', {
+        'referral': referral,
+        'record_url': record_url,
+        'qr_data_uri': build_referral_qr_data_uri(record_url),
+    })
+
+
+def referral_scan_denied_response():
+    return HttpResponse(get_random_string(96), content_type='text/plain; charset=utf-8')
+
+
+def can_open_referral_scan(user, referral):
+    if not user.is_authenticated:
+        return False
+    profile = getattr(user, 'profile', None)
+    if not profile or not profile.is_active:
+        return False
+    if profile.must_change_password:
+        return False
+    if profile.role not in {'provider', 'chw', 'mobiliser', 'supervisor'}:
+        return False
+    if not referral.receiving_facility_id:
+        return False
+    return profile.facility_id == referral.receiving_facility_id
+
+
+def referral_scan(request, referral_code):
+    referral = ReferralRecord.objects.select_related(
+        'assigned_mobiliser',
+        'client',
+        'client__profile',
+        'confirmed_by',
+        'receiving_facility',
+        'receiving_facility__district',
+        'recorded_by',
+    ).filter(referral_code=referral_code).first()
+    if not referral or not can_open_referral_scan(request.user, referral):
+        return referral_scan_denied_response()
+
+    follow_up_tasks = referral.client.follow_up_tasks.filter(
+        reason='referral_confirmation',
+        notes__icontains=referral.referral_code,
+    ).select_related('assigned_to')[:5]
+    return render(request, 'users/referral_detail.html', {
+        'referral': referral,
+        'follow_up_tasks': follow_up_tasks,
+        'scanned_referral': True,
+    })
+
+
+@role_required(*APPOINTMENT_ROLES)
+def referral_detail(request, referral_code):
+    referral = get_object_or_404(
+        ReferralRecord.objects.select_related(
+            'assigned_mobiliser',
+            'client',
+            'client__profile',
+            'confirmed_by',
+            'receiving_facility',
+            'receiving_facility__district',
+            'recorded_by',
+        ),
+        referral_code=referral_code,
+    )
+    follow_up_tasks = referral.client.follow_up_tasks.filter(
+        reason='referral_confirmation',
+        notes__icontains=referral.referral_code,
+    ).select_related('assigned_to')[:5]
+    return render(request, 'users/referral_detail.html', {
+        'referral': referral,
+        'follow_up_tasks': follow_up_tasks,
+    })
+
+
+@role_required(*APPOINTMENT_ROLES)
+def referral_confirm(request, referral_code):
+    referral = get_object_or_404(
+        ReferralRecord.objects.select_related('client', 'receiving_facility'),
+        referral_code=referral_code,
+    )
+    form = ReferralConfirmationForm(instance=referral)
+    if request.method == 'POST':
+        form = ReferralConfirmationForm(request.POST, instance=referral)
+        if form.is_valid():
+            confirmed_referral = form.save(commit=False)
+            confirmed_referral.confirmed_by = request.user
+            confirmed_referral.save()
+            messages.success(request, 'Referral confirmation saved.')
+            return redirect('referral_detail', referral_code=confirmed_referral.referral_code)
+    return render(request, 'users/referral_confirm.html', {
+        'referral': referral,
+        'form': form,
+    })
+
+
+def referral_rate(numerator, denominator):
+    if not denominator:
+        return 0
+    return round((numerator / denominator) * 100, 1)
+
+
+@role_required(*DASHBOARD_ROLES)
+def referral_analytics(request):
+    referrals = ReferralRecord.objects.select_related(
+        'receiving_facility__district',
+        'assigned_mobiliser',
+        'client__profile__population_group',
+    )
+    total = referrals.count()
+    completed = referrals.filter(confirmation_status__in=ReferralRecord.COMPLETED_STATUSES).count()
+    converted = referrals.filter(initiation_outcome__in=['len_prep_initiated', 'hivst_received']).count()
+    not_attended = referrals.filter(confirmation_status='not_attended').count()
+
+    by_status = referrals.values('confirmation_status').annotate(total=Count('id')).order_by('-total')
+    by_district = referrals.values(
+        'receiving_facility__district__name',
+    ).annotate(total=Count('id')).order_by('-total', 'receiving_facility__district__name')
+    by_zone = referrals.values(
+        'client__client_locator__mobiliser_zone',
+    ).annotate(total=Count('id')).order_by('-total', 'client__client_locator__mobiliser_zone')
+    by_kpp = referrals.values(
+        'client__profile__population_group__name',
+    ).annotate(total=Count('id')).order_by('-total', 'client__profile__population_group__name')
+    by_mobiliser = referrals.values(
+        'assigned_mobiliser__first_name',
+        'assigned_mobiliser__last_name',
+        'assigned_mobiliser__username',
+    ).annotate(total=Count('id')).order_by('-total', 'assigned_mobiliser__username')
+
+    return render(request, 'users/referral_analytics.html', {
+        'total_referrals': total,
+        'completed_referrals': completed,
+        'converted_referrals': converted,
+        'not_attended_referrals': not_attended,
+        'completion_rate': referral_rate(completed, total),
+        'conversion_rate': referral_rate(converted, total),
+        'drop_off_rate': referral_rate(not_attended, total),
+        'by_status': by_status,
+        'by_district': by_district,
+        'by_zone': by_zone,
+        'by_kpp': by_kpp,
+        'by_mobiliser': by_mobiliser,
+    })
+
+
 @role_required(*APPOINTMENT_ROLES)
 def client_bulk_upload_template(request, pk, kind):
     """Download a CSV template for client record bulk creation."""
@@ -1673,7 +1866,7 @@ def my_journey(request):
     consent = getattr(user, 'client_consent', None)
     appointments = Appointment.objects.filter(beneficiary=user).select_related('facility', 'district', 'province')
     journey_events = user.journey_events.select_related('recorded_by').all()
-    referrals = user.referral_records.select_related('recorded_by').all()
+    referrals = user.referral_records.select_related('recorded_by', 'receiving_facility').all()
     follow_up_tasks = user.follow_up_tasks.select_related('assigned_to').all()
 
     timeline = []
@@ -1697,7 +1890,7 @@ def my_journey(request):
         timeline.append({
             'date': referral.referred_on,
             'type': 'Referral',
-            'title': referral.receiving_hub,
+            'title': referral.receiving_point_name,
             'status': referral.get_confirmation_status_display(),
             'details': referral.get_initiation_outcome_display(),
         })

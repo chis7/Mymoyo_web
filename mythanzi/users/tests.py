@@ -52,7 +52,7 @@ class ClientManagementModelTests(TestCase):
         referral = ReferralRecord.objects.create(
             client=self.client_user,
             receiving_hub='Central Hub',
-            confirmation_status='confirmed',
+            confirmation_status='attended',
             recorded_by=self.worker,
         )
         task = FollowUpTask.objects.create(
@@ -70,9 +70,27 @@ class ClientManagementModelTests(TestCase):
 
         self.assertEqual(locator.client, self.client_user)
         self.assertEqual(journey.get_stage_display(), 'Risk assessment')
-        self.assertEqual(referral.get_confirmation_status_display(), 'Confirmed')
+        self.assertEqual(referral.get_confirmation_status_display(), 'Attended')
         self.assertEqual(task.get_reason_display(), 'Tracing')
         self.assertTrue(consent.consent_to_follow_up)
+
+    def test_referral_code_and_not_attended_follow_up_are_created(self):
+        mobiliser = User.objects.create_user(username='mobiliser', password='test-password')
+        mobiliser.profile.role = 'mobiliser'
+        mobiliser.profile.save(update_fields=['role'])
+
+        referral = ReferralRecord.objects.create(
+            client=self.client_user,
+            receiving_hub='Central Hub',
+            assigned_mobiliser=mobiliser,
+            confirmation_status='not_attended',
+            recorded_by=self.worker,
+        )
+
+        self.assertTrue(referral.referral_code.startswith('REF-'))
+        task = self.client_user.follow_up_tasks.get(reason='referral_confirmation')
+        self.assertEqual(task.assigned_to, mobiliser)
+        self.assertIn(referral.referral_code, task.notes)
 
 
 class PortalAccessTests(TestCase):
@@ -118,7 +136,61 @@ class PortalAccessTests(TestCase):
 
         response = self.client.get(reverse('portal_home'))
 
-        self.assertRedirects(response, '/app/', fetch_redirect_response=False)
+        self.assertRedirects(response, reverse('client_management'), fetch_redirect_response=False)
+
+    def test_admin_lands_on_dashboard(self):
+        user = self.create_user('dashboard-admin', 'admin')
+        self.client.force_login(user)
+
+        response = self.client.get(reverse('portal_home'))
+
+        self.assertRedirects(response, reverse('user_dashboard'), fetch_redirect_response=False)
+
+    def test_provider_next_dashboard_falls_back_to_allowed_landing(self):
+        user = self.create_user('provider-next-dashboard', 'provider')
+        response = self.client.post(reverse('login'), {
+            'username': user.username,
+            'password': 'test-password',
+            'next': reverse('user_dashboard'),
+        })
+
+        self.assertRedirects(response, reverse('client_management'), fetch_redirect_response=False)
+
+    def test_referral_scan_access_allows_only_receiving_facility_staff(self):
+        from .views import can_open_referral_scan
+
+        receiving_facility = self.create_facility()
+        other_facility = Facility.objects.create(name='Other Clinic', district=receiving_facility.district)
+        client_user = self.create_user('scan-client', 'client')
+        provider = self.create_user('scan-provider', 'provider')
+        provider.profile.facility = receiving_facility
+        provider.profile.save(update_fields=['facility'])
+        referral = ReferralRecord.objects.create(
+            client=client_user,
+            receiving_facility=receiving_facility,
+            recorded_by=provider,
+        )
+
+        self.assertTrue(can_open_referral_scan(provider, referral))
+
+        provider.profile.facility = other_facility
+        provider.profile.save(update_fields=['facility'])
+        provider.profile.refresh_from_db()
+        self.assertFalse(can_open_referral_scan(provider, referral))
+
+    def test_referral_scan_returns_gibberish_for_anonymous_user(self):
+        receiving_facility = self.create_facility()
+        client_user = self.create_user('anonymous-scan-client', 'client')
+        referral = ReferralRecord.objects.create(
+            client=client_user,
+            receiving_facility=receiving_facility,
+        )
+
+        response = self.client.get(reverse('referral_scan', kwargs={'referral_code': referral.referral_code}))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/plain; charset=utf-8')
+        self.assertNotContains(response, referral.referral_code)
 
     def test_admin_can_manage_users(self):
         user = self.create_user('admin-user', 'admin')

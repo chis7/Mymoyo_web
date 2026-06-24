@@ -504,14 +504,47 @@ class ClientJourneyEventForm(forms.ModelForm):
 class ReferralRecordForm(forms.ModelForm):
     class Meta:
         model = ReferralRecord
-        fields = ['referral_code', 'receiving_hub', 'confirmation_status', 'initiation_outcome', 'referred_on', 'notes']
+        fields = [
+            'receiving_facility',
+            'assigned_mobiliser',
+            'confirmation_status',
+            'initiation_outcome',
+            'referred_on',
+            'notes',
+        ]
         widgets = {
-            'referral_code': forms.TextInput(attrs={'class': 'form-control'}),
-            'receiving_hub': forms.TextInput(attrs={'class': 'form-control'}),
+            'receiving_facility': forms.Select(attrs={'class': 'form-select'}),
+            'assigned_mobiliser': forms.Select(attrs={'class': 'form-select'}),
             'confirmation_status': forms.Select(attrs={'class': 'form-select'}),
             'initiation_outcome': forms.Select(attrs={'class': 'form-select'}),
             'referred_on': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['receiving_facility'].queryset = Facility.objects.select_related(
+            'district',
+            'district__province',
+        ).order_by('district__province__name', 'district__name', 'name')
+        self.fields['receiving_facility'].required = True
+        self.fields['receiving_facility'].label = 'Receiving facility / service point'
+        self.fields['assigned_mobiliser'].queryset = User.objects.select_related('profile').filter(
+            profile__role='mobiliser',
+            profile__is_active=True,
+            is_active=True,
+        ).order_by('first_name', 'last_name', 'username')
+        self.fields['assigned_mobiliser'].required = False
+
+
+class ReferralConfirmationForm(forms.ModelForm):
+    class Meta:
+        model = ReferralRecord
+        fields = ['confirmation_status', 'initiation_outcome', 'notes']
+        widgets = {
+            'confirmation_status': forms.Select(attrs={'class': 'form-select'}),
+            'initiation_outcome': forms.Select(attrs={'class': 'form-select'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
 
 

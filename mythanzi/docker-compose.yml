@@ -68,6 +68,26 @@ services:
     networks:
       - mythanzi-network
 
+  hapi-sync:
+    profiles:
+      - sync
+    build: .
+    command: [
+      "sh", "-c",
+      "python manage.py migrate --noinput && python manage.py hapi_sync_worker --interval ${HAPI_SYNC_INTERVAL_SECONDS:-900}"
+    ]
+    env_file:
+      - .env
+    environment:
+      HAPI_FHIR_BASE_URL: http://hapi-fhir:8080/fhir
+      HAPI_FHIR_SYNC_ENABLED: "true"
+    depends_on:
+      - db
+      - hapi-fhir
+    restart: unless-stopped
+    networks:
+      - mythanzi-network
+
   hapi-db:
     image: postgres:16-alpine
     environment:

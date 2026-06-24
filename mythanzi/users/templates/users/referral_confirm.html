@@ -1,0 +1,31 @@
+{% extends "users/base.html" %}
+
+{% block title %}Confirm Referral{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <a class="text-decoration-none small" href="{% url 'referral_detail' referral_code=referral.referral_code %}">&larr; Referral Record</a>
+            <h1 class="h3 mt-2 mb-1">Confirm Referral</h1>
+            <p class="text-muted mb-0">{{ referral.referral_code }} to {{ referral.receiving_point_name|default:"service point" }}</p>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <form method="post">
+                {% csrf_token %}
+                {% for field in form %}
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                    </div>
+                {% endfor %}
+                <button class="btn btn-primary" type="submit">Save Confirmation</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
