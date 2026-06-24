@@ -4,10 +4,7 @@
 /.venv/**
 mythanzi/.venv/
 mythanzi/.venv/**
-/.vscode/
 /.vscode/**
-mythanzi/.vscode/
-mythanzi/.vscode/**
 
 # Local environment/secrets
 .env

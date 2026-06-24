@@ -7,18 +7,44 @@ from django.utils import timezone
 from .models import (
     Appointment,
     ClientConsent,
+    ClientExitInterview,
     ClientJourneyEvent,
     ClientLocator,
     FollowUpTask,
+    GrievanceCase,
     PersonIdentity,
+    PopulationGroup,
     ReferralRecord,
+    SafeguardingCase,
     UserProfile,
 )
-from locations.models import Facility
+from locations.models import District, Facility
 
 FACILITY_REQUIRED_ROLES = {'supervisor', 'provider', 'chw', 'mobiliser'}
 FACILITY_ASSIGNABLE_ROLES = {'admin', 'supervisor', 'provider', 'chw', 'mobiliser'}
 FACILITY_USER_ROLES = FACILITY_REQUIRED_ROLES
+
+
+class PopulationGroupForm(forms.ModelForm):
+    class Meta:
+        model = PopulationGroup
+        fields = ['name', 'code', 'description', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Population group name',
+            }),
+            'code': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'population-group-code',
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Optional description',
+            }),
+            'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
 
 
 class UserForm(forms.ModelForm):
@@ -48,7 +74,17 @@ class UserForm(forms.ModelForm):
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
-        fields = ['role', 'person_identity', 'facility', 'bio', 'phone', 'date_of_birth', 'is_active', 'must_change_password']
+        fields = [
+            'role',
+            'person_identity',
+            'facility',
+            'population_group',
+            'bio',
+            'phone',
+            'date_of_birth',
+            'is_active',
+            'must_change_password',
+        ]
         widgets = {
             'role': forms.Select(attrs={
                 'class': 'form-control'
@@ -57,6 +93,9 @@ class UserProfileForm(forms.ModelForm):
                 'class': 'form-control'
             }),
             'facility': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'population_group': forms.Select(attrs={
                 'class': 'form-control'
             }),
             'bio': forms.Textarea(attrs={
@@ -90,6 +129,8 @@ class UserProfileForm(forms.ModelForm):
             'name',
         )
         self.fields['facility'].required = False
+        self.fields['population_group'].queryset = PopulationGroup.objects.filter(is_active=True).order_by('name')
+        self.fields['population_group'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
@@ -99,6 +140,8 @@ class UserProfileForm(forms.ModelForm):
             self.add_error('facility', 'Select the facility where this user works.')
         if role not in FACILITY_ASSIGNABLE_ROLES:
             cleaned_data['facility'] = None
+        if role != 'client':
+            cleaned_data['population_group'] = None
         return cleaned_data
 
 
@@ -335,6 +378,39 @@ class AppointmentForm(forms.ModelForm):
         return appointment
 
 
+class ClientAppointmentForm(AppointmentForm):
+    class Meta(AppointmentForm.Meta):
+        fields = [
+            'visit_purpose',
+            'appointment_date',
+            'appointment_time',
+            'facility',
+            'notes',
+        ]
+
+    def __init__(self, *args, **kwargs):
+        self.client = kwargs.pop('client')
+        super().__init__(*args, **kwargs)
+        self.fields.pop('client', None)
+        self.fields['appointment_date'].widget = forms.DateInput(attrs={
+            'class': 'form-control',
+            'type': 'date',
+            'min': timezone.localdate().isoformat(),
+        })
+
+    def save(self, commit=True):
+        appointment = forms.ModelForm.save(self, commit=False)
+        appointment.beneficiary = self.client
+        appointment.district = appointment.facility.district
+        appointment.province = appointment.facility.district.province
+        if self.created_by and not appointment.created_by_id:
+            appointment.created_by = self.created_by
+        if commit:
+            appointment.save()
+            self.save_m2m()
+        return appointment
+
+
 class AppointmentEditForm(forms.ModelForm):
     class Meta:
         model = Appointment
@@ -482,6 +558,160 @@ class ClientConsentForm(forms.ModelForm):
             'share_with_facility': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'privacy_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
+
+
+class SafeguardingReportForm(forms.ModelForm):
+    class Meta:
+        model = SafeguardingCase
+        fields = [
+            'incident_type',
+            'incident_date',
+            'location',
+            'severity',
+            'involved_parties',
+            'incident_details',
+        ]
+        widgets = {
+            'incident_type': forms.Select(attrs={'class': 'form-select'}),
+            'incident_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional location or service point'}),
+            'severity': forms.Select(attrs={'class': 'form-select'}),
+            'involved_parties': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'incident_details': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }
+
+    def clean_incident_date(self):
+        incident_date = self.cleaned_data.get('incident_date')
+        if incident_date and incident_date > timezone.localdate():
+            raise forms.ValidationError('Incident date cannot be in the future.')
+        return incident_date
+
+
+class SafeguardingCaseUpdateForm(forms.ModelForm):
+    class Meta:
+        model = SafeguardingCase
+        fields = [
+            'focal_point',
+            'status',
+            'severity',
+            'confidentiality_locked',
+            'risk_trigger_flag',
+            'cab_oversight_ready',
+            'resolution_notes',
+        ]
+        widgets = {
+            'focal_point': forms.Select(attrs={'class': 'form-select'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'severity': forms.Select(attrs={'class': 'form-select'}),
+            'confidentiality_locked': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'risk_trigger_flag': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'cab_oversight_ready': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'resolution_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['focal_point'].queryset = User.objects.filter(
+            profile__role__in=['admin', 'supervisor', 'provider', 'chw']
+        ).order_by('first_name', 'last_name', 'username')
+        self.fields['focal_point'].required = False
+
+
+class GrievanceSubmissionForm(forms.ModelForm):
+    class Meta:
+        model = GrievanceCase
+        fields = ['submission_channel', 'category', 'priority', 'complaint_details', 'district']
+        widgets = {
+            'submission_channel': forms.Select(attrs={'class': 'form-select'}),
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'priority': forms.Select(attrs={'class': 'form-select'}),
+            'complaint_details': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+            'district': forms.Select(attrs={'class': 'form-select'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['district'].queryset = District.objects.select_related('province').order_by(
+            'province__name',
+            'name',
+        )
+        self.fields['district'].required = False
+
+
+class GrievanceCaseUpdateForm(forms.ModelForm):
+    class Meta:
+        model = GrievanceCase
+        fields = [
+            'assigned_to',
+            'status',
+            'priority',
+            'response_provided',
+            'escalation_target',
+            'resolution_notes',
+        ]
+        widgets = {
+            'assigned_to': forms.Select(attrs={'class': 'form-select'}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'priority': forms.Select(attrs={'class': 'form-select'}),
+            'response_provided': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'escalation_target': forms.Select(attrs={'class': 'form-select'}),
+            'resolution_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['assigned_to'].queryset = User.objects.filter(
+            profile__role__in=['admin', 'supervisor', 'provider', 'chw']
+        ).order_by('first_name', 'last_name', 'username')
+        self.fields['assigned_to'].required = False
+
+
+class ClientExitInterviewForm(forms.ModelForm):
+    class Meta:
+        model = ClientExitInterview
+        fields = [
+            'client_code',
+            'service_point_type',
+            'service_point',
+            'population_group',
+            'waiting_time_rating',
+            'staff_attitude_rating',
+            'privacy_respected',
+            'information_clarity_score',
+            'len_questions_understood',
+            'net_promoter_score',
+            'comments',
+        ]
+        widgets = {
+            'client_code': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional client code'}),
+            'service_point_type': forms.Select(attrs={'class': 'form-select'}),
+            'service_point': forms.Select(attrs={'class': 'form-select'}),
+            'population_group': forms.Select(attrs={'class': 'form-select'}),
+            'waiting_time_rating': forms.Select(attrs={'class': 'form-select'}),
+            'staff_attitude_rating': forms.Select(attrs={'class': 'form-select'}),
+            'privacy_respected': forms.Select(attrs={'class': 'form-select'}),
+            'information_clarity_score': forms.Select(attrs={'class': 'form-select'}),
+            'len_questions_understood': forms.Select(attrs={'class': 'form-select'}),
+            'net_promoter_score': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'max': '10'}),
+            'comments': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['service_point'].queryset = Facility.objects.select_related('district__province').order_by(
+            'district__province__name',
+            'district__name',
+            'name',
+        )
+        self.fields['service_point'].required = False
+        self.fields['population_group'].queryset = PopulationGroup.objects.filter(is_active=True).order_by('name')
+        self.fields['population_group'].required = False
+
+    def clean_net_promoter_score(self):
+        score = self.cleaned_data['net_promoter_score']
+        if score < 0 or score > 10:
+            raise forms.ValidationError('Net promoter score must be between 0 and 10.')
+        return score
 
 
 class SelfRiskAssessmentForm(forms.Form):

@@ -805,6 +805,22 @@
                     <span class="nav-icon material-symbols-outlined">medical_services</span>
                     Manage Services
                 </a>
+                <a class="nav-link" href="{% url 'population_group_management' %}">
+                    <span class="nav-icon material-symbols-outlined">groups</span>
+                    Population Groups
+                </a>
+                <a class="nav-link" href="{% url 'safeguarding_management' %}">
+                    <span class="nav-icon material-symbols-outlined">shield</span>
+                    Safeguarding Cases
+                </a>
+                <a class="nav-link" href="{% url 'grievance_management' %}">
+                    <span class="nav-icon material-symbols-outlined">campaign</span>
+                    Grievance Cases
+                </a>
+                <a class="nav-link" href="{% url 'exit_interview_dashboard' %}">
+                    <span class="nav-icon material-symbols-outlined">analytics</span>
+                    Exit Interviews
+                </a>
             </nav>
         </div>
     {% endif %}
@@ -833,6 +849,10 @@
                 </a>
             {% endif %}
             {% if request.user.is_authenticated %}
+                <a class="nav-link" href="{% url 'my_journey' %}">
+                    <span class="nav-icon material-symbols-outlined">timeline</span>
+                    My Journey
+                </a>
                 <a class="nav-link" href="{% url 'user_detail' pk=request.user.pk %}">
                     <span class="nav-icon material-symbols-outlined">account_circle</span>
                     My Profile
@@ -890,6 +910,10 @@
                     <span class="nav-icon material-symbols-outlined">medical_services</span>
                     Services
                 </a>
+                <a class="nav-link" href="{% url 'population_group_management' %}">
+                    <span class="nav-icon material-symbols-outlined">groups</span>
+                    Population Groups
+                </a>
             </nav>
         </div>
     {% endif %}
@@ -914,6 +938,18 @@
             <a class="nav-link" href="{% url 'clinic_feedback' %}">
                 <span class="nav-icon material-symbols-outlined">hotel_class</span>
                 Rate Clinic Services
+            </a>
+            <a class="nav-link" href="{% url 'safeguarding_report' %}">
+                <span class="nav-icon material-symbols-outlined">shield</span>
+                Safeguarding Report
+            </a>
+            <a class="nav-link" href="{% url 'grievance_submit' %}">
+                <span class="nav-icon material-symbols-outlined">campaign</span>
+                Submit Grievance
+            </a>
+            <a class="nav-link" href="{% url 'client_exit_interview' %}">
+                <span class="nav-icon material-symbols-outlined">rate_review</span>
+                Exit Interview
             </a>
         </nav>
     </div>

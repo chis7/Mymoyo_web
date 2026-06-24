@@ -1,0 +1,104 @@
+{% extends "users/base.html" %}
+
+{% block title %}Exit Interview Dashboard{% endblock %}
+
+{% block content %}
+<nav class="management-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'user_dashboard' %}">Command Center</a>
+    <span class="material-symbols-outlined">chevron_right</span>
+    <span aria-current="page">Exit Interviews</span>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1"><span class="material-symbols-outlined align-middle">analytics</span> Exit Interview Dashboard</h1>
+        <p class="text-muted mb-0">Aggregated quality dashboard feed for service experience, KPP classification, privacy, LEN clarity, and NPS.</p>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card"><div class="card-body"><div class="h3 mb-0">{{ stats.total }}</div><div class="text-muted">Submissions</div></div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body"><div class="h3 mb-0">{{ stats.avg_waiting|floatformat:1 }}</div><div class="text-muted">Waiting time</div></div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body"><div class="h3 mb-0">{{ stats.avg_staff|floatformat:1 }}</div><div class="text-muted">Staff attitude</div></div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body"><div class="h3 mb-0">{{ stats.avg_clarity|floatformat:1 }}</div><div class="text-muted">Information clarity</div></div></div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><strong>KPP / Population Groups</strong></div>
+            <div class="card-body">
+                {% for item in population_summary %}
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>{{ item.population_group__name|default:"Not classified" }}</span>
+                        <strong>{{ item.total }}</strong>
+                    </div>
+                {% empty %}
+                    <p class="text-muted mb-0">No interview data yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header"><strong>Service Points</strong></div>
+            <div class="card-body">
+                {% for item in service_point_summary %}
+                    <div class="d-flex justify-content-between border-bottom py-2">
+                        <span>{{ item.service_point__name|default:"Other service point" }}</span>
+                        <strong>{{ item.total }}</strong>
+                    </div>
+                {% empty %}
+                    <p class="text-muted mb-0">No service point data yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Submitted</th>
+                    <th>Service Point</th>
+                    <th>KPP</th>
+                    <th>Waiting</th>
+                    <th>Staff</th>
+                    <th>Privacy</th>
+                    <th>Clarity</th>
+                    <th>NPS</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for interview in interviews %}
+                    <tr>
+                        <td>{{ interview.submitted_at|date:"M d, Y H:i" }}</td>
+                        <td>
+                            {{ interview.get_service_point_type_display }}
+                            {% if interview.service_point %}<small class="d-block text-muted">{{ interview.service_point.name }}</small>{% endif %}
+                        </td>
+                        <td>{{ interview.population_group.name|default:"-" }}</td>
+                        <td>{{ interview.waiting_time_rating }}</td>
+                        <td>{{ interview.staff_attitude_rating }}</td>
+                        <td>{{ interview.get_privacy_respected_display }}</td>
+                        <td>{{ interview.information_clarity_score }}</td>
+                        <td>{{ interview.net_promoter_score }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">No exit interviews submitted yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

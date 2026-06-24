@@ -521,6 +521,10 @@
                         <dd>{{ profile.get_role_display }}</dd>
                     </div>
                     <div class="profile-fact">
+                        <dt>Population group</dt>
+                        <dd>{{ profile.population_group.name|default:"Not assigned" }}</dd>
+                    </div>
+                    <div class="profile-fact">
                         <dt>Password status</dt>
                         <dd>{% if profile.must_change_password %}Change required{% else %}Current{% endif %}</dd>
                     </div>

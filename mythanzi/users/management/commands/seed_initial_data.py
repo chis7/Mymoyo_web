@@ -5,7 +5,7 @@ from django.core.management import BaseCommand, call_command
 from django.db import transaction
 
 from locations.models import District, Facility, Province, Service
-from users.models import PersonIdentity, UserProfile
+from users.models import PersonIdentity, PopulationGroup, UserProfile
 
 
 DEFAULT_SERVICES = [
@@ -23,6 +23,19 @@ DEFAULT_SERVICES = [
         'name': 'Clinical Follow-up',
         'code': 'clinical-follow-up',
         'description': 'Continuity visits, side-effect review, and adherence support.',
+    },
+]
+
+DEFAULT_POPULATION_GROUPS = [
+    {
+        'name': 'General Population',
+        'code': 'general-population',
+        'description': 'Clients who are not assigned to a specific key population group.',
+    },
+    {
+        'name': 'FSW',
+        'code': 'fsw',
+        'description': 'Female sex workers.',
     },
 ]
 
@@ -72,6 +85,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        self.seed_population_groups()
         if not options['skip_facilities']:
             self.seed_facilities()
         self.seed_admin()
@@ -138,6 +152,22 @@ class Command(BaseCommand):
                 facility.services.add(*services)
 
         self.stdout.write(self.style.SUCCESS(f'Seeded services. Created: {created_services}.'))
+
+    def seed_population_groups(self):
+        created_groups = 0
+        for item in DEFAULT_POPULATION_GROUPS:
+            _, created = PopulationGroup.objects.update_or_create(
+                code=item['code'],
+                defaults={
+                    'name': item['name'],
+                    'description': item['description'],
+                    'is_active': True,
+                },
+            )
+            if created:
+                created_groups += 1
+
+        self.stdout.write(self.style.SUCCESS(f'Seeded population groups. Created: {created_groups}.'))
 
     def seed_admin(self):
         username = env('SEED_ADMIN_USERNAME') or env('DJANGO_SUPERUSER_USERNAME') or 'admin'

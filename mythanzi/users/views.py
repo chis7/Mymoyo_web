@@ -1,4 +1,6 @@
 import calendar
+import csv
+import io
 import json
 import logging
 from datetime import date, datetime, time, timedelta
@@ -13,13 +15,16 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
 from django.contrib.auth.hashers import check_password, make_password
+from django.forms import formset_factory
 from django.contrib.sessions.models import Session
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.mail import send_mail
 from django.core.paginator import EmptyPage, Paginator
-from django.db.models import Count, Q
-from django.http import JsonResponse
+from django.db import transaction
+from django.db.models import Avg, Count, Q
+from django.db.models.deletion import ProtectedError
+from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from django.conf import settings
 from django.utils.crypto import get_random_string
@@ -32,9 +37,13 @@ from .models import (
     Appointment,
     AuditLog,
     ClientConsent,
+    ClientExitInterview,
     ClinicFeedbackSubmission,
     ClientLocator,
+    GrievanceCase,
     PersonIdentity,
+    PopulationGroup,
+    SafeguardingCase,
     SelfRiskAssessmentSubmission,
     SelfTestReportSubmission,
     SideEffectReportSubmission,
@@ -45,14 +54,21 @@ from .forms import (
     AppointmentForm,
     AppointmentEditForm,
     ClientConsentForm,
+    ClientExitInterviewForm,
+    ClientAppointmentForm,
     ClinicFeedbackForm,
     ClientJourneyEventForm,
     ClientLocatorForm,
     FACILITY_ASSIGNABLE_ROLES,
     FACILITY_REQUIRED_ROLES,
     FollowUpTaskForm,
+    GrievanceCaseUpdateForm,
+    GrievanceSubmissionForm,
+    PopulationGroupForm,
     PublicRegistrationForm,
     ReferralRecordForm,
+    SafeguardingCaseUpdateForm,
+    SafeguardingReportForm,
     SideEffectReportForm,
     SelfProfileForm,
     SelfRiskAssessmentForm,
@@ -77,6 +93,189 @@ from locations.models import District, Facility, Province, Service
 logger = logging.getLogger(__name__)
 TEMPORARY_PASSWORD_TTL = timedelta(minutes=10)
 ACCOUNT_OTP_TTL = timedelta(minutes=10)
+ClientJourneyEventFormSet = formset_factory(ClientJourneyEventForm, extra=3, max_num=10)
+
+CLIENT_BULK_UPLOAD_SPECS = {
+    'journey-events': {
+        'label': 'Journey Events',
+        'filename': 'journey-events-template.csv',
+        'fields': ['stage', 'event_date', 'outcome', 'notes'],
+        'form_class': ClientJourneyEventForm,
+        'help_text': (
+            'Use stage values: contact, risk_assessment, referral, hivst, prep_len_initiation, '
+            'follow_up, continuation. Dates must use YYYY-MM-DD.'
+        ),
+    },
+    'referrals': {
+        'label': 'Referrals',
+        'filename': 'referrals-template.csv',
+        'fields': [
+            'referral_code',
+            'receiving_hub',
+            'confirmation_status',
+            'initiation_outcome',
+            'referred_on',
+            'notes',
+        ],
+        'form_class': ReferralRecordForm,
+        'help_text': (
+            'Use confirmation_status values: issued, received, confirmed, completed, cancelled. '
+            'Use initiation_outcome values: pending, initiated, not_eligible, declined, lost_to_follow_up.'
+        ),
+    },
+    'follow-ups': {
+        'label': 'Follow-Up Tasks',
+        'filename': 'follow-up-tasks-template.csv',
+        'fields': ['assigned_to', 'reason', 'status', 'priority', 'due_date', 'notes', 'outcome_notes'],
+        'form_class': FollowUpTaskForm,
+        'help_text': (
+            'assigned_to is optional and should be a username when provided. '
+            'Use reason/status/priority choice values exactly as shown in the template.'
+        ),
+    },
+    'appointments': {
+        'label': 'Appointments',
+        'filename': 'appointments-template.csv',
+        'fields': ['visit_purpose', 'appointment_date', 'appointment_time', 'facility', 'notes'],
+        'form_class': ClientAppointmentForm,
+        'help_text': (
+            'facility can be a facility id, code, or exact facility name. appointment_time must use HH:MM.'
+        ),
+    },
+}
+
+
+def get_client_bulk_upload_spec(kind):
+    spec = CLIENT_BULK_UPLOAD_SPECS.get(kind)
+    if not spec:
+        raise PermissionDenied('Unknown bulk upload type.')
+    return spec
+
+
+def get_client_bulk_session_key(client, kind):
+    return f'client_bulk_upload:{client.pk}:{kind}'
+
+
+def get_client_bulk_template_rows(kind):
+    next_week = timezone.localdate() + timedelta(days=7)
+    today = timezone.localdate()
+    if kind == 'journey-events':
+        return [{
+            'stage': 'contact',
+            'event_date': today.isoformat(),
+            'outcome': 'completed',
+            'notes': 'Initial contact completed',
+        }]
+    if kind == 'referrals':
+        return [{
+            'referral_code': 'REF-001',
+            'receiving_hub': 'Main Hub',
+            'confirmation_status': 'issued',
+            'initiation_outcome': 'pending',
+            'referred_on': today.isoformat(),
+            'notes': 'Referral issued',
+        }]
+    if kind == 'follow-ups':
+        return [{
+            'assigned_to': '',
+            'reason': 'tracing',
+            'status': 'open',
+            'priority': 'normal',
+            'due_date': next_week.isoformat(),
+            'notes': 'Follow up with client',
+            'outcome_notes': '',
+        }]
+    if kind == 'appointments':
+        facility = Facility.objects.order_by('name').first()
+        return [{
+            'visit_purpose': 'follow_up',
+            'appointment_date': next_week.isoformat(),
+            'appointment_time': '09:00',
+            'facility': facility.code or facility.name if facility else '',
+            'notes': 'Routine follow-up appointment',
+        }]
+    return []
+
+
+def resolve_bulk_assigned_user(value):
+    if not value:
+        return '', None
+    assigned_to = User.objects.filter(username__iexact=value).first()
+    if not assigned_to:
+        return value, f'No active user was found for assigned_to "{value}".'
+    return str(assigned_to.pk), None
+
+
+def resolve_bulk_facility(value):
+    if not value:
+        return '', 'Facility is required.'
+    facility_filter = Q(code__iexact=value) | Q(name__iexact=value)
+    if value.isdigit():
+        facility_filter |= Q(pk=int(value))
+    facility = Facility.objects.filter(facility_filter).first()
+    if not facility:
+        return value, f'No facility was found for "{value}". Use a facility id, code, or exact name.'
+    return str(facility.pk), None
+
+
+def normalize_client_bulk_row(kind, row, fields):
+    normalized = {field: (row.get(field) or '').strip() for field in fields}
+    errors = []
+    if kind == 'follow-ups':
+        normalized['assigned_to'], error = resolve_bulk_assigned_user(normalized.get('assigned_to'))
+        if error:
+            errors.append(error)
+    elif kind == 'appointments':
+        normalized['facility'], error = resolve_bulk_facility(normalized.get('facility'))
+        if error:
+            errors.append(error)
+    return normalized, errors
+
+
+def get_client_bulk_form(kind, data, client, user):
+    spec = get_client_bulk_upload_spec(kind)
+    if kind == 'appointments':
+        return spec['form_class'](data, client=client, created_by=user)
+    return spec['form_class'](data)
+
+
+def save_client_bulk_form(kind, form, client, user):
+    if kind == 'appointments':
+        return form.save()
+
+    obj = form.save(commit=False)
+    obj.client = client
+    if kind in {'journey-events', 'referrals'}:
+        obj.recorded_by = user
+    elif kind == 'follow-ups':
+        obj.created_by = user
+    obj.save()
+    return obj
+
+
+def validate_client_bulk_rows(kind, rows, client, user):
+    spec = get_client_bulk_upload_spec(kind)
+    results = []
+    valid_rows = []
+    for index, row in enumerate(rows, start=2):
+        if not any((value or '').strip() for value in row.values()):
+            continue
+        normalized, errors = normalize_client_bulk_row(kind, row, spec['fields'])
+        form = get_client_bulk_form(kind, normalized, client, user)
+        if not form.is_valid():
+            for field, field_errors in form.errors.items():
+                label = field if field != '__all__' else 'row'
+                errors.extend(f'{label}: {error}' for error in field_errors)
+        valid = not errors
+        results.append({
+            'row_number': index,
+            'valid': valid,
+            'errors': errors,
+            'data': normalized,
+        })
+        if valid:
+            valid_rows.append(normalized)
+    return results, valid_rows
 
 
 def zamtel_sms_is_configured():
@@ -183,6 +382,9 @@ def claim_session_submissions_for_user(request, user):
         SelfTestReportSubmission,
         SideEffectReportSubmission,
         ClinicFeedbackSubmission,
+        SafeguardingCase,
+        GrievanceCase,
+        ClientExitInterview,
     )
     for model in submission_models:
         model.objects.filter(
@@ -203,7 +405,11 @@ def get_user_management_stats():
 
 
 def get_user_management_rows(search_term='', role_filter=''):
-    users = User.objects.select_related('profile__person_identity', 'profile__facility__district').order_by('-date_joined')
+    users = User.objects.select_related(
+        'profile__person_identity',
+        'profile__facility__district',
+        'profile__population_group',
+    ).order_by('-date_joined')
 
     if search_term:
         users = users.filter(
@@ -922,6 +1128,239 @@ def clinic_feedback(request):
     })
 
 
+def safeguarding_report(request):
+    saved_case = None
+    form = SafeguardingReportForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        saved_case = form.save(commit=False)
+        saved_case.user = get_submission_user(request)
+        saved_case.session_key = ensure_session_key(request)
+        saved_case.answers = serialize_form_answers(form.cleaned_data)
+        saved_case.guidance = {
+            'summary': 'Your safeguarding report has been received.',
+            'next_steps': [
+                'Keep the reference number for follow-up.',
+                'A safeguarding focal point will review the report.',
+            ],
+        }
+        saved_case.risk_trigger_flag = form.cleaned_data['severity'] in {'high', 'critical'}
+        saved_case.save()
+        form = SafeguardingReportForm()
+
+    return render(request, 'users/module_submission_form.html', {
+        'title': 'Safeguarding Report',
+        'subtitle': 'Report a safeguarding concern anonymously or while signed in.',
+        'icon': 'shield',
+        'form': form,
+        'saved_record': saved_case,
+        'reference_label': 'Safeguarding reference',
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def safeguarding_management(request):
+    status_filter = request.GET.get('status', '').strip()
+    cases = SafeguardingCase.objects.select_related('user', 'focal_point')
+    if status_filter:
+        cases = cases.filter(status=status_filter)
+
+    today = timezone.localdate()
+    stats = {
+        'total': SafeguardingCase.objects.count(),
+        'open': SafeguardingCase.objects.exclude(status__in=['resolved', 'closed']).count(),
+        'overdue': SafeguardingCase.objects.exclude(status__in=['resolved', 'closed']).filter(sla_deadline__lt=today).count(),
+        'cab_ready': SafeguardingCase.objects.filter(cab_oversight_ready=True).count(),
+    }
+    return render(request, 'users/case_management.html', {
+        'title': 'Safeguarding Cases',
+        'subtitle': 'Track anonymous reports, focal point escalation, confidentiality, SLA status, and CAB oversight.',
+        'icon': 'shield',
+        'records': cases.order_by('status', 'sla_deadline', '-submitted_at'),
+        'stats': stats,
+        'status_choices': SafeguardingCase.STATUS_CHOICES,
+        'status_filter': status_filter,
+        'detail_url_name': 'safeguarding_case_detail',
+        'reference_label': 'Case',
+        'empty_message': 'No safeguarding cases found.',
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def safeguarding_case_detail(request, pk):
+    case = get_object_or_404(SafeguardingCase.objects.select_related('user', 'focal_point'), pk=pk)
+    form = SafeguardingCaseUpdateForm(request.POST or None, instance=case)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Safeguarding case updated.')
+        return redirect('safeguarding_case_detail', pk=case.pk)
+
+    return render(request, 'users/case_detail.html', {
+        'title': case.reference_number,
+        'back_url_name': 'safeguarding_management',
+        'record': case,
+        'form': form,
+        'sensitive_body': case.incident_details,
+        'detail_rows': [
+            ('Incident type', case.get_incident_type_display()),
+            ('Incident date', case.incident_date or 'Not provided'),
+            ('Location', case.location or 'Not provided'),
+            ('Severity', case.get_severity_display()),
+            ('Status', case.get_status_display()),
+            ('SLA deadline', case.sla_deadline),
+            ('Focal point', case.focal_point or 'Not assigned'),
+            ('Risk trigger', 'Yes' if case.risk_trigger_flag else 'No'),
+        ],
+    })
+
+
+def grievance_submit(request):
+    saved_case = None
+    form = GrievanceSubmissionForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        saved_case = form.save(commit=False)
+        saved_case.user = get_submission_user(request)
+        saved_case.session_key = ensure_session_key(request)
+        saved_case.answers = serialize_form_answers(form.cleaned_data)
+        saved_case.guidance = {
+            'summary': 'Your grievance has been received.',
+            'next_steps': [
+                'Keep the reference number for follow-up.',
+                'The responsible team will review and respond where contact is available.',
+            ],
+        }
+        saved_case.save()
+        form = GrievanceSubmissionForm()
+
+    return render(request, 'users/module_submission_form.html', {
+        'title': 'Submit a Grievance',
+        'subtitle': 'Submit a programme complaint through the grievance mechanism.',
+        'icon': 'campaign',
+        'form': form,
+        'saved_record': saved_case,
+        'reference_label': 'Grievance reference',
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def grievance_management(request):
+    status_filter = request.GET.get('status', '').strip()
+    cases = GrievanceCase.objects.select_related('user', 'assigned_to', 'district__province')
+    if status_filter:
+        cases = cases.filter(status=status_filter)
+
+    today = timezone.localdate()
+    stats = {
+        'total': GrievanceCase.objects.count(),
+        'open': GrievanceCase.objects.exclude(status__in=['resolved', 'closed']).count(),
+        'overdue': GrievanceCase.objects.exclude(status__in=['resolved', 'closed']).filter(sla_deadline__lt=today).count(),
+        'urgent': GrievanceCase.objects.filter(priority='urgent').count(),
+    }
+    district_summary = (
+        GrievanceCase.objects
+        .values('district__name')
+        .annotate(total=Count('pk'))
+        .order_by('-total')[:8]
+    )
+    category_summary = (
+        GrievanceCase.objects
+        .values('category')
+        .annotate(total=Count('pk'))
+        .order_by('-total')
+    )
+    return render(request, 'users/case_management.html', {
+        'title': 'Grievance Cases',
+        'subtitle': 'Track complaints, priority, investigator assignment, escalation, response, SLA, and district analytics.',
+        'icon': 'campaign',
+        'records': cases.order_by('status', 'sla_deadline', '-submitted_at'),
+        'stats': stats,
+        'status_choices': GrievanceCase.STATUS_CHOICES,
+        'status_filter': status_filter,
+        'detail_url_name': 'grievance_case_detail',
+        'reference_label': 'Grievance',
+        'empty_message': 'No grievance cases found.',
+        'district_summary': district_summary,
+        'category_summary': category_summary,
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def grievance_case_detail(request, pk):
+    case = get_object_or_404(GrievanceCase.objects.select_related('user', 'assigned_to', 'district__province'), pk=pk)
+    form = GrievanceCaseUpdateForm(request.POST or None, instance=case)
+    if request.method == 'POST' and form.is_valid():
+        updated_case = form.save(commit=False)
+        if updated_case.escalation_target and updated_case.status not in {'resolved', 'closed'}:
+            updated_case.status = 'escalated'
+        updated_case.save()
+        messages.success(request, 'Grievance case updated.')
+        return redirect('grievance_case_detail', pk=case.pk)
+
+    return render(request, 'users/case_detail.html', {
+        'title': case.reference_number,
+        'back_url_name': 'grievance_management',
+        'record': case,
+        'form': form,
+        'sensitive_body': case.complaint_details,
+        'detail_rows': [
+            ('Channel', case.get_submission_channel_display()),
+            ('Category', case.get_category_display()),
+            ('Priority', case.get_priority_display()),
+            ('Status', case.get_status_display()),
+            ('District', case.district or 'Not provided'),
+            ('SLA deadline', case.sla_deadline),
+            ('Assigned to', case.assigned_to or 'Not assigned'),
+            ('Response provided', 'Yes' if case.response_provided else 'No'),
+            ('Escalation', case.get_escalation_target_display() if case.escalation_target else 'Not escalated'),
+        ],
+    })
+
+
+def client_exit_interview(request):
+    saved_interview = None
+    form = ClientExitInterviewForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        saved_interview = form.save(commit=False)
+        saved_interview.user = get_submission_user(request)
+        saved_interview.session_key = ensure_session_key(request)
+        saved_interview.answers = serialize_form_answers(form.cleaned_data)
+        saved_interview.guidance = {
+            'summary': 'Your exit interview has been received.',
+            'next_steps': ['Responses are aggregated into quality dashboards.'],
+        }
+        saved_interview.save()
+        form = ClientExitInterviewForm()
+
+    return render(request, 'users/module_submission_form.html', {
+        'title': 'Client Exit Interview',
+        'subtitle': 'Share service experience without exposing names or biometric data.',
+        'icon': 'rate_review',
+        'form': form,
+        'saved_record': saved_interview,
+        'reference_label': 'Submission',
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def exit_interview_dashboard(request):
+    interviews = ClientExitInterview.objects.select_related(
+        'service_point__district__province',
+        'population_group',
+        'user',
+    )
+    stats = {
+        'total': interviews.count(),
+        'avg_waiting': interviews.aggregate(value=Avg('waiting_time_rating'))['value'] or 0,
+        'avg_staff': interviews.aggregate(value=Avg('staff_attitude_rating'))['value'] or 0,
+        'avg_clarity': interviews.aggregate(value=Avg('information_clarity_score'))['value'] or 0,
+    }
+    return render(request, 'users/exit_interview_dashboard.html', {
+        'interviews': interviews.order_by('-submitted_at'),
+        'stats': stats,
+        'population_summary': interviews.values('population_group__name').annotate(total=Count('pk')).order_by('-total'),
+        'service_point_summary': interviews.values('service_point__name').annotate(total=Count('pk')).order_by('-total')[:10],
+    })
+
+
 @role_required(*USER_ADMIN_ROLES)
 def user_list(request):
     """Display users management list with edit/delete options"""
@@ -940,8 +1379,62 @@ def user_list(request):
             'district__name',
             'name',
         ),
+        'population_group_choices': PopulationGroup.objects.filter(is_active=True).order_by('name'),
     }
     return render(request, 'users/user_management.html', context)
+
+
+@role_required(*USER_ADMIN_ROLES)
+def population_group_management(request):
+    """Create and manage client population groups."""
+    form = PopulationGroupForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Population group saved.')
+        return redirect('population_group_management')
+
+    search_term = request.GET.get('q', '').strip()
+    groups = PopulationGroup.objects.annotate(client_count=Count('client_profiles'))
+    if search_term:
+        groups = groups.filter(
+            Q(name__icontains=search_term) |
+            Q(code__icontains=search_term) |
+            Q(description__icontains=search_term)
+        )
+
+    return render(request, 'users/population_group_management.html', {
+        'form': form,
+        'groups': groups.order_by('name'),
+        'search_term': search_term,
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def population_group_edit(request, pk):
+    group = get_object_or_404(PopulationGroup, pk=pk)
+    form = PopulationGroupForm(request.POST or None, instance=group)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Population group updated.')
+        return redirect('population_group_management')
+
+    return render(request, 'users/population_group_form.html', {
+        'form': form,
+        'group': group,
+        'title': f'Edit {group.name}',
+    })
+
+
+@require_POST
+@role_required(*USER_ADMIN_ROLES)
+def population_group_delete(request, pk):
+    group = get_object_or_404(PopulationGroup, pk=pk)
+    try:
+        group.delete()
+        messages.success(request, 'Population group deleted.')
+    except ProtectedError:
+        messages.error(request, 'This population group is assigned to clients and cannot be deleted.')
+    return redirect('population_group_management')
 
 
 @role_required(*APPOINTMENT_ROLES)
@@ -984,10 +1477,11 @@ def client_record(request, pk):
     consent, _ = ClientConsent.objects.get_or_create(client=client)
 
     locator_form = ClientLocatorForm(instance=locator, prefix='locator')
-    journey_form = ClientJourneyEventForm(prefix='journey')
+    journey_formset = ClientJourneyEventFormSet(prefix='journey')
     referral_form = ReferralRecordForm(prefix='referral')
     follow_up_form = FollowUpTaskForm(prefix='followup')
     consent_form = ClientConsentForm(instance=consent, prefix='consent')
+    appointment_form = ClientAppointmentForm(prefix='appointment', client=client, created_by=request.user)
 
     if request.method == 'POST':
         action = request.POST.get('action')
@@ -1001,13 +1495,21 @@ def client_record(request, pk):
                 messages.success(request, 'Client locator details saved.')
                 return redirect('client_record', pk=client.pk)
         elif action == 'journey':
-            journey_form = ClientJourneyEventForm(request.POST, prefix='journey')
-            if journey_form.is_valid():
-                event = journey_form.save(commit=False)
-                event.client = client
-                event.recorded_by = request.user
-                event.save()
-                messages.success(request, 'Journey event recorded.')
+            journey_formset = ClientJourneyEventFormSet(request.POST, prefix='journey')
+            if journey_formset.is_valid():
+                created_events = 0
+                for journey_form in journey_formset:
+                    if not journey_form.has_changed():
+                        continue
+                    event = journey_form.save(commit=False)
+                    event.client = client
+                    event.recorded_by = request.user
+                    event.save()
+                    created_events += 1
+                if created_events:
+                    messages.success(request, f'{created_events} journey event{"s" if created_events != 1 else ""} recorded.')
+                else:
+                    messages.warning(request, 'Add at least one journey event before saving.')
                 return redirect('client_record', pk=client.pk)
         elif action == 'referral':
             referral_form = ReferralRecordForm(request.POST, prefix='referral')
@@ -1027,6 +1529,17 @@ def client_record(request, pk):
                 task.save()
                 messages.success(request, 'Follow-up task saved.')
                 return redirect('client_record', pk=client.pk)
+        elif action == 'appointment':
+            appointment_form = ClientAppointmentForm(
+                request.POST,
+                prefix='appointment',
+                client=client,
+                created_by=request.user,
+            )
+            if appointment_form.is_valid():
+                appointment_form.save()
+                messages.success(request, 'Appointment booked.')
+                return redirect('client_record', pk=client.pk)
         elif action == 'consent':
             consent_form = ClientConsentForm(request.POST, instance=consent, prefix='consent')
             if consent_form.is_valid():
@@ -1042,14 +1555,202 @@ def client_record(request, pk):
         'locator': locator,
         'consent': consent,
         'locator_form': locator_form,
-        'journey_form': journey_form,
+        'journey_formset': journey_formset,
         'referral_form': referral_form,
         'follow_up_form': follow_up_form,
         'consent_form': consent_form,
+        'appointment_form': appointment_form,
         'journey_events': client.journey_events.all()[:10],
         'referrals': client.referral_records.all()[:10],
         'follow_up_tasks': client.follow_up_tasks.all()[:10],
         'appointments': get_visible_appointments(request.user).filter(beneficiary=client)[:10],
+    })
+
+
+@role_required(*APPOINTMENT_ROLES)
+def client_bulk_upload_template(request, pk, kind):
+    """Download a CSV template for client record bulk creation."""
+    client = get_client_for_management(request.user, pk)
+    spec = get_client_bulk_upload_spec(kind)
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{spec["filename"]}"'
+    writer = csv.DictWriter(response, fieldnames=spec['fields'])
+    writer.writeheader()
+    writer.writerows(get_client_bulk_template_rows(kind))
+    return response
+
+
+@role_required(*APPOINTMENT_ROLES)
+def client_bulk_upload_validate(request, pk, kind):
+    """Validate a CSV upload before committing client record objects."""
+    client = get_client_for_management(request.user, pk)
+    spec = get_client_bulk_upload_spec(kind)
+    session_key = get_client_bulk_session_key(client, kind)
+    results = []
+    commit_ready = False
+    uploaded_filename = ''
+
+    if request.method == 'POST':
+        upload = request.FILES.get('bulk_file')
+        if not upload:
+            messages.error(request, 'Choose a CSV file to validate.')
+        else:
+            uploaded_filename = upload.name
+            try:
+                csv_text = upload.read().decode('utf-8-sig')
+                reader = csv.DictReader(io.StringIO(csv_text))
+                missing_fields = [field for field in spec['fields'] if field not in (reader.fieldnames or [])]
+                if missing_fields:
+                    messages.error(request, f'Missing required column{"s" if len(missing_fields) != 1 else ""}: {", ".join(missing_fields)}.')
+                    request.session.pop(session_key, None)
+                else:
+                    rows = list(reader)
+                    results, valid_rows = validate_client_bulk_rows(kind, rows, client, request.user)
+                    if not results:
+                        messages.error(request, 'The CSV file has no rows to upload.')
+                        request.session.pop(session_key, None)
+                    elif all(result['valid'] for result in results):
+                        request.session[session_key] = valid_rows
+                        request.session.modified = True
+                        commit_ready = True
+                        messages.success(request, 'Validation passed. Review the rows, then submit to post them.')
+                    else:
+                        request.session.pop(session_key, None)
+                        messages.error(request, 'Validation failed. Fix the rows marked with errors and upload again.')
+            except UnicodeDecodeError:
+                request.session.pop(session_key, None)
+                messages.error(request, 'Upload a UTF-8 encoded CSV file.')
+            except csv.Error as exc:
+                request.session.pop(session_key, None)
+                messages.error(request, f'The CSV file could not be read: {exc}')
+
+    return render(request, 'users/client_bulk_upload.html', {
+        'client': client,
+        'kind': kind,
+        'spec': spec,
+        'results': results,
+        'commit_ready': commit_ready,
+        'uploaded_filename': uploaded_filename,
+    })
+
+
+@role_required(*APPOINTMENT_ROLES)
+@require_POST
+def client_bulk_upload_commit(request, pk, kind):
+    """Create client record objects from the previously validated bulk upload."""
+    client = get_client_for_management(request.user, pk)
+    spec = get_client_bulk_upload_spec(kind)
+    session_key = get_client_bulk_session_key(client, kind)
+    rows = request.session.get(session_key)
+    if not rows:
+        messages.error(request, 'Validate a CSV file before submitting the upload.')
+        return redirect('client_bulk_upload', pk=client.pk, kind=kind)
+
+    results, valid_rows = validate_client_bulk_rows(kind, rows, client, request.user)
+    if not results or len(valid_rows) != len(results):
+        request.session.pop(session_key, None)
+        messages.error(request, 'The validated upload is no longer valid. Please upload and validate the file again.')
+        return redirect('client_bulk_upload', pk=client.pk, kind=kind)
+
+    with transaction.atomic():
+        for row in valid_rows:
+            form = get_client_bulk_form(kind, row, client, request.user)
+            if not form.is_valid():
+                raise ValueError(f'Validated {spec["label"]} row failed during save.')
+            save_client_bulk_form(kind, form, client, request.user)
+
+    request.session.pop(session_key, None)
+    messages.success(request, f'{len(valid_rows)} {spec["label"].lower()} row{"s" if len(valid_rows) != 1 else ""} posted.')
+    return redirect('client_record', pk=client.pk)
+
+
+@active_login_required
+def my_journey(request):
+    """Show the signed-in user's own care journey timeline."""
+    user = request.user
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    locator = getattr(user, 'client_locator', None)
+    consent = getattr(user, 'client_consent', None)
+    appointments = Appointment.objects.filter(beneficiary=user).select_related('facility', 'district', 'province')
+    journey_events = user.journey_events.select_related('recorded_by').all()
+    referrals = user.referral_records.select_related('recorded_by').all()
+    follow_up_tasks = user.follow_up_tasks.select_related('assigned_to').all()
+
+    timeline = []
+    for event in journey_events:
+        timeline.append({
+            'date': event.event_date,
+            'type': 'Journey',
+            'title': event.get_stage_display(),
+            'status': event.get_outcome_display(),
+            'details': event.notes,
+        })
+    for appointment in appointments:
+        timeline.append({
+            'date': appointment.appointment_date,
+            'type': 'Appointment',
+            'title': appointment.get_visit_purpose_display(),
+            'status': appointment.get_status_display(),
+            'details': appointment.facility.name,
+        })
+    for referral in referrals:
+        timeline.append({
+            'date': referral.referred_on,
+            'type': 'Referral',
+            'title': referral.receiving_hub,
+            'status': referral.get_confirmation_status_display(),
+            'details': referral.get_initiation_outcome_display(),
+        })
+    for task in follow_up_tasks:
+        timeline.append({
+            'date': task.due_date,
+            'type': 'Follow-up',
+            'title': task.get_reason_display(),
+            'status': task.get_status_display(),
+            'details': task.outcome_notes or task.notes,
+        })
+    timeline.sort(key=lambda item: item['date'], reverse=True)
+    timeline_by_year = []
+    year_lookup = {}
+    for index, item in enumerate(timeline, start=1):
+        item['index'] = index
+        year = item['date'].year
+        if year not in year_lookup:
+            year_group = {
+                'year': year,
+                'items': [],
+            }
+            year_lookup[year] = year_group
+            timeline_by_year.append(year_group)
+        year_lookup[year]['items'].append(item)
+    latest_item = timeline[0] if timeline else None
+    first_item = timeline[-1] if timeline else None
+    upcoming_appointment = (
+        appointments
+        .filter(status='upcoming', appointment_date__gte=timezone.localdate())
+        .order_by('appointment_date', 'appointment_time')
+        .first()
+    )
+    open_follow_up_count = follow_up_tasks.exclude(status__in=['completed', 'cancelled']).count()
+    timeline_summary = {
+        'total_items': len(timeline),
+        'first_item': first_item,
+        'latest_item': latest_item,
+        'upcoming_appointment': upcoming_appointment,
+        'open_follow_up_count': open_follow_up_count,
+    }
+
+    return render(request, 'users/my_journey.html', {
+        'profile': profile,
+        'locator': locator,
+        'consent': consent,
+        'appointments': appointments[:10],
+        'journey_events': journey_events[:10],
+        'referrals': referrals[:10],
+        'follow_up_tasks': follow_up_tasks[:10],
+        'timeline': timeline,
+        'timeline_by_year': timeline_by_year,
+        'timeline_summary': timeline_summary,
     })
 
 
@@ -1255,9 +1956,11 @@ def user_create(request):
         role = request.POST.get('role')
         person_identity = get_selected_person_identity(request.POST.get('person_identity') or None)
         facility_id = request.POST.get('facility') or None
+        population_group_id = request.POST.get('population_group') or None
         valid_roles = {choice[0] for choice in UserProfile.ROLE_CHOICES}
         facility_error = None
         facility = None
+        population_group = None
         if role in FACILITY_REQUIRED_ROLES:
             if not facility_id:
                 facility_error = 'Select the facility where this user works.'
@@ -1269,6 +1972,8 @@ def user_create(request):
             facility = Facility.objects.filter(pk=facility_id).first()
             if not facility:
                 facility_error = 'Select a valid facility.'
+        if role == 'client' and population_group_id:
+            population_group = PopulationGroup.objects.filter(pk=population_group_id, is_active=True).first()
         if form.is_valid():
             if facility_error:
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1280,8 +1985,15 @@ def user_create(request):
                 user.profile.role = role
             user.profile.person_identity = person_identity or PersonIdentity.for_user_defaults(user)
             user.profile.facility = facility if role in FACILITY_ASSIGNABLE_ROLES else None
+            user.profile.population_group = population_group if role == 'client' else None
             user.profile.must_change_password = request.POST.get('must_change_password') == 'on'
-            user.profile.save(update_fields=['role', 'person_identity', 'facility', 'must_change_password'])
+            user.profile.save(update_fields=[
+                'role',
+                'person_identity',
+                'facility',
+                'population_group',
+                'must_change_password',
+            ])
             
             # Handle AJAX requests
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':

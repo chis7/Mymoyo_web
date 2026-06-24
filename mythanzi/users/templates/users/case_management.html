@@ -1,0 +1,119 @@
+{% extends "users/base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<nav class="management-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'user_dashboard' %}">Command Center</a>
+    <span class="material-symbols-outlined">chevron_right</span>
+    <span aria-current="page">{{ title }}</span>
+</nav>
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1"><span class="material-symbols-outlined align-middle">{{ icon }}</span> {{ title }}</h1>
+        <p class="text-muted mb-0">{{ subtitle }}</p>
+    </div>
+    <form method="get" class="d-flex gap-2">
+        <select class="form-select" name="status">
+            <option value="">All statuses</option>
+            {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <button class="btn btn-outline-primary" type="submit">Filter</button>
+    </form>
+</div>
+
+<div class="row g-3 mb-4">
+    {% for key, value in stats.items %}
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <div class="h3 mb-0">{{ value }}</div>
+                    <div class="text-muted text-capitalize">{{ key|cut:"_" }}</div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+
+{% if district_summary or category_summary %}
+    <div class="row g-3 mb-4">
+        {% if district_summary %}
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header"><strong>District Analytics</strong></div>
+                    <div class="card-body">
+                        {% for item in district_summary %}
+                            <div class="d-flex justify-content-between border-bottom py-2">
+                                <span>{{ item.district__name|default:"No district" }}</span>
+                                <strong>{{ item.total }}</strong>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+        {% if category_summary %}
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header"><strong>Category Trends</strong></div>
+                    <div class="card-body">
+                        {% for item in category_summary %}
+                            <div class="d-flex justify-content-between border-bottom py-2">
+                                <span>{{ item.category|default:"Uncategorised" }}</span>
+                                <strong>{{ item.total }}</strong>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>{{ reference_label }}</th>
+                    <th>Status</th>
+                    <th>Priority/Severity</th>
+                    <th>SLA Deadline</th>
+                    <th>Submitted</th>
+                    <th class="text-end">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in records %}
+                    <tr>
+                        <td><strong>{{ record.reference_number }}</strong></td>
+                        <td>{{ record.get_status_display }}</td>
+                        <td>
+                            {% if record.get_priority_display %}
+                                {{ record.get_priority_display }}
+                            {% elif record.get_severity_display %}
+                                {{ record.get_severity_display }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ record.sla_deadline|date:"M d, Y" }}
+                            {% if record.is_overdue %}<span class="badge bg-danger ms-2">Overdue</span>{% endif %}
+                        </td>
+                        <td>{{ record.submitted_at|date:"M d, Y H:i" }}</td>
+                        <td class="text-end">
+                            <a class="btn btn-sm btn-outline-primary" href="{% url detail_url_name record.pk %}">Open</a>
+                        </td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-4">{{ empty_message }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

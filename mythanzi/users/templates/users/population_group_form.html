@@ -1,0 +1,42 @@
+{% extends 'users/base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<nav class="management-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'user_dashboard' %}">Command Center</a>
+    <span class="material-symbols-outlined">chevron_right</span>
+    <a href="{% url 'population_group_management' %}">Population Groups</a>
+    <span class="material-symbols-outlined">chevron_right</span>
+    <span aria-current="page">Edit</span>
+</nav>
+
+<div class="card">
+    <div class="card-header">
+        <h1 class="h5 mb-0">{{ title }}</h1>
+    </div>
+    <div class="card-body">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% for field in form %}
+                {% if field.field.widget.input_type == 'checkbox' %}
+                    <div class="form-check mb-3">
+                        {{ field }}
+                        <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    </div>
+                {% else %}
+                    <div class="mb-3">
+                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {{ field }}
+                        {% for error in field.errors %}
+                            <div class="invalid-feedback d-block">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+            <button type="submit" class="btn btn-primary">Save Changes</button>
+            <a href="{% url 'population_group_management' %}" class="btn btn-outline-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

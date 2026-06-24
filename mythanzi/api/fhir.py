@@ -206,6 +206,18 @@ def _person_resource(profile):
             'url': 'https://mythanzi.local/fhir/StructureDefinition/person-identity',
             'valueReference': _reference('Person', logical_id(profile.person_identity), profile.person_identity.full_name),
         })
+    if profile.population_group_id:
+        resource.setdefault('extension', []).append({
+            'url': 'https://mythanzi.local/fhir/StructureDefinition/population-group',
+            'valueCodeableConcept': {
+                'coding': [{
+                    'system': 'https://mythanzi.local/fhir/CodeSystem/population-group',
+                    'code': profile.population_group.code,
+                    'display': profile.population_group.name,
+                }],
+                'text': profile.population_group.name,
+            },
+        })
     if resource['resourceType'] == 'Practitioner':
         resource['qualification'] = [{'code': {'text': profile.get_role_display()}}]
         if profile.facility_id:

@@ -9,6 +9,7 @@ from django.contrib.auth.models import User
 from django.test import Client
 from django.utils import timezone
 
+from .forms import ClientAppointmentForm
 from .models import (
     Appointment,
     AuditLog,
@@ -17,6 +18,7 @@ from .models import (
     ClientLocator,
     ClinicFeedbackSubmission,
     FollowUpTask,
+    PopulationGroup,
     ReferralRecord,
     SelfRiskAssessmentSubmission,
     SelfTestReportSubmission,
@@ -868,6 +870,109 @@ class PortalAccessTests(TestCase):
         user.profile.refresh_from_db()
         self.assertJSONEqual(response.content, {'success': True})
         self.assertIsNone(user.profile.facility_id)
+
+    def test_admin_can_assign_population_group_to_client(self):
+        admin = self.create_user('population-admin', 'admin')
+        user = self.create_user('population-client', 'client')
+        group = PopulationGroup.objects.create(name='FSW', code='fsw', is_active=True)
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse('user_edit', args=[user.pk]),
+            {
+                'username': user.username,
+                'first_name': '',
+                'last_name': '',
+                'email': '',
+                'role': 'client',
+                'population_group': group.pk,
+                'is_active': 'on',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        user.profile.refresh_from_db()
+        self.assertJSONEqual(response.content, {'success': True})
+        self.assertEqual(user.profile.population_group_id, group.pk)
+
+    def test_population_group_is_cleared_for_non_client_roles(self):
+        admin = self.create_user('population-clear-admin', 'admin')
+        user = self.create_user('population-worker', 'client')
+        group = PopulationGroup.objects.create(name='General Population', code='general-population', is_active=True)
+        _province, _district, facility = self.create_location()
+        user.profile.population_group = group
+        user.profile.save(update_fields=['population_group'])
+        self.client.force_login(admin)
+
+        response = self.client.post(
+            reverse('user_edit', args=[user.pk]),
+            {
+                'username': user.username,
+                'first_name': '',
+                'last_name': '',
+                'email': '',
+                'role': 'provider',
+                'facility': facility.pk,
+                'population_group': group.pk,
+                'is_active': 'on',
+            },
+            HTTP_X_REQUESTED_WITH='XMLHttpRequest',
+        )
+
+        user.profile.refresh_from_db()
+        self.assertJSONEqual(response.content, {'success': True})
+        self.assertIsNone(user.profile.population_group_id)
+
+    def test_admin_can_manage_population_groups(self):
+        admin = self.create_user('population-page-admin', 'admin')
+        self.client.force_login(admin)
+
+        response = self.client.post(reverse('population_group_management'), {
+            'name': 'General Population',
+            'code': 'general-population',
+            'description': 'Default client group',
+            'is_active': 'on',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response['Location'], reverse('population_group_management'))
+        self.assertTrue(PopulationGroup.objects.filter(code='general-population').exists())
+
+    def test_client_journey_events_can_be_recorded_for_my_journey(self):
+        client = self.create_user('journey-client', 'client')
+        event = ClientJourneyEvent.objects.create(
+            client=client,
+            stage='risk_assessment',
+            outcome='completed',
+            recorded_by=client,
+        )
+
+        self.assertEqual(client.journey_events.get(), event)
+
+    def test_client_record_appointment_form_creates_client_appointment(self):
+        provider = self.create_user('client-record-provider', 'provider')
+        client = self.create_user('client-record-client', 'client')
+        _province, _district, facility = self.create_location()
+        provider.profile.facility = facility
+        provider.profile.save(update_fields=['facility'])
+        future = timezone.localtime() + timedelta(days=1)
+
+        form = ClientAppointmentForm(
+            {
+                'visit_purpose': 'follow_up',
+                'appointment_date': future.date().isoformat(),
+                'appointment_time': future.strftime('%H:%M'),
+                'facility': facility.pk,
+                'notes': 'Created from client management.',
+            },
+            client=client,
+            created_by=provider,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        appointment = form.save()
+        self.assertEqual(appointment.created_by, provider)
+        self.assertEqual(appointment.facility, facility)
 
     def test_admin_can_make_user_inactive_with_management_modal_payload(self):
         admin = self.create_user('admin-deactivator', 'admin')

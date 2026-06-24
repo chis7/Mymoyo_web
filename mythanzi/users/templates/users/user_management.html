@@ -867,6 +867,11 @@
                         </button>
                     </th>
                     <th>
+                        <button type="button" class="sort-button" data-sort-key="population" data-sort-type="text" aria-sort="none">
+                            Population <span class="sort-icon" aria-hidden="true">â†•</span>
+                        </button>
+                    </th>
+                    <th>
                         <button type="button" class="sort-button" data-sort-key="status" data-sort-type="text" aria-sort="none">
                             Status <span class="sort-icon" aria-hidden="true">↕</span>
                         </button>
@@ -1013,6 +1018,15 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="population_group">Population Group</label>
+                    <select id="population_group" name="population_group">
+                        <option value="">Select population group</option>
+                        {% for group in population_group_choices %}
+                            <option value="{{ group.pk }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <div class="form-group full-width">
                     <label for="must_change_password">
                         <input type="checkbox" id="must_change_password" name="must_change_password" value="on">
@@ -1077,6 +1091,15 @@
                         <option value="">Select facility</option>
                         {% for facility in facility_choices %}
                             <option value="{{ facility.pk }}">{{ facility.name }} - {{ facility.district.name }}, {{ facility.district.province.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="edit_population_group">Population Group</label>
+                    <select id="edit_population_group" name="population_group">
+                        <option value="">Select population group</option>
+                        {% for group in population_group_choices %}
+                            <option value="{{ group.pk }}">{{ group.name }}</option>
                         {% endfor %}
                     </select>
                 </div>
@@ -1446,7 +1469,7 @@
         document.getElementById('createForm').reset();
     }
     
-    function openEditModal(userId, username, firstName, lastName, email, role, personIdentityId, facilityId, isActive, mustChangePassword) {
+    function openEditModal(userId, username, firstName, lastName, email, role, personIdentityId, facilityId, populationGroupId, isActive, mustChangePassword) {
         currentEditUserId = userId;
         document.getElementById('edit_username').value = username;
         document.getElementById('edit_first_name').value = firstName;
@@ -1455,6 +1478,7 @@
         document.getElementById('edit_role').value = role;
         document.getElementById('edit_person_identity').value = personIdentityId || '';
         document.getElementById('edit_facility').value = facilityId || '';
+        document.getElementById('edit_population_group').value = populationGroupId || '';
         document.getElementById('edit_is_active').checked = isActive;
         document.getElementById('edit_must_change_password').checked = mustChangePassword;
         document.getElementById('editModal').classList.add('active');

@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from django.db import models
 from django.contrib.auth.models import User
@@ -30,6 +30,21 @@ class PersonIdentity(models.Model):
             phone=phone or None,
             date_of_birth=date_of_birth,
         )
+
+
+class PopulationGroup(models.Model):
+    """Reference data for client population group assignment."""
+    name = models.CharField(max_length=120, unique=True)
+    code = models.SlugField(max_length=80, unique=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
 
 
 class UserProfile(models.Model):
@@ -105,6 +120,13 @@ class UserProfile(models.Model):
         blank=True,
         null=True,
         related_name='workers',
+    )
+    population_group = models.ForeignKey(
+        PopulationGroup,
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        related_name='client_profiles',
     )
     reference_number = models.CharField(max_length=20, unique=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='client')
@@ -413,6 +435,201 @@ class AnonymousOrUserSubmission(models.Model):
     class Meta:
         abstract = True
         ordering = ['-submitted_at']
+
+
+class SafeguardingCase(AnonymousOrUserSubmission):
+    INCIDENT_TYPE_CHOICES = [
+        ('abuse', 'Abuse or exploitation'),
+        ('harassment', 'Harassment'),
+        ('coercion', 'Coercion or pressure'),
+        ('privacy_breach', 'Privacy breach'),
+        ('unsafe_service', 'Unsafe service environment'),
+        ('other', 'Other concern'),
+    ]
+    SEVERITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+    STATUS_CHOICES = [
+        ('received', 'Received'),
+        ('under_review', 'Under review'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    ]
+
+    reference_number = models.CharField(max_length=24, unique=True, blank=True)
+    incident_type = models.CharField(max_length=40, choices=INCIDENT_TYPE_CHOICES)
+    incident_date = models.DateField(blank=True, null=True)
+    location = models.CharField(max_length=180, blank=True)
+    severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='medium')
+    involved_parties = models.TextField(blank=True)
+    incident_details = models.TextField()
+    focal_point = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='assigned_safeguarding_cases',
+    )
+    confidentiality_locked = models.BooleanField(default=True)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='received')
+    sla_deadline = models.DateField(blank=True, null=True)
+    risk_trigger_flag = models.BooleanField(default=False)
+    cab_oversight_ready = models.BooleanField(default=False)
+    resolution_notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['status', 'sla_deadline', '-submitted_at']
+
+    def __str__(self):
+        return self.reference_number or f'Safeguarding case #{self.pk}'
+
+    def save(self, *args, **kwargs):
+        if not self.sla_deadline:
+            self.sla_deadline = timezone.localdate() + timedelta(days=30)
+        super().save(*args, **kwargs)
+        if not self.reference_number:
+            self.reference_number = f'SG-{self.pk:06d}'
+            super().save(update_fields=['reference_number'])
+
+    @property
+    def is_overdue(self):
+        return self.status not in {'resolved', 'closed'} and self.sla_deadline and self.sla_deadline < timezone.localdate()
+
+
+class GrievanceCase(AnonymousOrUserSubmission):
+    CHANNEL_CHOICES = [
+        ('in_app', 'In-app form'),
+        ('qr_box', 'QR suggestion box'),
+        ('verbal_log', 'Verbal log'),
+        ('peer_navigator', 'Peer navigator entry'),
+    ]
+    CATEGORY_CHOICES = [
+        ('service', 'Service'),
+        ('staff', 'Staff'),
+        ('access', 'Access'),
+        ('stigma', 'Stigma'),
+        ('discrimination', 'Discrimination'),
+        ('quality', 'Programme quality'),
+        ('other', 'Other'),
+    ]
+    PRIORITY_CHOICES = [
+        ('standard', 'Standard'),
+        ('urgent', 'Urgent'),
+    ]
+    STATUS_CHOICES = [
+        ('received', 'Received'),
+        ('assigned', 'Assigned'),
+        ('under_review', 'Under review'),
+        ('escalated', 'Escalated'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    ]
+    ESCALATION_CHOICES = [
+        ('', 'Not escalated'),
+        ('programme_manager', 'Programme Manager'),
+        ('psc', 'PSC'),
+        ('governance_structure', 'Other governance structure'),
+    ]
+
+    reference_number = models.CharField(max_length=24, unique=True, blank=True)
+    submission_channel = models.CharField(max_length=30, choices=CHANNEL_CHOICES, default='in_app')
+    category = models.CharField(max_length=30, choices=CATEGORY_CHOICES)
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='standard')
+    complaint_details = models.TextField()
+    district = models.ForeignKey(
+        'locations.District',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='grievance_cases',
+    )
+    assigned_to = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='assigned_grievance_cases',
+    )
+    response_provided = models.BooleanField(default=False)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES, default='received')
+    escalation_target = models.CharField(max_length=40, choices=ESCALATION_CHOICES, blank=True)
+    sla_deadline = models.DateField(blank=True, null=True)
+    resolution_notes = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['status', 'sla_deadline', '-submitted_at']
+
+    def __str__(self):
+        return self.reference_number or f'Grievance #{self.pk}'
+
+    def save(self, *args, **kwargs):
+        if not self.sla_deadline:
+            self.sla_deadline = timezone.localdate() + timedelta(days=30)
+        super().save(*args, **kwargs)
+        if not self.reference_number:
+            self.reference_number = f'GV-{self.pk:06d}'
+            super().save(update_fields=['reference_number'])
+
+    @property
+    def is_overdue(self):
+        return self.status not in {'resolved', 'closed'} and self.sla_deadline and self.sla_deadline < timezone.localdate()
+
+
+class ClientExitInterview(AnonymousOrUserSubmission):
+    SERVICE_POINT_CHOICES = [
+        ('hub', 'Hub'),
+        ('spoke', 'Spoke'),
+        ('other', 'Other service point'),
+    ]
+    RATING_CHOICES = [
+        (1, '1 - Very poor'),
+        (2, '2 - Poor'),
+        (3, '3 - Fair'),
+        (4, '4 - Good'),
+        (5, '5 - Excellent'),
+    ]
+    YES_NO_CHOICES = [
+        ('yes', 'Yes'),
+        ('no', 'No'),
+        ('unsure', 'Not sure'),
+    ]
+
+    client_code = models.CharField(max_length=80, blank=True)
+    service_point_type = models.CharField(max_length=20, choices=SERVICE_POINT_CHOICES)
+    service_point = models.ForeignKey(
+        'locations.Facility',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='exit_interviews',
+    )
+    population_group = models.ForeignKey(
+        PopulationGroup,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='exit_interviews',
+    )
+    waiting_time_rating = models.PositiveSmallIntegerField(choices=RATING_CHOICES)
+    staff_attitude_rating = models.PositiveSmallIntegerField(choices=RATING_CHOICES)
+    privacy_respected = models.CharField(max_length=10, choices=YES_NO_CHOICES)
+    information_clarity_score = models.PositiveSmallIntegerField(choices=RATING_CHOICES)
+    len_questions_understood = models.CharField(max_length=10, choices=YES_NO_CHOICES)
+    net_promoter_score = models.PositiveSmallIntegerField()
+    comments = models.TextField(blank=True)
+    dashboard_ready = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        owner = self.client_code or (self.user.username if self.user_id else 'Anonymous')
+        return f'Exit interview - {owner}'
 
 
 class SelfRiskAssessmentSubmission(AnonymousOrUserSubmission):

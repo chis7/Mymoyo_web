@@ -11,6 +11,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     responsibilities = serializers.SerializerMethodField()
     facility_name = serializers.CharField(source='facility.name', read_only=True)
     person_identity_name = serializers.CharField(source='person_identity.full_name', read_only=True)
+    population_group_name = serializers.CharField(source='population_group.name', read_only=True)
 
     class Meta:
         model = UserProfile
@@ -21,6 +22,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'person_identity_name',
             'facility',
             'facility_name',
+            'population_group',
+            'population_group_name',
             'responsibilities',
             'bio',
             'phone',

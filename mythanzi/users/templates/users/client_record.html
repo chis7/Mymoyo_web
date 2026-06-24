@@ -63,31 +63,57 @@
             </div>
         </div>
 
-        <div class="col-xl-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+                        <div>
+                            <h2 class="h5 mb-1">Bulk Upload</h2>
+                            <p class="text-muted small mb-0">Download a template, validate the completed CSV, then submit after every row passes.</p>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <a class="btn btn-outline-primary btn-sm" href="{% url 'client_bulk_upload' client.pk 'journey-events' %}">Journey Events</a>
+                            <a class="btn btn-outline-primary btn-sm" href="{% url 'client_bulk_upload' client.pk 'referrals' %}">Referrals</a>
+                            <a class="btn btn-outline-primary btn-sm" href="{% url 'client_bulk_upload' client.pk 'follow-ups' %}">Follow-Up Tasks</a>
+                            <a class="btn btn-outline-primary btn-sm" href="{% url 'client_bulk_upload' client.pk 'appointments' %}">Appointments</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
-                    <h2 class="h5">Add Journey Event</h2>
-                    <form method="post">
+                    <h2 class="h5">Add Journey Events</h2>
+                    <p class="text-muted small">Enter one or more new events. Blank rows are ignored.</p>
+                    <form method="post" autocomplete="off">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="journey">
-                        {% for field in journey_form %}
-                            <div class="mb-3">
-                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-                                {{ field }}
-                                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        {{ journey_formset.management_form }}
+                        {% for form in journey_formset %}
+                            <div class="border rounded p-2 mb-3">
+                                <div class="text-muted small fw-semibold mb-2">Event {{ forloop.counter }}</div>
+                                {% for field in form %}
+                                    <div class="mb-3">
+                                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                        {{ field }}
+                                        {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                                    </div>
+                                {% endfor %}
                             </div>
                         {% endfor %}
-                        <button class="btn btn-primary" type="submit">Record Event</button>
+                        <button class="btn btn-primary" type="submit">Record Events</button>
                     </form>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-4">
+        <div class="col-xl-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <h2 class="h5">Add Referral</h2>
-                    <form method="post">
+                    <form method="post" autocomplete="off">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="referral">
                         {% for field in referral_form %}
@@ -103,11 +129,11 @@
             </div>
         </div>
 
-        <div class="col-xl-4">
+        <div class="col-xl-3">
             <div class="card border-0 shadow-sm h-100">
                 <div class="card-body">
                     <h2 class="h5">Add Follow-Up Task</h2>
-                    <form method="post">
+                    <form method="post" autocomplete="off">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="followup">
                         {% for field in follow_up_form %}
@@ -118,6 +144,26 @@
                             </div>
                         {% endfor %}
                         <button class="btn btn-primary" type="submit">Save Task</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h5">Create Appointment</h2>
+                    <form method="post" autocomplete="off">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="appointment">
+                        {% for field in appointment_form %}
+                            <div class="mb-3">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% endfor %}
+                        <button class="btn btn-primary" type="submit">Book Appointment</button>
                     </form>
                 </div>
             </div>
