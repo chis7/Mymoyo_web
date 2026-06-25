@@ -42,6 +42,8 @@ from .models import (
     ClinicFeedbackSubmission,
     ClientLocator,
     GrievanceCase,
+    Notification,
+    NotificationTypeSetting,
     PersonIdentity,
     PopulationGroup,
     ReferralRecord,
@@ -52,6 +54,7 @@ from .models import (
     UserProfile,
 )
 from .audit import should_audit_model
+from .notifications import notify_appointment_created
 from .forms import (
     AppointmentForm,
     AppointmentEditForm,
@@ -147,6 +150,57 @@ CLIENT_BULK_UPLOAD_SPECS = {
         ),
     },
 }
+
+DEFAULT_NOTIFICATION_TYPE_SETTINGS = [
+    {
+        'key': 'medication_dose',
+        'name': 'Medication Dose',
+        'description': 'Daily medicine, PrEP, LEN, or other prevention product reminders.',
+        'cadence': 'daily',
+        'channel': 'portal',
+        'timing': '08:00',
+    },
+    {
+        'key': 'appointment',
+        'name': 'Appointment',
+        'description': 'Upcoming clinic, review, initiation, injection, or refill visits.',
+        'cadence': 'before_event',
+        'channel': 'portal_email',
+        'timing': '24h',
+    },
+    {
+        'key': 'medication_refill',
+        'name': 'Medication Refill',
+        'description': 'Refill collection and stock continuity reminders.',
+        'cadence': 'before_event',
+        'channel': 'portal',
+        'timing': '72h',
+    },
+    {
+        'key': 'lab_collection',
+        'name': 'Lab Collection',
+        'description': 'Lab sample collection and result follow-up reminders.',
+        'cadence': 'before_event',
+        'channel': 'portal',
+        'timing': '24h',
+    },
+    {
+        'key': 'referral_follow_up',
+        'name': 'Referral Follow-Up',
+        'description': 'Reminders to confirm attendance, linkage, and referral outcomes.',
+        'cadence': 'after_event',
+        'channel': 'portal',
+        'timing': '48h',
+    },
+    {
+        'key': 'side_effect_check_in',
+        'name': 'Side-Effect Check-In',
+        'description': 'Safety and tolerability check-ins after initiation or product changes.',
+        'cadence': 'after_event',
+        'channel': 'portal',
+        'timing': '7d',
+    },
+]
 
 
 def get_client_bulk_upload_spec(kind):
@@ -445,6 +499,21 @@ def get_user_management_rows(search_term='', role_filter=''):
         })
 
     return users_with_profiles
+
+
+def population_group_matches_sex(population_group, sex):
+    return (
+        population_group
+        and population_group.is_active
+        and population_group.sex_eligibility in {'all', sex}
+    )
+
+
+def normalize_user_role_for_staff(role, is_staff):
+    staff_roles = {value for value, _label in UserProfile.ROLE_CHOICES if value != 'client'}
+    if is_staff:
+        return role if role in staff_roles else ''
+    return 'client'
 
 
 def get_visible_appointments(user):
@@ -770,42 +839,109 @@ def get_portal_landing_url(user):
 
 @active_login_required
 def medication_reminders(request):
-    prevention_methods = [
+    for default in DEFAULT_NOTIFICATION_TYPE_SETTINGS:
+        NotificationTypeSetting.objects.get_or_create(
+            key=default['key'],
+            defaults={
+                'name': default['name'],
+                'description': default['description'],
+                'cadence': default['cadence'],
+                'channel': default['channel'],
+                'timing': default['timing'],
+                'enabled': True,
+                'is_system': True,
+            },
+        )
+
+    if request.method == 'POST':
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'success': False, 'error': 'Invalid notification payload.'}, status=400)
+
+        notification_types = payload.get('notification_types', [])
+        if not isinstance(notification_types, list):
+            return JsonResponse({'success': False, 'error': 'Notification types must be a list.'}, status=400)
+
+        valid_channels = {choice[0] for choice in NotificationTypeSetting.CHANNEL_CHOICES}
+        valid_cadences = {choice[0] for choice in NotificationTypeSetting.CADENCE_CHOICES}
+        seen_keys = set()
+        for item in notification_types:
+            key = str(item.get('key', '')).strip().lower().replace(' ', '_')
+            name = str(item.get('name', '')).strip()
+            if not key or not name:
+                return JsonResponse({'success': False, 'error': 'Every notification type needs a name and code.'}, status=400)
+            if key in seen_keys:
+                return JsonResponse({'success': False, 'error': f'Duplicate notification code: {key}.'}, status=400)
+            seen_keys.add(key)
+            channel = item.get('channel') if item.get('channel') in valid_channels else 'portal'
+            cadence = item.get('cadence') if item.get('cadence') in valid_cadences else 'daily'
+            NotificationTypeSetting.objects.update_or_create(
+                key=key,
+                defaults={
+                    'name': name,
+                    'description': str(item.get('description', '')).strip(),
+                    'cadence': cadence,
+                    'channel': channel,
+                    'timing': str(item.get('timing', '')).strip() or '08:00',
+                    'enabled': bool(item.get('enabled')),
+                    'is_system': NotificationTypeSetting.objects.filter(key=key, is_system=True).exists(),
+                },
+            )
+
+        NotificationTypeSetting.objects.exclude(key__in=seen_keys).delete()
+        return JsonResponse({'success': True, 'count': len(seen_keys)})
+
+    notification_types = [
         {
-            'name': 'Oral PrEP (Daily Pill)',
-            'schedule': 'Daily',
-            'icon': 'pill',
-            'status': 'Available',
-        },
-        {
-            'name': 'CAB-LA Injectable',
-            'schedule': 'Every 2 months',
-            'icon': 'vaccines',
-            'status': 'Available',
-        },
-        {
-            'name': 'Dapivirine Ring',
-            'schedule': 'Monthly',
-            'icon': 'radio_button_unchecked',
-            'status': 'Available',
-        },
-        {
-            'name': 'Lenacapavir Injectable (LEN)',
-            'schedule': 'Every 6 months',
-            'icon': 'vaccines',
-            'status': 'Available',
-        },
-        {
-            'name': 'Event-Driven PrEP',
-            'schedule': 'Before and after sex',
-            'icon': 'bolt',
-            'status': 'Available',
-        },
+            'key': item.key,
+            'name': item.name,
+            'description': item.description,
+            'cadence': item.cadence,
+            'channel': item.channel,
+            'timing': item.timing,
+            'enabled': item.enabled,
+        }
+        for item in NotificationTypeSetting.objects.order_by('name')
     ]
 
     return render(request, 'users/medication_reminders.html', {
-        'prevention_methods': prevention_methods,
+        'notification_types': notification_types,
     })
+
+
+@active_login_required
+def notification_inbox(request):
+    notifications = Notification.objects.select_related(
+        'appointment__facility',
+        'appointment__district',
+        'appointment__province',
+        'actor',
+    ).filter(
+        recipient=request.user,
+        channel='portal',
+    )
+    unread_count = notifications.filter(read_at__isnull=True).count()
+    return render(request, 'users/notification_inbox.html', {
+        'notifications': notifications,
+        'unread_count': unread_count,
+    })
+
+
+@require_POST
+@active_login_required
+def notification_mark_read(request, pk):
+    notification = get_object_or_404(
+        Notification,
+        pk=pk,
+        recipient=request.user,
+        channel='portal',
+    )
+    notification.mark_read()
+    next_url = request.POST.get('next') or reverse('notification_inbox')
+    if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('notification_inbox')
 
 
 def calculate_self_risk_assessment(cleaned_data):
@@ -1151,48 +1287,70 @@ def clinic_feedback(request):
     })
 
 
+@active_login_required
 def safeguarding_report(request):
-    saved_case = None
-    form = SafeguardingReportForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        saved_case = form.save(commit=False)
-        saved_case.user = get_submission_user(request)
-        saved_case.session_key = ensure_session_key(request)
-        saved_case.answers = serialize_form_answers(form.cleaned_data)
-        saved_case.guidance = {
-            'summary': 'Your safeguarding report has been received.',
-            'next_steps': [
-                'Keep the reference number for follow-up.',
-                'A safeguarding focal point will review the report.',
-            ],
-        }
-        saved_case.risk_trigger_flag = form.cleaned_data['severity'] in {'high', 'critical'}
-        saved_case.save()
-        form = SafeguardingReportForm()
+    cases = SafeguardingCase.objects.select_related('location_facility__district__province').filter(user=request.user).order_by('-submitted_at')
+    form = SafeguardingReportForm()
 
-    return render(request, 'users/module_submission_form.html', {
-        'title': 'Safeguarding Report',
-        'subtitle': 'Report a safeguarding concern anonymously or while signed in.',
-        'icon': 'shield',
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        is_draft = action == 'draft'
+        case_id = request.POST.get('case_id')
+        instance = None
+        if case_id:
+            instance = get_object_or_404(SafeguardingCase, pk=case_id, user=request.user)
+            if instance.status != 'draft' and is_draft:
+                messages.error(request, 'Submitted safeguarding cases cannot be moved back to draft.')
+                return redirect('safeguarding_report')
+
+        form = SafeguardingReportForm(request.POST, instance=instance, is_draft=is_draft)
+        if form.is_valid():
+            saved_case = form.save(commit=False)
+            saved_case.user = request.user
+            saved_case.session_key = ensure_session_key(request)
+            saved_case.answers = serialize_form_answers(form.cleaned_data)
+            if is_draft:
+                saved_case.status = 'draft'
+                saved_case.guidance = {
+                    'summary': 'Draft saved.',
+                    'next_steps': ['Return to this safeguarding case when you are ready to submit it.'],
+                }
+                message = 'Safeguarding draft saved.'
+            else:
+                saved_case.status = 'received'
+                saved_case.guidance = {
+                    'summary': 'Your safeguarding report has been received.',
+                    'next_steps': [
+                        'Keep the reference number for follow-up.',
+                        'A safeguarding focal point will review the report.',
+                    ],
+                }
+                message = 'Safeguarding case submitted.'
+            saved_case.risk_trigger_flag = form.cleaned_data.get('severity') in {'high', 'critical'}
+            saved_case.save()
+            messages.success(request, message)
+            return redirect('safeguarding_report')
+        messages.error(request, 'Please check the safeguarding case details.')
+
+    return render(request, 'users/safeguarding_report.html', {
         'form': form,
-        'saved_record': saved_case,
-        'reference_label': 'Safeguarding reference',
+        'cases': cases,
     })
 
 
 @role_required(*USER_ADMIN_ROLES)
 def safeguarding_management(request):
     status_filter = request.GET.get('status', '').strip()
-    cases = SafeguardingCase.objects.select_related('user', 'focal_point')
+    cases = SafeguardingCase.objects.select_related('user', 'focal_point', 'location_facility').exclude(status='draft')
     if status_filter:
         cases = cases.filter(status=status_filter)
 
     today = timezone.localdate()
     stats = {
-        'total': SafeguardingCase.objects.count(),
-        'open': SafeguardingCase.objects.exclude(status__in=['resolved', 'closed']).count(),
-        'overdue': SafeguardingCase.objects.exclude(status__in=['resolved', 'closed']).filter(sla_deadline__lt=today).count(),
-        'cab_ready': SafeguardingCase.objects.filter(cab_oversight_ready=True).count(),
+        'total': SafeguardingCase.objects.exclude(status='draft').count(),
+        'open': SafeguardingCase.objects.exclude(status__in=['draft', 'resolved', 'closed']).count(),
+        'overdue': SafeguardingCase.objects.exclude(status__in=['draft', 'resolved', 'closed']).filter(sla_deadline__lt=today).count(),
+        'cab_ready': SafeguardingCase.objects.exclude(status='draft').filter(cab_oversight_ready=True).count(),
     }
     return render(request, 'users/case_management.html', {
         'title': 'Safeguarding Cases',
@@ -1210,7 +1368,7 @@ def safeguarding_management(request):
 
 @role_required(*USER_ADMIN_ROLES)
 def safeguarding_case_detail(request, pk):
-    case = get_object_or_404(SafeguardingCase.objects.select_related('user', 'focal_point'), pk=pk)
+    case = get_object_or_404(SafeguardingCase.objects.select_related('user', 'focal_point', 'location_facility'), pk=pk)
     form = SafeguardingCaseUpdateForm(request.POST or None, instance=case)
     if request.method == 'POST' and form.is_valid():
         form.save()
@@ -1226,7 +1384,7 @@ def safeguarding_case_detail(request, pk):
         'detail_rows': [
             ('Incident type', case.get_incident_type_display()),
             ('Incident date', case.incident_date or 'Not provided'),
-            ('Location', case.location or 'Not provided'),
+            ('Location / Facility', case.location_facility or case.location or 'Not provided'),
             ('Severity', case.get_severity_display()),
             ('Status', case.get_status_display()),
             ('SLA deadline', case.sla_deadline),
@@ -1396,6 +1554,7 @@ def user_list(request):
         'search_term': search_term,
         'role_filter': role_filter,
         'role_choices': UserProfile.ROLE_CHOICES,
+        'sex_choices': UserProfile.SEX_CHOICES,
         'person_identity_choices': PersonIdentity.objects.order_by('full_name', 'id'),
         'facility_choices': Facility.objects.select_related('district__province').order_by(
             'district__province__name',
@@ -1403,6 +1562,17 @@ def user_list(request):
             'name',
         ),
         'population_group_choices': PopulationGroup.objects.filter(is_active=True).order_by('name'),
+        'facility_options': [
+            {
+                'id': facility.pk,
+                'label': f'{facility.name} - {facility.district.name}, {facility.district.province.name}',
+            }
+            for facility in Facility.objects.select_related('district__province').order_by(
+                'district__province__name',
+                'district__name',
+                'name',
+            )
+        ],
     }
     return render(request, 'users/user_management.html', context)
 
@@ -1411,10 +1581,15 @@ def user_list(request):
 def population_group_management(request):
     """Create and manage client population groups."""
     form = PopulationGroupForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, 'Population group saved.')
-        return redirect('population_group_management')
+    if request.method == 'POST':
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Population group saved.')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect('population_group_management')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
     search_term = request.GET.get('q', '').strip()
     groups = PopulationGroup.objects.annotate(client_count=Count('client_profiles'))
@@ -1436,10 +1611,15 @@ def population_group_management(request):
 def population_group_edit(request, pk):
     group = get_object_or_404(PopulationGroup, pk=pk)
     form = PopulationGroupForm(request.POST or None, instance=group)
-    if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, 'Population group updated.')
-        return redirect('population_group_management')
+    if request.method == 'POST':
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Population group updated.')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect('population_group_management')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
     return render(request, 'users/population_group_form.html', {
         'form': form,
@@ -2146,14 +2326,20 @@ def user_create(request):
     """Create a new user"""
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
-        role = request.POST.get('role')
+        is_staff = request.POST.get('is_staff') == 'on'
+        role = normalize_user_role_for_staff(request.POST.get('role'), is_staff)
+        sex = request.POST.get('sex') or ''
         person_identity = get_selected_person_identity(request.POST.get('person_identity') or None)
         facility_id = request.POST.get('facility') or None
         population_group_id = request.POST.get('population_group') or None
         valid_roles = {choice[0] for choice in UserProfile.ROLE_CHOICES}
+        role_error = None
         facility_error = None
+        population_group_error = None
         facility = None
         population_group = None
+        if role not in valid_roles:
+            role_error = 'Select a valid staff role.' if is_staff else 'Select a valid role.'
         if role in FACILITY_REQUIRED_ROLES:
             if not facility_id:
                 facility_error = 'Select the facility where this user works.'
@@ -2167,21 +2353,38 @@ def user_create(request):
                 facility_error = 'Select a valid facility.'
         if role == 'client' and population_group_id:
             population_group = PopulationGroup.objects.filter(pk=population_group_id, is_active=True).first()
+            if not population_group:
+                population_group_error = 'Select a valid population group.'
+            elif not population_group_matches_sex(population_group, sex):
+                population_group_error = 'Select a population group that is applicable to this client sex.'
         if form.is_valid():
+            if role_error:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'errors': {'role': [role_error]}})
+                messages.error(request, role_error)
+                return redirect('user_list')
             if facility_error:
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': False, 'errors': {'facility': [facility_error]}})
                 messages.error(request, facility_error)
                 return redirect('user_list')
+            if population_group_error:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'errors': {'population_group': [population_group_error]}})
+                messages.error(request, population_group_error)
+                return redirect('user_list')
             user = form.save()
-            if role in valid_roles:
-                user.profile.role = role
+            user.is_staff = is_staff
+            user.save(update_fields=['is_staff'])
+            user.profile.role = role
+            user.profile.sex = sex
             user.profile.person_identity = person_identity or PersonIdentity.for_user_defaults(user)
             user.profile.facility = facility if role in FACILITY_ASSIGNABLE_ROLES else None
             user.profile.population_group = population_group if role == 'client' else None
             user.profile.must_change_password = request.POST.get('must_change_password') == 'on'
             user.profile.save(update_fields=[
                 'role',
+                'sex',
                 'person_identity',
                 'facility',
                 'population_group',
@@ -2200,15 +2403,23 @@ def user_create(request):
                 errors = {}
                 for field, error_list in form.errors.items():
                     errors[field] = error_list
+                if role_error:
+                    errors['role'] = [role_error]
                 if facility_error:
                     errors['facility'] = [facility_error]
+                if population_group_error:
+                    errors['population_group'] = [population_group_error]
                 return JsonResponse({'success': False, 'errors': errors})
             
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{field}: {error}")
+            if role_error:
+                messages.error(request, role_error)
             if facility_error:
                 messages.error(request, facility_error)
+            if population_group_error:
+                messages.error(request, population_group_error)
     else:
         form = UserCreationForm()
     
@@ -2226,11 +2437,19 @@ def user_edit(request, pk):
     profile, _ = UserProfile.objects.get_or_create(user=user)
     
     if request.method == 'POST':
-        user_form = UserForm(request.POST, instance=user)
-        profile_form = UserProfileForm(request.POST, instance=profile)
+        is_staff = request.POST.get('is_staff') == 'on'
+        post_data = request.POST.copy()
+        post_data['role'] = normalize_user_role_for_staff(post_data.get('role'), is_staff)
+        role_error = None
+        if post_data['role'] not in {choice[0] for choice in UserProfile.ROLE_CHOICES}:
+            role_error = 'Select a valid staff role.' if is_staff else 'Select a valid role.'
+        user_form = UserForm(post_data, instance=user)
+        profile_form = UserProfileForm(post_data, instance=profile)
         
-        if user_form.is_valid() and profile_form.is_valid():
+        if user_form.is_valid() and profile_form.is_valid() and not role_error:
             user_form.save()
+            user.is_staff = is_staff
+            user.save(update_fields=['is_staff'])
             profile = profile_form.save()
             if not profile.person_identity_id:
                 profile.person_identity = PersonIdentity.for_user_defaults(
@@ -2254,6 +2473,8 @@ def user_edit(request, pk):
                     errors[field] = error_list
                 for field, error_list in profile_form.errors.items():
                     errors[field] = error_list
+                if role_error:
+                    errors['role'] = [role_error]
                 return JsonResponse({'success': False, 'errors': errors})
             
             for field, errors in user_form.errors.items():
@@ -2262,6 +2483,8 @@ def user_edit(request, pk):
             for field, errors in profile_form.errors.items():
                 for error in errors:
                     messages.error(request, f"Profile - {field}: {error}")
+            if role_error:
+                messages.error(request, role_error)
     else:
         user_form = UserForm(instance=user)
         profile_form = UserProfileForm(instance=profile)
@@ -2456,10 +2679,15 @@ def appointment_list(request):
         raise PermissionDenied
     if request.method == 'POST' and form.is_valid():
         appointment = form.save()
+        portal_notification, email_notification = notify_appointment_created(appointment, actor=request.user)
         messages.success(
             request,
             f'Appointment for "{appointment.beneficiary.username}" booked successfully!'
         )
+        if email_notification and email_notification.status == 'failed':
+            messages.warning(request, 'The portal notification was created, but the email notification could not be sent.')
+        elif portal_notification and not appointment.beneficiary.email:
+            messages.warning(request, 'The portal notification was created. No email was sent because the client has no email address.')
         return redirect('appointment_list')
 
     appointments = get_visible_appointments(request.user)

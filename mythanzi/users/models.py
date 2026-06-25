@@ -35,9 +35,16 @@ class PersonIdentity(models.Model):
 
 class PopulationGroup(models.Model):
     """Reference data for client population group assignment."""
+    SEX_ELIGIBILITY_CHOICES = [
+        ('all', 'All sexes'),
+        ('female', 'Female only'),
+        ('male', 'Male only'),
+    ]
+
     name = models.CharField(max_length=120, unique=True)
     code = models.SlugField(max_length=80, unique=True)
     description = models.TextField(blank=True)
+    sex_eligibility = models.CharField(max_length=12, choices=SEX_ELIGIBILITY_CHOICES, default='all')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -50,6 +57,11 @@ class PopulationGroup(models.Model):
 
 class UserProfile(models.Model):
     """Extended user profile for additional information"""
+    SEX_CHOICES = [
+        ('female', 'Female'),
+        ('male', 'Male'),
+        ('other', 'Other / Not specified'),
+    ]
     THEME_CHOICES = [
         ('slate', 'Slate'),
         ('teal', 'Teal'),
@@ -131,6 +143,7 @@ class UserProfile(models.Model):
     )
     reference_number = models.CharField(max_length=20, unique=True, blank=True)
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='client')
+    sex = models.CharField(max_length=12, choices=SEX_CHOICES, blank=True, null=True)
     bio = models.TextField(blank=True, null=True)
     phone = models.CharField(max_length=20, blank=True, null=True)
     date_of_birth = models.DateField(blank=True, null=True)
@@ -224,6 +237,111 @@ class Appointment(models.Model):
 
         if errors:
             raise ValidationError(errors)
+
+
+class Notification(models.Model):
+    NOTIFICATION_TYPE_CHOICES = [
+        ('appointment', 'Appointment'),
+        ('general', 'General'),
+    ]
+    CHANNEL_CHOICES = [
+        ('portal', 'Portal'),
+        ('email', 'Email'),
+    ]
+    STATUS_CHOICES = [
+        ('queued', 'Queued'),
+        ('sent', 'Sent'),
+        ('failed', 'Failed'),
+        ('read', 'Read'),
+    ]
+
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='sent_notifications',
+    )
+    appointment = models.ForeignKey(
+        Appointment,
+        on_delete=models.CASCADE,
+        blank=True,
+        null=True,
+        related_name='notifications',
+    )
+    notification_type = models.CharField(max_length=40, choices=NOTIFICATION_TYPE_CHOICES, default='general')
+    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='queued')
+    title = models.CharField(max_length=160)
+    message = models.TextField()
+    error_message = models.TextField(blank=True)
+    read_at = models.DateTimeField(blank=True, null=True)
+    sent_at = models.DateTimeField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recipient', 'status', '-created_at']),
+            models.Index(fields=['recipient', 'channel', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.get_channel_display()} notification for {self.recipient}'
+
+    @property
+    def is_unread(self):
+        return self.channel == 'portal' and not self.read_at
+
+    def mark_read(self):
+        if not self.read_at:
+            self.read_at = timezone.now()
+            self.status = 'read'
+            self.save(update_fields=['read_at', 'status', 'updated_at'])
+
+
+class NotificationTypeSetting(models.Model):
+    CHANNEL_CHOICES = [
+        ('portal', 'Portal'),
+        ('email', 'Email'),
+        ('portal_email', 'Portal + Email'),
+        ('sms', 'SMS'),
+        ('whatsapp', 'WhatsApp'),
+    ]
+    CADENCE_CHOICES = [
+        ('daily', 'Daily'),
+        ('before_event', 'Before event'),
+        ('after_event', 'After event'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+    ]
+
+    key = models.SlugField(max_length=80, unique=True)
+    name = models.CharField(max_length=120)
+    description = models.TextField(blank=True)
+    cadence = models.CharField(max_length=30, choices=CADENCE_CHOICES, default='daily')
+    channel = models.CharField(max_length=30, choices=CHANNEL_CHOICES, default='portal')
+    timing = models.CharField(max_length=30, default='08:00')
+    enabled = models.BooleanField(default=True)
+    is_system = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def portal_enabled(self):
+        return self.enabled and self.channel in {'portal', 'portal_email'}
+
+    @property
+    def email_enabled(self):
+        return self.enabled and self.channel in {'email', 'portal_email'}
 
 
 class ClientLocator(models.Model):
@@ -544,6 +662,7 @@ class SafeguardingCase(AnonymousOrUserSubmission):
         ('critical', 'Critical'),
     ]
     STATUS_CHOICES = [
+        ('draft', 'Draft'),
         ('received', 'Received'),
         ('under_review', 'Under review'),
         ('resolved', 'Resolved'),
@@ -551,12 +670,19 @@ class SafeguardingCase(AnonymousOrUserSubmission):
     ]
 
     reference_number = models.CharField(max_length=24, unique=True, blank=True)
-    incident_type = models.CharField(max_length=40, choices=INCIDENT_TYPE_CHOICES)
+    incident_type = models.CharField(max_length=40, choices=INCIDENT_TYPE_CHOICES, blank=True)
     incident_date = models.DateField(blank=True, null=True)
     location = models.CharField(max_length=180, blank=True)
+    location_facility = models.ForeignKey(
+        'locations.Facility',
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name='safeguarding_cases',
+    )
     severity = models.CharField(max_length=20, choices=SEVERITY_CHOICES, default='medium')
     involved_parties = models.TextField(blank=True)
-    incident_details = models.TextField()
+    incident_details = models.TextField(blank=True)
     focal_point = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

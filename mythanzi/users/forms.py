@@ -28,7 +28,7 @@ FACILITY_USER_ROLES = FACILITY_REQUIRED_ROLES
 class PopulationGroupForm(forms.ModelForm):
     class Meta:
         model = PopulationGroup
-        fields = ['name', 'code', 'description', 'is_active']
+        fields = ['name', 'code', 'description', 'sex_eligibility', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={
                 'class': 'form-control',
@@ -43,6 +43,7 @@ class PopulationGroupForm(forms.ModelForm):
                 'rows': 3,
                 'placeholder': 'Optional description',
             }),
+            'sex_eligibility': forms.Select(attrs={'class': 'form-select'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
@@ -76,6 +77,7 @@ class UserProfileForm(forms.ModelForm):
         model = UserProfile
         fields = [
             'role',
+            'sex',
             'person_identity',
             'facility',
             'population_group',
@@ -87,6 +89,9 @@ class UserProfileForm(forms.ModelForm):
         ]
         widgets = {
             'role': forms.Select(attrs={
+                'class': 'form-control'
+            }),
+            'sex': forms.Select(attrs={
                 'class': 'form-control'
             }),
             'person_identity': forms.Select(attrs={
@@ -135,13 +140,18 @@ class UserProfileForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         role = cleaned_data.get('role')
+        sex = cleaned_data.get('sex')
         facility = cleaned_data.get('facility')
+        population_group = cleaned_data.get('population_group')
         if role in FACILITY_REQUIRED_ROLES and not facility:
             self.add_error('facility', 'Select the facility where this user works.')
         if role not in FACILITY_ASSIGNABLE_ROLES:
             cleaned_data['facility'] = None
         if role != 'client':
             cleaned_data['population_group'] = None
+        elif population_group and population_group.sex_eligibility != 'all':
+            if not sex or population_group.sex_eligibility != sex:
+                self.add_error('population_group', 'Select a population group that is applicable to this client sex.')
         return cleaned_data
 
 
@@ -599,7 +609,7 @@ class SafeguardingReportForm(forms.ModelForm):
         fields = [
             'incident_type',
             'incident_date',
-            'location',
+            'location_facility',
             'severity',
             'involved_parties',
             'incident_details',
@@ -607,11 +617,31 @@ class SafeguardingReportForm(forms.ModelForm):
         widgets = {
             'incident_type': forms.Select(attrs={'class': 'form-select'}),
             'incident_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Optional location or service point'}),
+            'location_facility': forms.Select(attrs={'class': 'form-select'}),
             'severity': forms.Select(attrs={'class': 'form-select'}),
             'involved_parties': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'incident_details': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
+        labels = {
+            'location_facility': 'Location / Facility',
+        }
+
+    def __init__(self, *args, **kwargs):
+        self.is_draft = kwargs.pop('is_draft', False)
+        super().__init__(*args, **kwargs)
+        self.fields['location_facility'].queryset = Facility.objects.select_related('district__province').order_by(
+            'district__province__name',
+            'district__name',
+            'name',
+        )
+        self.fields['location_facility'].required = False
+        if self.is_draft:
+            for field in self.fields.values():
+                field.required = False
+        else:
+            self.fields['incident_type'].required = True
+            self.fields['severity'].required = True
+            self.fields['incident_details'].required = True
 
     def clean_incident_date(self):
         incident_date = self.cleaned_data.get('incident_date')

@@ -11,6 +11,8 @@ from .models import (
     ClientLocator,
     FollowUpTask,
     GrievanceCase,
+    Notification,
+    NotificationTypeSetting,
     PersonIdentity,
     PopulationGroup,
     ReferralRecord,
@@ -105,6 +107,22 @@ class AppointmentAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('recipient', 'notification_type', 'channel', 'status', 'title', 'created_at', 'sent_at', 'read_at')
+    list_filter = ('notification_type', 'channel', 'status', 'created_at')
+    search_fields = ('recipient__username', 'recipient__email', 'title', 'message')
+    readonly_fields = ('created_at', 'updated_at', 'sent_at', 'read_at')
+
+
+@admin.register(NotificationTypeSetting)
+class NotificationTypeSettingAdmin(admin.ModelAdmin):
+    list_display = ('name', 'key', 'channel', 'cadence', 'timing', 'enabled', 'is_system', 'updated_at')
+    list_filter = ('channel', 'cadence', 'enabled', 'is_system')
+    search_fields = ('name', 'key', 'description')
+    readonly_fields = ('created_at', 'updated_at')
 
 
 @admin.register(ClientLocator)

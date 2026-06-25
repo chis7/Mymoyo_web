@@ -200,16 +200,16 @@ class PortalAccessTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    def test_authenticated_user_can_view_medication_reminders(self):
+    def test_authenticated_user_can_view_notification_engine(self):
         user = self.create_user('reminder-user', 'client')
         self.client.force_login(user)
 
         response = self.client.get(reverse('medication_reminders'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Medication Reminders')
-        self.assertContains(response, 'Oral PrEP (Daily Pill)')
-        self.assertContains(response, 'Lenacapavir Injectable (LEN)')
+        self.assertContains(response, 'Notifications Engine')
+        self.assertContains(response, 'Medication Dose')
+        self.assertContains(response, 'Appointment')
 
     def test_anonymous_user_is_redirected_from_medication_reminders(self):
         response = self.client.get(reverse('medication_reminders'))

@@ -576,6 +576,62 @@
             margin-left: auto;
         }
 
+        .topbar-notification-link {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            border: 1px solid rgba(226, 232, 240, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--theme-on-nav);
+            text-decoration: none;
+        }
+
+        .topbar-notification-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--theme-on-nav);
+        }
+
+        .topbar-notification-link.has-unread .material-symbols-outlined {
+            animation: notification-bell-shake 1.4s ease-in-out infinite;
+            transform-origin: 50% 10%;
+        }
+
+        .topbar-notification-link .notification-count {
+            position: absolute;
+            top: -0.35rem;
+            right: -0.35rem;
+            min-width: 1.25rem;
+            height: 1.25rem;
+            padding: 0 0.35rem;
+            border: 2px solid var(--theme-nav);
+            border-radius: 999px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 800;
+            line-height: 1rem;
+            text-align: center;
+        }
+
+        @keyframes notification-bell-shake {
+            0%, 52%, 100% {
+                transform: rotate(0deg);
+            }
+            8%, 24% {
+                transform: rotate(14deg);
+            }
+            16%, 32% {
+                transform: rotate(-14deg);
+            }
+            40% {
+                transform: rotate(8deg);
+            }
+        }
+
         .account-menu {
             position: relative;
             display: flex;
@@ -966,8 +1022,8 @@
                 </a>
 
                 <a class="nav-link" href="{% url 'medication_reminders' %}">
-                    <span class="nav-icon material-symbols-outlined">medical_services</span>
-                    Reminders
+                    <span class="nav-icon material-symbols-outlined">notifications</span>
+                    Notifications
                 </a>
             </nav>
         </div>
@@ -1009,6 +1065,13 @@
                 <a class="nav-link" href="{% url 'my_journey' %}">
                     <span class="nav-icon material-symbols-outlined">timeline</span>
                     My Journey
+                </a>
+                <a class="nav-link" href="{% url 'notification_inbox' %}">
+                    <span class="nav-icon material-symbols-outlined">notifications</span>
+                    Notifications
+                    {% if portal_unread_notifications_count %}
+                        <span class="badge rounded-pill text-bg-primary ms-auto">{{ portal_unread_notifications_count }}</span>
+                    {% endif %}
                 </a>
                 {% endif %}
 
@@ -1101,61 +1164,69 @@
                     MyThanzi
                     <small>My life. My care.</small>
                 </div>
-                <div class="topbar-actions">
             </a>
-            <div class="account-menu">
-                <button class="account-menu-button" id="accountMenuButton" type="button" aria-expanded="false"
-                    aria-controls="accountDropdown">
-                    <span class="material-symbols-outlined">account_circle</span>
-                    <span>
-                        {% if request.user.is_authenticated %}
-                        <span>{{ request.user.get_full_name|default:request.user.username }}</span>
-                        {% if request.user.profile.facility %}
-                        <small>{{ request.user.profile.facility.name }}</small>
-                        {% endif %}
-                        {% else %}
-                        <span>Guest</span>
-                        <small>Public access</small>
-                        {% endif %}
-                    </span>
-                    <span class="material-symbols-outlined">expand_more</span>
-                </button>
-                <div class="account-dropdown" id="accountDropdown">
-                    {% if request.user.is_authenticated %}
-                    <a href="{% url 'user_detail' pk=request.user.pk %}">
-                        <span class="material-symbols-outlined">person</span>
-                        My Profile
-                    </a>
-                    <form class="theme-picker" method="post" action="{% url 'update_theme' %}">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ request.path }}">
-                        {% for theme_value, theme_label in request.user.profile.THEME_CHOICES %}
-                        <button type="submit" name="theme_color" value="{{ theme_value }}"
-                            class="theme-swatch theme-swatch-{{ theme_value }}{% if request.user.profile.theme_color == theme_value %} is-selected{% endif %}"
-                            title="{{ theme_label }}" aria-label="{{ theme_label }} theme"></button>
-                        {% endfor %}
-                    </form>
-                    <form method="post" action="{% url 'logout' %}">
-                        {% csrf_token %}
-                        <button type="submit">
-                            <span class="material-symbols-outlined">logout</span>
-                            Logout
-                        </button>
-                    </form>
-                    {% else %}
-                    <a href="{% url 'login' %}">
-                        <span class="material-symbols-outlined">login</span>
-                        Login
-                    </a>
-                    <a href="{% url 'register' %}">
-                        <span class="material-symbols-outlined">person_add</span>
-                        Create Account
-                    </a>
+            <div class="topbar-actions">
+                {% if request.user.is_authenticated %}
+                <a class="topbar-notification-link{% if portal_unread_notifications_count %} has-unread{% endif %}" href="{% url 'notification_inbox' %}" aria-label="Notifications{% if portal_unread_notifications_count %}: {{ portal_unread_notifications_count }} unread{% endif %}">
+                    <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+                    {% if portal_unread_notifications_count %}
+                    <span class="notification-count">{{ portal_unread_notifications_count }}</span>
                     {% endif %}
+                </a>
+                {% endif %}
+                <div class="account-menu">
+                    <button class="account-menu-button" id="accountMenuButton" type="button" aria-expanded="false"
+                        aria-controls="accountDropdown">
+                        <span class="material-symbols-outlined">account_circle</span>
+                        <span>
+                            {% if request.user.is_authenticated %}
+                            <span>{{ request.user.get_full_name|default:request.user.username }}</span>
+                            {% if request.user.profile.facility %}
+                            <small>{{ request.user.profile.facility.name }}</small>
+                            {% endif %}
+                            {% else %}
+                            <span>Guest</span>
+                            <small>Public access</small>
+                            {% endif %}
+                        </span>
+                        <span class="material-symbols-outlined">expand_more</span>
+                    </button>
+                    <div class="account-dropdown" id="accountDropdown">
+                        {% if request.user.is_authenticated %}
+                        <a href="{% url 'user_detail' pk=request.user.pk %}">
+                            <span class="material-symbols-outlined">person</span>
+                            My Profile
+                        </a>
+                        <form class="theme-picker" method="post" action="{% url 'update_theme' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.path }}">
+                            {% for theme_value, theme_label in request.user.profile.THEME_CHOICES %}
+                            <button type="submit" name="theme_color" value="{{ theme_value }}"
+                                class="theme-swatch theme-swatch-{{ theme_value }}{% if request.user.profile.theme_color == theme_value %} is-selected{% endif %}"
+                                title="{{ theme_label }}" aria-label="{{ theme_label }} theme"></button>
+                            {% endfor %}
+                        </form>
+                        <form method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button type="submit">
+                                <span class="material-symbols-outlined">logout</span>
+                                Logout
+                            </button>
+                        </form>
+                        {% else %}
+                        <a href="{% url 'login' %}">
+                            <span class="material-symbols-outlined">login</span>
+                            Login
+                        </a>
+                        <a href="{% url 'register' %}">
+                            <span class="material-symbols-outlined">person_add</span>
+                            Create Account
+                        </a>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
     <main class="content-wrapper">
         {% for message in messages %}
         <div class="sweetalert-message d-none" data-tag="{{ message.tags }}" data-text="{{ message }}"></div>
@@ -1381,7 +1452,7 @@
                 });
             });
 
-            document.querySelectorAll('form:not(.js-confirm-form):not(.js-ajax-form)').forEach(function (form) {
+            document.querySelectorAll('form:not(.js-confirm-form):not(.js-ajax-form):not([data-skip-processing-alert="true"])').forEach(function (form) {
                 form.addEventListener('submit', function () {
                     showProcessingAlert();
                 });
