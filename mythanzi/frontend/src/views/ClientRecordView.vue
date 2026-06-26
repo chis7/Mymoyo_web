@@ -7,8 +7,16 @@ import {
   createClientFollowUpTask,
   createClientJourneyEvent,
   createClientReferral,
+  deleteAppointment,
+  deleteClientFollowUpTask,
+  deleteClientJourneyEvent,
+  deleteClientReferral,
   getClient,
-  listFacilities
+  listFacilities,
+  updateAppointment,
+  updateClientFollowUpTask,
+  updateClientJourneyEvent,
+  updateClientReferral
 } from '@/api/client'
 
 const route = useRoute()
@@ -16,6 +24,7 @@ const client = ref(null)
 const facilities = ref([])
 const activeTab = ref('journey')
 const modalType = ref('')
+const editingRecord = ref(null)
 const error = ref('')
 const saveError = ref('')
 const loading = ref(true)
@@ -127,18 +136,63 @@ function defaultForms() {
 }
 
 function modalTitle(type) {
+  const verb = editingRecord.value ? 'Edit' : 'Add'
   return {
-    journey: 'Add Journey Event',
-    referrals: 'Add Referral',
-    tasks: 'Add Follow-Up Task',
-    appointments: 'Create Appointment'
+    journey: `${verb} Journey Event`,
+    referrals: `${verb} Referral`,
+    tasks: `${verb} Follow-Up Task`,
+    appointments: editingRecord.value ? 'Edit Appointment' : 'Create Appointment'
   }[type]
 }
 
 function openModal(type) {
   modalType.value = type
+  editingRecord.value = null
   forms.value[type] = defaultForms()[type]
   saveError.value = ''
+}
+
+function editRecord(type, record) {
+  modalType.value = type
+  editingRecord.value = record
+  saveError.value = ''
+  if (type === 'journey') {
+    forms.value.journey = {
+      stage: record.stage,
+      event_date: record.event_date,
+      outcome: record.outcome,
+      notes: record.notes || ''
+    }
+  }
+  if (type === 'referrals') {
+    forms.value.referrals = {
+      receiving_facility: record.receiving_facility || '',
+      confirmation_status: record.confirmation_status,
+      initiation_outcome: record.initiation_outcome,
+      referred_on: record.referred_on,
+      notes: record.notes || ''
+    }
+  }
+  if (type === 'tasks') {
+    forms.value.tasks = {
+      assigned_to: record.assigned_to || '',
+      reason: record.reason,
+      status: record.status,
+      priority: record.priority,
+      due_date: record.due_date,
+      notes: record.notes || '',
+      outcome_notes: record.outcome_notes || ''
+    }
+  }
+  if (type === 'appointments') {
+    forms.value.appointments = {
+      visit_purpose: record.visit_purpose,
+      appointment_date: record.appointment_date,
+      appointment_time: record.appointment_time,
+      facility: record.facility || '',
+      notes: record.notes || ''
+    }
+  }
 }
 
 async function refreshClient() {
@@ -171,14 +225,39 @@ async function saveModal() {
   if (payload.receiving_facility) payload.receiving_facility = Number(payload.receiving_facility)
 
   try {
-    if (type === 'journey') await createClientJourneyEvent(client.value.id, payload)
-    if (type === 'referrals') await createClientReferral(client.value.id, payload)
-    if (type === 'tasks') await createClientFollowUpTask(client.value.id, payload)
-    if (type === 'appointments') await createClientAppointment(client.value.id, payload)
+    if (editingRecord.value) {
+      if (type === 'journey') await updateClientJourneyEvent(client.value.id, editingRecord.value.id, payload)
+      if (type === 'referrals') await updateClientReferral(client.value.id, editingRecord.value.id, payload)
+      if (type === 'tasks') await updateClientFollowUpTask(client.value.id, editingRecord.value.id, payload)
+      if (type === 'appointments') await updateAppointment(editingRecord.value.id, payload)
+    } else {
+      if (type === 'journey') await createClientJourneyEvent(client.value.id, payload)
+      if (type === 'referrals') await createClientReferral(client.value.id, payload)
+      if (type === 'tasks') await createClientFollowUpTask(client.value.id, payload)
+      if (type === 'appointments') await createClientAppointment(client.value.id, payload)
+    }
     modalType.value = ''
+    editingRecord.value = null
     await refreshClient()
   } catch (err) {
     saveError.value = err.message
+  } finally {
+    saving.value = false
+  }
+}
+
+async function removeRecord(type, record) {
+  if (!window.confirm('Delete this record? The client will be notified.')) return
+  saving.value = true
+  error.value = ''
+  try {
+    if (type === 'journey') await deleteClientJourneyEvent(client.value.id, record.id)
+    if (type === 'referrals') await deleteClientReferral(client.value.id, record.id)
+    if (type === 'tasks') await deleteClientFollowUpTask(client.value.id, record.id)
+    if (type === 'appointments') await deleteAppointment(record.id)
+    await refreshClient()
+  } catch (err) {
+    error.value = err.message
   } finally {
     saving.value = false
   }
@@ -259,6 +338,7 @@ onMounted(async () => {
                   <th>Stage</th>
                   <th>Outcome</th>
                   <th>Notes</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -267,9 +347,19 @@ onMounted(async () => {
                   <td>{{ event.stage_display }}</td>
                   <td>{{ event.outcome_display }}</td>
                   <td>{{ event.notes || '-' }}</td>
+                  <td>
+                    <div class="action-buttons">
+                      <button type="button" class="btn-icon btn-view" title="Edit" @click="editRecord('journey', event)">
+                        <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                      </button>
+                      <button type="button" class="btn-icon btn-delete" title="Delete" @click="removeRecord('journey', event)">
+                        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
                 <tr v-if="!client.journey_events.length">
-                  <td colspan="4" class="empty-state">No journey events yet.</td>
+                  <td colspan="5" class="empty-state">No journey events yet.</td>
                 </tr>
               </tbody>
             </table>
@@ -284,6 +374,7 @@ onMounted(async () => {
                   <th>Receiving Facility</th>
                   <th>Status</th>
                   <th>Outcome</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -293,9 +384,19 @@ onMounted(async () => {
                   <td>{{ referral.receiving_facility_name || referral.receiving_hub || '-' }}</td>
                   <td>{{ referral.confirmation_status_display }}</td>
                   <td>{{ referral.initiation_outcome_display }}</td>
+                  <td>
+                    <div class="action-buttons">
+                      <button type="button" class="btn-icon btn-view" title="Edit" @click="editRecord('referrals', referral)">
+                        <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                      </button>
+                      <button type="button" class="btn-icon btn-delete" title="Delete" @click="removeRecord('referrals', referral)">
+                        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
                 <tr v-if="!client.referral_records.length">
-                  <td colspan="5" class="empty-state">No referrals yet.</td>
+                  <td colspan="6" class="empty-state">No referrals yet.</td>
                 </tr>
               </tbody>
             </table>
@@ -310,6 +411,7 @@ onMounted(async () => {
                   <th>Status</th>
                   <th>Priority</th>
                   <th>Notes</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -319,9 +421,19 @@ onMounted(async () => {
                   <td>{{ task.status_display }}</td>
                   <td>{{ task.priority_display }}</td>
                   <td>{{ task.notes || task.outcome_notes || '-' }}</td>
+                  <td>
+                    <div class="action-buttons">
+                      <button type="button" class="btn-icon btn-view" title="Edit" @click="editRecord('tasks', task)">
+                        <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                      </button>
+                      <button type="button" class="btn-icon btn-delete" title="Delete" @click="removeRecord('tasks', task)">
+                        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
                 <tr v-if="!client.follow_up_tasks.length">
-                  <td colspan="5" class="empty-state">No follow-up tasks yet.</td>
+                  <td colspan="6" class="empty-state">No follow-up tasks yet.</td>
                 </tr>
               </tbody>
             </table>
@@ -336,6 +448,7 @@ onMounted(async () => {
                   <th>Purpose</th>
                   <th>Facility</th>
                   <th>Status</th>
+                  <th>Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -345,9 +458,19 @@ onMounted(async () => {
                   <td>{{ appointment.visit_purpose_display }}</td>
                   <td>{{ appointment.facility_name }}</td>
                   <td>{{ appointment.status_display }}</td>
+                  <td>
+                    <div class="action-buttons">
+                      <button type="button" class="btn-icon btn-view" title="Edit" @click="editRecord('appointments', appointment)">
+                        <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                      </button>
+                      <button type="button" class="btn-icon btn-delete" title="Delete" @click="removeRecord('appointments', appointment)">
+                        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                      </button>
+                    </div>
+                  </td>
                 </tr>
                 <tr v-if="!client.appointments.length">
-                  <td colspan="5" class="empty-state">No appointments yet.</td>
+                  <td colspan="6" class="empty-state">No appointments yet.</td>
                 </tr>
               </tbody>
             </table>

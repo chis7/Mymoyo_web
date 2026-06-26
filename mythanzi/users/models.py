@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 
 from django.db import models
@@ -7,6 +8,9 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 from django.utils.crypto import get_random_string
+
+
+logger = logging.getLogger(__name__)
 
 
 class PersonIdentity(models.Model):
@@ -242,6 +246,10 @@ class Appointment(models.Model):
 class Notification(models.Model):
     NOTIFICATION_TYPE_CHOICES = [
         ('appointment', 'Appointment'),
+        ('client_journey_event', 'Client Journey Event'),
+        ('client_referral', 'Client Referral'),
+        ('client_follow_up_task', 'Client Follow-Up Task'),
+        ('staff_follow_up_task', 'Staff Follow-Up Task Assignment'),
         ('general', 'General'),
     ]
     CHANNEL_CHOICES = [
@@ -540,7 +548,7 @@ class ReferralRecord(models.Model):
         ).exists()
         if duplicate:
             return
-        FollowUpTask.objects.create(
+        task = FollowUpTask.objects.create(
             client=self.client,
             assigned_to=self.assigned_mobiliser or self.recorded_by,
             reason='referral_confirmation',
@@ -550,6 +558,11 @@ class ReferralRecord(models.Model):
             notes=f'{marker}\nFollow up because referral status is Not attended.',
             created_by=self.recorded_by,
         )
+        try:
+            from .notifications import notify_follow_up_task_created
+            notify_follow_up_task_created(task, actor=self.recorded_by)
+        except Exception:
+            logger.exception('Failed to notify assigned follow-up task %s created from referral %s', task.pk, self.pk)
 
 
 class FollowUpTask(models.Model):

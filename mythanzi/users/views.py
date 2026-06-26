@@ -54,7 +54,19 @@ from .models import (
     UserProfile,
 )
 from .audit import should_audit_model
-from .notifications import notify_appointment_created
+from .notifications import (
+    notify_appointment_created,
+    notify_appointment_updated,
+    notify_follow_up_task_created,
+    notify_follow_up_task_deleted,
+    notify_follow_up_task_updated,
+    notify_journey_event_created,
+    notify_journey_event_deleted,
+    notify_journey_event_updated,
+    notify_referral_created,
+    notify_referral_deleted,
+    notify_referral_updated,
+)
 from .forms import (
     AppointmentForm,
     AppointmentEditForm,
@@ -193,6 +205,38 @@ DEFAULT_NOTIFICATION_TYPE_SETTINGS = [
         'timing': '48h',
     },
     {
+        'key': 'client_journey_event',
+        'name': 'Client Journey Event',
+        'description': 'Notify clients when journey events are recorded on their profile.',
+        'cadence': 'after_event',
+        'channel': 'portal',
+        'timing': 'immediate',
+    },
+    {
+        'key': 'client_referral',
+        'name': 'Client Referral',
+        'description': 'Notify clients when referrals are created or updated.',
+        'cadence': 'after_event',
+        'channel': 'portal',
+        'timing': 'immediate',
+    },
+    {
+        'key': 'client_follow_up_task',
+        'name': 'Client Follow-Up Task',
+        'description': 'Notify clients when follow-up tasks are created for their care journey.',
+        'cadence': 'after_event',
+        'channel': 'portal',
+        'timing': 'immediate',
+    },
+    {
+        'key': 'staff_follow_up_task',
+        'name': 'Staff Follow-Up Task Assignment',
+        'description': 'Notify staff members when follow-up tasks are assigned to them.',
+        'cadence': 'after_event',
+        'channel': 'portal',
+        'timing': 'immediate',
+    },
+    {
         'key': 'side_effect_check_in',
         'name': 'Side-Effect Check-In',
         'description': 'Safety and tolerability check-ins after initiation or product changes.',
@@ -307,7 +351,9 @@ def get_client_bulk_form(kind, data, client, user):
 
 def save_client_bulk_form(kind, form, client, user):
     if kind == 'appointments':
-        return form.save()
+        appointment = form.save()
+        notify_appointment_created(appointment, actor=user)
+        return appointment
 
     obj = form.save(commit=False)
     obj.client = client
@@ -316,6 +362,12 @@ def save_client_bulk_form(kind, form, client, user):
     elif kind == 'follow-ups':
         obj.created_by = user
     obj.save()
+    if kind == 'journey-events':
+        notify_journey_event_created(obj, actor=user)
+    elif kind == 'referrals':
+        notify_referral_created(obj, actor=user)
+    elif kind == 'follow-ups':
+        notify_follow_up_task_created(obj, actor=user)
     return obj
 
 
@@ -1708,6 +1760,7 @@ def client_record(request, pk):
                     event.client = client
                     event.recorded_by = request.user
                     event.save()
+                    notify_journey_event_created(event, actor=request.user)
                     created_events += 1
                 if created_events:
                     messages.success(request, f'{created_events} journey event{"s" if created_events != 1 else ""} recorded.')
@@ -1721,6 +1774,7 @@ def client_record(request, pk):
                 referral.client = client
                 referral.recorded_by = request.user
                 referral.save()
+                notify_referral_created(referral, actor=request.user)
                 messages.success(request, 'Referral record saved.')
                 return redirect('client_record', pk=client.pk)
         elif action == 'followup':
@@ -1730,6 +1784,7 @@ def client_record(request, pk):
                 task.client = client
                 task.created_by = request.user
                 task.save()
+                notify_follow_up_task_created(task, actor=request.user)
                 messages.success(request, 'Follow-up task saved.')
                 return redirect('client_record', pk=client.pk)
         elif action == 'appointment':
@@ -1887,6 +1942,7 @@ def referral_confirm(request, referral_code):
             confirmed_referral = form.save(commit=False)
             confirmed_referral.confirmed_by = request.user
             confirmed_referral.save()
+            notify_referral_updated(confirmed_referral, actor=request.user)
             messages.success(request, 'Referral confirmation saved.')
             return redirect('referral_detail', referral_code=confirmed_referral.referral_code)
     return render(request, 'users/referral_confirm.html', {
@@ -2805,6 +2861,7 @@ def appointment_edit(request, pk):
 
     if request.method == 'POST' and form.is_valid():
         updated_appointment = form.save()
+        notify_appointment_updated(updated_appointment, actor=request.user)
         messages.success(
             request,
             f'Appointment for "{updated_appointment.beneficiary.username}" updated successfully.'
@@ -2834,6 +2891,7 @@ def appointment_update_status(request, pk):
     else:
         appointment.status = status_value
         appointment.save(update_fields=['status', 'updated_at'])
+        notify_appointment_updated(appointment, actor=request.user)
         messages.success(
             request,
             f'Appointment for "{appointment.beneficiary.username}" marked as {appointment.get_status_display().lower()}.'
