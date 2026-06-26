@@ -576,6 +576,10 @@
             margin-left: auto;
         }
 
+        .topbar-notification-menu {
+            position: relative;
+        }
+
         .topbar-notification-link {
             position: relative;
             display: inline-flex;
@@ -587,6 +591,8 @@
             border-radius: 10px;
             background: rgba(255, 255, 255, 0.05);
             color: var(--theme-on-nav);
+            cursor: pointer;
+            font: inherit;
             text-decoration: none;
         }
 
@@ -615,6 +621,126 @@
             font-weight: 800;
             line-height: 1rem;
             text-align: center;
+        }
+
+        .notification-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.55rem);
+            right: 0;
+            z-index: 1120;
+            width: min(86vw, 330px);
+            overflow: hidden;
+            border: 1px solid rgba(15, 23, 42, 0.16);
+            border-radius: 6px;
+            background: #fff;
+            box-shadow: 0 12px 28px rgba(16, 32, 48, 0.22);
+            color: #1f2937;
+        }
+
+        .notification-dropdown.open {
+            display: block;
+        }
+
+        .notification-dropdown-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.65rem 0.8rem;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f8fafc;
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+
+        .notification-dropdown-header .badge {
+            min-width: 1.25rem;
+            border-radius: 999px;
+            background: #38bdf8;
+            color: #fff;
+            font-size: 0.68rem;
+            text-align: center;
+        }
+
+        .notification-dropdown-list {
+            max-height: 21rem;
+            overflow-y: auto;
+        }
+
+        .notification-dropdown-item {
+            display: grid;
+            grid-template-columns: 4px minmax(0, 1fr);
+            gap: 0.75rem;
+            padding: 0.75rem 0.85rem 0.7rem;
+            border-bottom: 1px solid #eef2f7;
+            color: #334155;
+            text-decoration: none;
+        }
+
+        .notification-dropdown-item:hover {
+            background: #f8fafc;
+            color: #0f172a;
+            text-decoration: none;
+        }
+
+        .notification-dropdown-item .alert-stripe {
+            width: 3px;
+            min-height: 2.4rem;
+            border-radius: 999px;
+            background: #22c55e;
+        }
+
+        .notification-dropdown-item.is-read .alert-stripe {
+            background: #94a3b8;
+        }
+
+        .notification-dropdown-item.is-unread .alert-stripe {
+            background: #ef4444;
+        }
+
+        .notification-dropdown-title {
+            overflow: hidden;
+            color: #334155;
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .notification-dropdown-meta {
+            margin-top: 0.14rem;
+            color: #64748b;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .notification-dropdown-empty {
+            padding: 1rem;
+            color: #64748b;
+            font-size: 0.82rem;
+            text-align: center;
+        }
+
+        .notification-dropdown-footer {
+            display: flex;
+            justify-content: center;
+            padding: 0.75rem;
+            background: #f1f5f9;
+        }
+
+        .notification-dropdown-footer a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.35rem 0.65rem;
+            border: 1px solid #bfdbfe;
+            border-radius: 4px;
+            background: #fff;
+            color: #0284c7;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-decoration: none;
         }
 
         @keyframes notification-bell-shake {
@@ -1167,12 +1293,38 @@
             </a>
             <div class="topbar-actions">
                 {% if request.user.is_authenticated %}
-                <a class="topbar-notification-link{% if portal_unread_notifications_count %} has-unread{% endif %}" href="{% url 'notification_inbox' %}" aria-label="Notifications{% if portal_unread_notifications_count %}: {{ portal_unread_notifications_count }} unread{% endif %}">
-                    <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
-                    {% if portal_unread_notifications_count %}
-                    <span class="notification-count">{{ portal_unread_notifications_count }}</span>
-                    {% endif %}
-                </a>
+                <div class="topbar-notification-menu">
+                    <button class="topbar-notification-link{% if portal_unread_notifications_count %} has-unread{% endif %}" id="notificationMenuButton" type="button" aria-expanded="false" aria-controls="notificationDropdown" aria-label="Alerts{% if portal_unread_notifications_count %}: {{ portal_unread_notifications_count }} unread{% endif %}">
+                        <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+                        {% if portal_unread_notifications_count %}
+                        <span class="notification-count">{{ portal_unread_notifications_count }}</span>
+                        {% endif %}
+                    </button>
+                    <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="notification-dropdown-header">
+                            <span>Alerts</span>
+                            {% if portal_unread_notifications_count %}
+                            <span class="badge">{{ portal_unread_notifications_count }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="notification-dropdown-list">
+                            {% for notification in portal_recent_notifications %}
+                            <a class="notification-dropdown-item {% if notification.is_unread %}is-unread{% else %}is-read{% endif %}" href="{% url 'notification_inbox' %}">
+                                <span class="alert-stripe" aria-hidden="true"></span>
+                                <span>
+                                    <span class="notification-dropdown-title">{{ notification.title }}</span>
+                                    <span class="notification-dropdown-meta">{{ notification.created_at|date:"l, F j, g:i a" }}</span>
+                                </span>
+                            </a>
+                            {% empty %}
+                            <div class="notification-dropdown-empty">No alerts yet.</div>
+                            {% endfor %}
+                        </div>
+                        <div class="notification-dropdown-footer">
+                            <a href="{% url 'notification_inbox' %}">View All Alerts</a>
+                        </div>
+                    </div>
+                </div>
                 {% endif %}
                 <div class="account-menu">
                     <button class="account-menu-button" id="accountMenuButton" type="button" aria-expanded="false"
@@ -1345,10 +1497,34 @@
 
             const accountMenuButton = document.getElementById('accountMenuButton');
             const accountDropdown = document.getElementById('accountDropdown');
+            const notificationMenuButton = document.getElementById('notificationMenuButton');
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            if (notificationMenuButton && notificationDropdown) {
+                notificationMenuButton.addEventListener('click', function () {
+                    const isOpen = notificationDropdown.classList.toggle('open');
+                    notificationMenuButton.setAttribute('aria-expanded', String(isOpen));
+                    if (accountDropdown && isOpen) {
+                        accountDropdown.classList.remove('open');
+                        accountMenuButton?.setAttribute('aria-expanded', 'false');
+                    }
+                });
+
+                document.addEventListener('click', function (event) {
+                    if (!event.target.closest('.topbar-notification-menu')) {
+                        notificationDropdown.classList.remove('open');
+                        notificationMenuButton.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            }
+
             if (accountMenuButton && accountDropdown) {
                 accountMenuButton.addEventListener('click', function () {
                     const isOpen = accountDropdown.classList.toggle('open');
                     accountMenuButton.setAttribute('aria-expanded', isOpen);
+                    if (notificationDropdown && isOpen) {
+                        notificationDropdown.classList.remove('open');
+                        notificationMenuButton?.setAttribute('aria-expanded', 'false');
+                    }
                 });
 
                 document.addEventListener('click', function (event) {

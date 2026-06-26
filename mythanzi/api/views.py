@@ -14,18 +14,36 @@ from rest_framework.views import APIView
 
 from locations.models import District, Facility, Province, Service
 from users.access import APPOINTMENT_ROLES, USER_ADMIN_ROLES, get_user_role, visible_appointment_filter
-from users.models import Appointment, UserProfile
+from users.models import (
+    Appointment,
+    ClientConsent,
+    ClientJourneyEvent,
+    ClientLocator,
+    FollowUpTask,
+    Notification,
+    ReferralRecord,
+    UserProfile,
+)
+from users.notifications import notify_appointment_created
 
 from .fhir import latest_resources
 from .models import FHIRResourceVersion
 from .permissions import CanManageUsers, CanUseAppointments, IsActivePortalUser
 from .serializers import (
     AppointmentSerializer,
+    ClientConsentSerializer,
+    ClientDetailSerializer,
+    ClientJourneyEventSerializer,
+    ClientLocatorSerializer,
+    ClientSummarySerializer,
     DistrictSerializer,
     FHIRResourceVersionSerializer,
     FacilitySerializer,
+    FollowUpTaskSerializer,
     LoginSerializer,
+    NotificationSerializer,
     ProvinceSerializer,
+    ReferralRecordSerializer,
     ServiceSerializer,
     UserSerializer,
 )
@@ -56,6 +74,7 @@ def _portal_links(user):
     links = [
         {'label': 'Home', 'path': '/app/'},
         {'label': 'Find a Clinic', 'path': '/app/facilities'},
+        {'label': 'Notifications', 'path': '/app/notifications'},
         {'label': 'My Profile', 'path': '/app/profile'},
     ]
     if user.is_superuser or role in APPOINTMENT_ROLES or role == 'client':
@@ -67,6 +86,40 @@ def _portal_links(user):
     if user.is_superuser or role == 'admin':
         links.append({'label': 'Locations', 'path': '/app/locations'})
     return links
+
+
+def _visible_clients(user):
+    clients = User.objects.select_related(
+        'profile__facility',
+        'profile__person_identity',
+        'profile__population_group',
+        'client_locator__service_point',
+        'client_consent',
+    ).filter(
+        profile__role='client',
+        profile__is_active=True,
+        is_active=True,
+    )
+    role = get_user_role(user)
+
+    if user.is_superuser or role in USER_ADMIN_ROLES or role == 'supervisor':
+        return clients
+
+    if role in APPOINTMENT_ROLES:
+        facility_id = getattr(getattr(user, 'profile', None), 'facility_id', None)
+        if facility_id:
+            return clients.filter(
+                Q(profile__facility_id=facility_id)
+                | Q(appointments__facility_id=facility_id)
+                | Q(client_locator__service_point_id=facility_id)
+            ).distinct()
+
+        return clients.filter(
+            Q(appointments__created_by=user)
+            | Q(follow_up_tasks__assigned_to=user)
+        ).distinct()
+
+    return clients.filter(pk=user.pk)
 
 
 class CsrfTokenView(APIView):
@@ -427,15 +480,107 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         if self.request.user.is_superuser or get_user_role(self.request.user) in APPOINTMENT_ROLES:
-            serializer.save(created_by=self.request.user)
+            appointment = serializer.save(created_by=self.request.user)
         else:
-            serializer.save(beneficiary=self.request.user)
+            appointment = serializer.save(beneficiary=self.request.user)
+        notify_appointment_created(appointment, actor=self.request.user)
 
     def perform_update(self, serializer):
         if not self.request.user.is_superuser and get_user_role(self.request.user) not in APPOINTMENT_ROLES:
             serializer.save(beneficiary=self.request.user)
         else:
             serializer.save()
+
+
+class ClientManagementViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [CanUseAppointments]
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ClientSummarySerializer
+        return ClientDetailSerializer
+
+    def get_queryset(self):
+        queryset = _visible_clients(self.request.user).annotate(
+            journey_count=Count('journey_events', distinct=True),
+            referral_count=Count('referral_records', distinct=True),
+            follow_up_count=Count('follow_up_tasks', distinct=True),
+            appointment_count=Count('appointments', distinct=True),
+        ).prefetch_related(
+            'journey_events__recorded_by',
+            'referral_records__receiving_facility',
+            'referral_records__assigned_mobiliser',
+            'follow_up_tasks__assigned_to',
+            'appointments__facility',
+            'appointments__district',
+            'appointments__province',
+            'appointments__created_by__profile',
+            'appointments__beneficiary__profile',
+        )
+        search_term = self.request.query_params.get('q', '').strip()
+        if search_term:
+            queryset = queryset.filter(
+                Q(username__icontains=search_term)
+                | Q(first_name__icontains=search_term)
+                | Q(last_name__icontains=search_term)
+                | Q(profile__reference_number__icontains=search_term)
+                | Q(profile__phone__icontains=search_term)
+            )
+        return queryset.order_by('first_name', 'last_name', 'username')
+
+    def _client(self):
+        return self.get_object()
+
+    @action(detail=True, methods=['post'], url_path='locator')
+    def locator(self, request, pk=None):
+        client = self._client()
+        instance, _ = ClientLocator.objects.get_or_create(client=client)
+        serializer = ClientLocatorSerializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(updated_by=request.user)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='consent')
+    def consent(self, request, pk=None):
+        client = self._client()
+        instance, _ = ClientConsent.objects.get_or_create(client=client)
+        serializer = ClientConsentSerializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(recorded_by=request.user)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], url_path='journey-events')
+    def journey_events(self, request, pk=None):
+        client = self._client()
+        serializer = ClientJourneyEventSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(client=client, recorded_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='referrals')
+    def referrals(self, request, pk=None):
+        client = self._client()
+        serializer = ReferralRecordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(client=client, recorded_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='follow-up-tasks')
+    def follow_up_tasks(self, request, pk=None):
+        client = self._client()
+        serializer = FollowUpTaskSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(client=client, created_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'], url_path='appointments')
+    def appointments(self, request, pk=None):
+        client = self._client()
+        serializer = AppointmentSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        appointment = serializer.save(beneficiary=client, created_by=request.user)
+        notify_appointment_created(appointment, actor=request.user)
+        return Response(AppointmentSerializer(appointment, context={'request': request}).data, status=status.HTTP_201_CREATED)
 
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
@@ -454,3 +599,34 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
                 | Q(profile__reference_number__icontains=search_term)
             )
         return queryset
+
+
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = [IsActivePortalUser]
+    serializer_class = NotificationSerializer
+
+    def get_queryset(self):
+        return Notification.objects.select_related(
+            'appointment__beneficiary__profile',
+            'appointment__created_by__profile',
+            'appointment__province',
+            'appointment__district',
+            'appointment__facility',
+        ).filter(
+            recipient=self.request.user,
+            channel='portal',
+        ).order_by('-created_at')
+
+    @action(detail=False, methods=['get'])
+    def summary(self, request):
+        queryset = self.get_queryset()
+        return Response({
+            'unread_count': queryset.filter(read_at__isnull=True).count(),
+            'results': self.get_serializer(queryset[:5], many=True).data,
+        })
+
+    @action(detail=True, methods=['post'])
+    def read(self, request, pk=None):
+        notification = self.get_object()
+        notification.mark_read()
+        return Response(self.get_serializer(notification).data)

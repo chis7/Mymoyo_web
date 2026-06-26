@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { RouterLink, RouterView, useRouter } from 'vue-router'
 
-import { getMe, logout } from '@/api/client'
+import { getMe, getNotificationSummary, logout } from '@/api/client'
 
 const router = useRouter()
 const user = ref(null)
@@ -11,6 +11,8 @@ const online = ref(navigator.onLine)
 const deferredInstallPrompt = ref(null)
 const installMessage = ref('')
 const installed = ref(window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone)
+const notificationsOpen = ref(false)
+const notificationSummary = ref({ unread_count: 0, results: [] })
 
 const displayName = computed(() => user.value?.display_name || 'MyThanzi')
 const facilityName = computed(() => user.value?.profile?.facility_name || '')
@@ -22,6 +24,7 @@ const navIcons = {
   Users: 'manage_accounts',
   Clients: 'clinical_notes',
   Appointments: 'calendar_month',
+  Notifications: 'notifications',
   Profile: 'account_circle'
 }
 
@@ -30,9 +33,19 @@ async function refreshSession() {
     const data = await getMe()
     user.value = data.user
     navigation.value = data.navigation
+    await refreshNotifications()
   } catch {
     user.value = null
     navigation.value = []
+  }
+}
+
+async function refreshNotifications() {
+  if (!user.value) return
+  try {
+    notificationSummary.value = await getNotificationSummary()
+  } catch {
+    notificationSummary.value = { unread_count: 0, results: [] }
   }
 }
 
@@ -40,7 +53,19 @@ async function signOut() {
   await logout().catch(() => null)
   user.value = null
   navigation.value = []
+  notificationSummary.value = { unread_count: 0, results: [] }
   router.push('/login')
+}
+
+function formatAlertDate(value) {
+  if (!value) return ''
+  return new Date(value).toLocaleString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  })
 }
 
 async function installApp() {
@@ -141,6 +166,47 @@ onMounted(() => {
         </div>
 
         <div class="topbar-actions">
+          <div v-if="user" class="topbar-notification-menu">
+            <button
+              class="topbar-notification-link"
+              :class="{ 'has-unread': notificationSummary.unread_count }"
+              type="button"
+              :aria-expanded="String(notificationsOpen)"
+              aria-controls="notificationDropdown"
+              @click="notificationsOpen = !notificationsOpen"
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+              <span v-if="notificationSummary.unread_count" class="notification-count">
+                {{ notificationSummary.unread_count }}
+              </span>
+            </button>
+            <div id="notificationDropdown" class="notification-dropdown" :class="{ open: notificationsOpen }">
+              <div class="notification-dropdown-header">
+                <span>Alerts</span>
+                <span v-if="notificationSummary.unread_count" class="badge">{{ notificationSummary.unread_count }}</span>
+              </div>
+              <div class="notification-dropdown-list">
+                <RouterLink
+                  v-for="notification in notificationSummary.results"
+                  :key="notification.id"
+                  class="notification-dropdown-item"
+                  :class="notification.is_unread ? 'is-unread' : 'is-read'"
+                  to="/notifications"
+                  @click="notificationsOpen = false"
+                >
+                  <span class="alert-stripe" aria-hidden="true"></span>
+                  <span>
+                    <span class="notification-dropdown-title">{{ notification.title }}</span>
+                    <span class="notification-dropdown-meta">{{ formatAlertDate(notification.created_at) }}</span>
+                  </span>
+                </RouterLink>
+                <div v-if="!notificationSummary.results.length" class="notification-dropdown-empty">No alerts yet.</div>
+              </div>
+              <div class="notification-dropdown-footer">
+                <RouterLink to="/notifications" @click="notificationsOpen = false">View All Alerts</RouterLink>
+              </div>
+            </div>
+          </div>
           <button v-if="canInstall" class="install-button" type="button" @click="installApp">
             <span class="material-symbols-outlined" aria-hidden="true">download</span>
             Install app

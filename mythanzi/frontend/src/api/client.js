@@ -36,7 +36,10 @@ export async function apiFetch(path, options = {}) {
 
     const data = await response.json().catch(() => ({}))
     if (!response.ok) {
-      const error = new Error(data.detail || data.error || 'Request failed.')
+      const fieldErrors = Object.entries(data)
+        .filter(([, value]) => Array.isArray(value) || typeof value === 'string')
+        .map(([field, value]) => `${field}: ${Array.isArray(value) ? value.join(', ') : value}`)
+      const error = new Error(data.detail || data.error || fieldErrors.join(' ') || 'Request failed.')
       error.response = response
       error.data = data
       throw error
@@ -79,6 +82,83 @@ export function listUsers(params = {}) {
 
 export function listAppointments() {
   return apiFetch('/appointments/')
+}
+
+export function createAppointment(payload) {
+  return apiFetch('/appointments/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function listClients(params = {}) {
+  const query = new URLSearchParams(params)
+  return apiFetch(`/clients/${query.toString() ? `?${query}` : ''}`)
+}
+
+export function getClient(id) {
+  return apiFetch(`/clients/${id}/`)
+}
+
+export function saveClientLocator(clientId, payload) {
+  return apiFetch(`/clients/${clientId}/locator/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function saveClientConsent(clientId, payload) {
+  return apiFetch(`/clients/${clientId}/consent/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function createClientJourneyEvent(clientId, payload) {
+  return apiFetch(`/clients/${clientId}/journey-events/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function createClientReferral(clientId, payload) {
+  return apiFetch(`/clients/${clientId}/referrals/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function createClientFollowUpTask(clientId, payload) {
+  return apiFetch(`/clients/${clientId}/follow-up-tasks/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function createClientAppointment(clientId, payload) {
+  return apiFetch(`/clients/${clientId}/appointments/`, {
+    method: 'POST',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function listNotifications() {
+  return apiFetch('/notifications/')
+}
+
+export function getNotificationSummary() {
+  return apiFetch('/notifications/summary/')
+}
+
+export function markNotificationRead(id) {
+  return apiFetch(`/notifications/${id}/read/`, { method: 'POST' })
 }
 
 export function getDashboardStats() {

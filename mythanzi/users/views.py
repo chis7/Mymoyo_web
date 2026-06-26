@@ -1740,8 +1740,13 @@ def client_record(request, pk):
                 created_by=request.user,
             )
             if appointment_form.is_valid():
-                appointment_form.save()
+                appointment = appointment_form.save()
+                portal_notification, email_notification = notify_appointment_created(appointment, actor=request.user)
                 messages.success(request, 'Appointment booked.')
+                if email_notification and email_notification.status == 'failed':
+                    messages.warning(request, 'The portal notification was created, but the email notification could not be sent.')
+                elif portal_notification and not appointment.beneficiary.email:
+                    messages.warning(request, 'The portal notification was created. No email was sent because the client has no email address.')
                 return redirect('client_record', pk=client.pk)
         elif action == 'consent':
             consent_form = ClientConsentForm(request.POST, instance=consent, prefix='consent')
