@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 {% load static %}
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,6 +37,7 @@
             --theme-on-nav-muted: #bdebdc;
             --theme-on-brand: #08332f;
         }
+
         body.theme-teal {
             --theme-nav: #064e45;
             --theme-nav-rgb: 6, 78, 69;
@@ -63,6 +65,7 @@
             --theme-on-nav-muted: #c7f3e2;
             --theme-on-brand: #07352f;
         }
+
         body.theme-indigo {
             --theme-nav: #303f9f;
             --theme-nav-rgb: 48, 63, 159;
@@ -90,6 +93,7 @@
             --theme-on-nav-muted: #d8dcff;
             --theme-on-brand: #172047;
         }
+
         body.theme-rose {
             --theme-nav: #ad1457;
             --theme-nav-rgb: 173, 20, 87;
@@ -117,6 +121,7 @@
             --theme-on-nav-muted: #ffd6e5;
             --theme-on-brand: #4a1029;
         }
+
         body.theme-amber {
             --theme-nav: #7c3f00;
             --theme-nav-rgb: 124, 63, 0;
@@ -144,6 +149,7 @@
             --theme-on-nav-muted: #fde68a;
             --theme-on-brand: #3f1f06;
         }
+
         body.theme-sky {
             --theme-nav: #075985;
             --theme-nav-rgb: 7, 89, 133;
@@ -171,6 +177,7 @@
             --theme-on-nav-muted: #bae6fd;
             --theme-on-brand: #082f49;
         }
+
         body.theme-light {
             --theme-nav: #f8fafc;
             --theme-nav-rgb: 248, 250, 252;
@@ -198,6 +205,7 @@
             --theme-on-nav-muted: #475569;
             --theme-on-brand: #0f172a;
         }
+
         body.theme-dark {
             --theme-nav: #020617;
             --theme-nav-rgb: 2, 6, 23;
@@ -225,6 +233,7 @@
             --theme-on-nav-muted: #94a3b8;
             --theme-on-brand: #052e16;
         }
+
         body {
             font-family: 'Inter', sans-serif;
             background:
@@ -233,9 +242,11 @@
                 linear-gradient(180deg, var(--theme-page-start) 0%, var(--theme-page-mid) 45%, var(--theme-page-end) 100%);
             color: var(--theme-text);
         }
+
         .swal2-container {
             z-index: 3000 !important;
         }
+
         .sidebar {
             position: fixed;
             top: 7.75rem;
@@ -257,9 +268,11 @@
             box-shadow: 0 24px 40px rgba(0, 0, 0, 0.12);
             transition: transform 0.25s ease;
         }
+
         .sidebar-overlay {
             display: none;
         }
+
         .sidebar .brand {
             display: flex;
             align-items: center;
@@ -271,6 +284,7 @@
             color: var(--theme-on-nav);
             text-decoration: none;
         }
+
         .sidebar .brand-icon {
             width: 44px;
             height: 44px;
@@ -283,9 +297,11 @@
             color: var(--theme-on-brand);
             box-shadow: 0 14px 28px rgba(var(--theme-life-rgb), 0.26);
         }
+
         .sidebar .brand-name {
             line-height: 1.1;
         }
+
         .sidebar .brand small {
             display: block;
             font-size: 0.72rem;
@@ -294,12 +310,15 @@
             letter-spacing: 0.04em;
             font-weight: 600;
         }
+
         .sidebar .nav-section {
             margin-top: 1.5rem;
         }
-        .sidebar > .nav-section:first-of-type {
+
+        .sidebar>.nav-section:first-of-type {
             margin-top: 0;
         }
+
         .sidebar .nav-section-title {
             display: flex;
             align-items: center;
@@ -317,16 +336,20 @@
             font-family: inherit;
             text-align: left;
         }
+
         .sidebar .nav-section-title .material-symbols-outlined {
             font-size: 1rem;
             transition: transform 0.2s ease;
         }
+
         .sidebar .nav-section.collapsed .nav-section-title .material-symbols-outlined {
             transform: rotate(-90deg);
         }
+
         .sidebar .nav-section.collapsed .nav-section-items {
             display: none;
         }
+
         .sidebar .nav-link {
             display: flex;
             align-items: center;
@@ -342,15 +365,18 @@
             transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
             text-decoration: none;
         }
+
         .sidebar .nav-link:hover {
             background: rgba(255, 255, 255, 0.08);
             color: var(--theme-on-nav);
             transform: translateX(2px);
         }
+
         .sidebar .nav-link.active {
             background: rgba(var(--theme-highlight-rgb), 0.18);
             color: var(--theme-on-nav);
         }
+
         .sidebar .nav-icon {
             font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 48;
             font-size: 1.15rem;
@@ -359,9 +385,11 @@
             display: inline-flex;
             justify-content: center;
         }
+
         .sidebar .nav-link.active .nav-icon {
             color: var(--theme-highlight);
         }
+
         .sidebar .sidebar-footer {
             margin-top: auto;
             padding-top: 1.5rem;
@@ -369,6 +397,7 @@
             position: sticky;
             bottom: 0;
         }
+
         .sidebar .user-pill {
             display: flex;
             align-items: center;
@@ -379,20 +408,24 @@
             color: var(--theme-on-nav);
             margin-bottom: 0.75rem;
         }
+
         .sidebar .user-pill small {
             display: block;
             color: var(--theme-on-nav-muted);
         }
+
         .sidebar .life-dot {
             color: var(--theme-life);
             text-shadow: 0 0 12px rgba(var(--theme-life-rgb), 0.8);
         }
+
         .app-shell {
             margin-left: 320px;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
         }
+
         .topbar {
             position: sticky;
             top: 0;
@@ -409,6 +442,7 @@
             box-shadow: 0 18px 42px rgba(16, 32, 48, 0.08);
             margin: 1.25rem;
         }
+
         .topbar-life {
             display: flex;
             align-items: center;
@@ -416,6 +450,7 @@
             color: var(--theme-on-nav);
             min-width: 0;
         }
+
         .topbar .brand {
             display: flex;
             align-items: center;
@@ -426,6 +461,7 @@
             letter-spacing: 0.02em;
             text-decoration: none;
         }
+
         .topbar .brand-icon {
             width: 44px;
             height: 44px;
@@ -438,9 +474,11 @@
             color: var(--theme-on-brand);
             box-shadow: 0 14px 28px rgba(var(--theme-life-rgb), 0.26);
         }
+
         .topbar .brand-name {
             line-height: 1.1;
         }
+
         .topbar .brand small {
             display: block;
             color: var(--theme-accent);
@@ -449,6 +487,7 @@
             letter-spacing: 0.04em;
             margin-top: 0.28rem;
         }
+
         .topbar-life-icon {
             width: 38px;
             height: 38px;
@@ -459,22 +498,26 @@
             background: rgba(255, 255, 255, 0.14);
             color: var(--theme-highlight);
         }
+
         .topbar-life strong {
             display: block;
             line-height: 1.1;
         }
+
         .topbar-life small {
             display: block;
             color: var(--theme-accent);
             font-size: 0.76rem;
             margin-top: 0.15rem;
         }
+
         .topbar-brand {
             color: var(--theme-on-nav);
             font-size: 1.05rem;
             font-weight: 800;
             text-decoration: none;
         }
+
         .menu-toggle {
             display: none;
             align-items: center;
@@ -487,19 +530,23 @@
             color: var(--theme-on-nav);
             cursor: pointer;
         }
+
         .menu-toggle:hover,
         .menu-toggle[aria-expanded="true"] {
             background: rgba(255, 255, 255, 0.1);
         }
+
         .menu-toggle .material-symbols-outlined {
             font-size: 1.4rem;
         }
+
         .topbar-links {
             display: flex;
             align-items: center;
             gap: 0.35rem;
             flex: 1;
         }
+
         .topbar-link {
             display: inline-flex;
             align-items: center;
@@ -511,13 +558,16 @@
             font-weight: 600;
             text-decoration: none;
         }
+
         .topbar-link:hover {
             background: rgba(255, 255, 255, 0.08);
             color: var(--theme-on-nav);
         }
+
         .topbar-link .material-symbols-outlined {
             font-size: 1.1rem;
         }
+
         .topbar-actions {
             display: flex;
             align-items: center;
@@ -525,11 +575,195 @@
             gap: 0.5rem;
             margin-left: auto;
         }
+
+        .topbar-notification-menu {
+            position: relative;
+        }
+
+        .topbar-notification-link {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            border: 1px solid rgba(226, 232, 240, 0.2);
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--theme-on-nav);
+            cursor: pointer;
+            font: inherit;
+            text-decoration: none;
+        }
+
+        .topbar-notification-link:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--theme-on-nav);
+        }
+
+        .topbar-notification-link.has-unread .material-symbols-outlined {
+            animation: notification-bell-shake 1.4s ease-in-out infinite;
+            transform-origin: 50% 10%;
+        }
+
+        .topbar-notification-link .notification-count {
+            position: absolute;
+            top: -0.35rem;
+            right: -0.35rem;
+            min-width: 1.25rem;
+            height: 1.25rem;
+            padding: 0 0.35rem;
+            border: 2px solid var(--theme-nav);
+            border-radius: 999px;
+            background: #ef4444;
+            color: #fff;
+            font-size: 0.68rem;
+            font-weight: 800;
+            line-height: 1rem;
+            text-align: center;
+        }
+
+        .notification-dropdown {
+            display: none;
+            position: absolute;
+            top: calc(100% + 0.55rem);
+            right: 0;
+            z-index: 1120;
+            width: min(86vw, 330px);
+            overflow: hidden;
+            border: 1px solid rgba(15, 23, 42, 0.16);
+            border-radius: 6px;
+            background: #fff;
+            box-shadow: 0 12px 28px rgba(16, 32, 48, 0.22);
+            color: #1f2937;
+        }
+
+        .notification-dropdown.open {
+            display: block;
+        }
+
+        .notification-dropdown-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.65rem 0.8rem;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f8fafc;
+            font-size: 0.78rem;
+            font-weight: 800;
+        }
+
+        .notification-dropdown-header .badge {
+            min-width: 1.25rem;
+            border-radius: 999px;
+            background: #38bdf8;
+            color: #fff;
+            font-size: 0.68rem;
+            text-align: center;
+        }
+
+        .notification-dropdown-list {
+            max-height: 21rem;
+            overflow-y: auto;
+        }
+
+        .notification-dropdown-item {
+            display: grid;
+            grid-template-columns: 4px minmax(0, 1fr);
+            gap: 0.75rem;
+            padding: 0.75rem 0.85rem 0.7rem;
+            border-bottom: 1px solid #eef2f7;
+            color: #334155;
+            text-decoration: none;
+        }
+
+        .notification-dropdown-item:hover {
+            background: #f8fafc;
+            color: #0f172a;
+            text-decoration: none;
+        }
+
+        .notification-dropdown-item .alert-stripe {
+            width: 3px;
+            min-height: 2.4rem;
+            border-radius: 999px;
+            background: #22c55e;
+        }
+
+        .notification-dropdown-item.is-read .alert-stripe {
+            background: #94a3b8;
+        }
+
+        .notification-dropdown-item.is-unread .alert-stripe {
+            background: #ef4444;
+        }
+
+        .notification-dropdown-title {
+            overflow: hidden;
+            color: #334155;
+            font-size: 0.78rem;
+            font-weight: 800;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .notification-dropdown-meta {
+            margin-top: 0.14rem;
+            color: #64748b;
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+
+        .notification-dropdown-empty {
+            padding: 1rem;
+            color: #64748b;
+            font-size: 0.82rem;
+            text-align: center;
+        }
+
+        .notification-dropdown-footer {
+            display: flex;
+            justify-content: center;
+            padding: 0.75rem;
+            background: #f1f5f9;
+        }
+
+        .notification-dropdown-footer a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.35rem 0.65rem;
+            border: 1px solid #bfdbfe;
+            border-radius: 4px;
+            background: #fff;
+            color: #0284c7;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        @keyframes notification-bell-shake {
+            0%, 52%, 100% {
+                transform: rotate(0deg);
+            }
+            8%, 24% {
+                transform: rotate(14deg);
+            }
+            16%, 32% {
+                transform: rotate(-14deg);
+            }
+            40% {
+                transform: rotate(8deg);
+            }
+        }
+
         .account-menu {
             position: relative;
             display: flex;
             justify-content: flex-end;
         }
+
         .account-menu-button {
             display: inline-flex;
             align-items: center;
@@ -544,19 +778,23 @@
             font-size: 0.88rem;
             font-weight: 600;
         }
+
         .account-menu-button:hover,
         .account-menu-button[aria-expanded="true"] {
             background: rgba(255, 255, 255, 0.1);
         }
+
         .account-menu-button .material-symbols-outlined {
             font-size: 1.1rem;
         }
-        .account-menu-button > span:not(.material-symbols-outlined) {
+
+        .account-menu-button>span:not(.material-symbols-outlined) {
             display: grid;
             gap: 0.1rem;
             line-height: 1.1;
             text-align: left;
         }
+
         .account-menu-button small {
             max-width: 14rem;
             overflow: hidden;
@@ -566,6 +804,7 @@
             text-overflow: ellipsis;
             white-space: nowrap;
         }
+
         .account-dropdown {
             display: none;
             position: absolute;
@@ -580,9 +819,11 @@
             background: var(--theme-surface);
             box-shadow: 0 12px 28px rgba(16, 32, 48, 0.16);
         }
+
         .account-dropdown.open {
             display: block;
         }
+
         .account-dropdown a,
         .account-dropdown button {
             display: flex;
@@ -601,14 +842,17 @@
             text-align: left;
             text-decoration: none;
         }
+
         .account-dropdown a:hover,
         .account-dropdown button:hover {
             background: var(--theme-soft);
             color: var(--theme-primary);
         }
+
         .account-dropdown .material-symbols-outlined {
             font-size: 1.1rem;
         }
+
         .theme-picker {
             display: flex;
             gap: 0.45rem;
@@ -616,6 +860,7 @@
             border-top: 1px solid rgba(var(--theme-primary-rgb), 0.12);
             border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.12);
         }
+
         .theme-picker .theme-swatch {
             width: 24px;
             height: 24px;
@@ -625,39 +870,50 @@
             border-radius: 999px;
             box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.12);
         }
+
         .theme-picker .theme-swatch:hover,
         .theme-picker .theme-swatch.is-selected {
             border-color: var(--theme-surface);
             box-shadow: 0 0 0 2px var(--theme-primary);
         }
+
         .theme-picker .theme-swatch-slate {
             background: #073f3a;
         }
+
         .theme-picker .theme-swatch-teal {
             background: #00897b;
         }
+
         .theme-picker .theme-swatch-indigo {
             background: #303f9f;
         }
+
         .theme-picker .theme-swatch-rose {
             background: #ad1457;
         }
+
         .theme-picker .theme-swatch-amber {
             background: #b45309;
         }
+
         .theme-picker .theme-swatch-sky {
             background: #0284c7;
         }
+
         .theme-picker .theme-swatch-light {
             background: #f8fafc;
         }
+
         .theme-picker .theme-swatch-dark {
             background: #020617;
         }
+
         .content-wrapper {
             padding: 1.5rem 1.5rem 5rem;
             flex: 1 0 auto;
         }
+
         .hero-card {
             border-radius: 24px;
             padding: 1.5rem;
@@ -670,9 +926,11 @@
             transition: transform 0.2s ease;
             color: var(--theme-surface-text);
         }
+
         .hero-card:hover {
             transform: translateY(-4px);
         }
+
         .hero-card h6 {
             font-size: 0.78rem;
             text-transform: uppercase;
@@ -680,21 +938,42 @@
             color: var(--theme-surface-text);
             margin-bottom: 0.75rem;
         }
+
         .hero-card p {
             color: var(--theme-surface-muted);
             margin-bottom: 0.9rem;
         }
+
         .hero-card .cta-link {
             font-size: 0.85rem;
             font-weight: 700;
             color: var(--theme-primary);
         }
-        .hero-card.border-teal { border-color: #0f766e; }
-        .hero-card.border-green { border-color: #15803d; }
-        .hero-card.border-red { border-color: #dc2626; }
-        .hero-card.border-indigo { border-color: #4338ca; }
-        .hero-card.border-orange { border-color: #ea580c; }
-        .hero-card.border-slate { border-color: #334155; }
+
+        .hero-card.border-teal {
+            border-color: #0f766e;
+        }
+
+        .hero-card.border-green {
+            border-color: #15803d;
+        }
+
+        .hero-card.border-red {
+            border-color: #dc2626;
+        }
+
+        .hero-card.border-indigo {
+            border-color: #4338ca;
+        }
+
+        .hero-card.border-orange {
+            border-color: #ea580c;
+        }
+
+        .hero-card.border-slate {
+            border-color: #334155;
+        }
+
         footer {
             position: fixed;
             left: calc(320px + 1.25rem);
@@ -710,6 +989,7 @@
             color: var(--theme-text-muted);
             text-align: center;
         }
+
         .management-breadcrumb {
             display: flex;
             align-items: center;
@@ -719,61 +999,76 @@
             font-size: 0.92rem;
             font-weight: 700;
         }
+
         .management-breadcrumb a {
             color: var(--theme-primary);
             text-decoration: none;
         }
+
         .management-breadcrumb a:hover {
             text-decoration: underline;
         }
+
         .management-breadcrumb .material-symbols-outlined {
             color: var(--theme-text-muted);
             font-size: 1rem;
         }
+
         .management-breadcrumb [aria-current="page"] {
             color: var(--theme-text-strong);
         }
+
         @media (max-width: 991.98px) {
             .sidebar {
                 width: min(82vw, 280px);
                 transform: translateX(-100%);
                 z-index: 1200;
             }
+
             body.nav-open .sidebar {
                 transform: translateX(0);
             }
+
             .sidebar-overlay {
                 position: fixed;
                 inset: 0;
                 z-index: 1190;
                 background: rgba(15, 23, 42, 0.45);
             }
+
             body.nav-open .sidebar-overlay {
                 display: block;
             }
+
             .app-shell {
                 margin-left: 0;
             }
+
             footer {
                 left: 1.25rem;
                 right: 1.25rem;
             }
+
             .topbar {
                 align-items: center;
                 border-radius: 16px;
                 padding: 0.85rem 1rem;
             }
+
             .menu-toggle {
                 display: inline-flex;
             }
+
             .topbar-brand {
                 display: inline-flex;
                 flex: 1;
             }
+
             .topbar-links,
             .topbar-actions {
                 flex-wrap: wrap;
             }
+
             .topbar-actions {
                 justify-content: flex-end;
                 margin-left: 0;
@@ -782,204 +1077,274 @@
     </style>
     {% block extra_head %}{% endblock %}
 </head>
+
 <body class="theme-{{ request.user.profile.theme_color|default:'slate' }}">
-<div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
-<div class="sidebar d-flex flex-column" id="sidebar">
-    {% if request.user.is_superuser or request.user.profile.role == 'admin' %}
+    <div class="sidebar-overlay" id="sidebarOverlay" hidden></div>
+    <div class="sidebar d-flex flex-column" id="sidebar">
+
+        {% with role=request.user.profile.role %}
+
+        <!-- Dashboard -->
+        {% if request.user.is_superuser or role == 'admin' %}
         <div class="nav-section collapsed">
             <button class="nav-section-title" type="button" aria-expanded="false">
-                Admin
+                Dashboard
                 <span class="material-symbols-outlined">expand_more</span>
             </button>
             <nav class="nav flex-column nav-section-items">
-                
-                <a class="nav-link" href="/app/users">
-                    <span class="nav-icon material-symbols-outlined">manage_accounts</span>
-                    Manage Users
+                <a class="nav-link" href="{% url 'user_dashboard' %}">
+                    <span class="nav-icon material-symbols-outlined">home</span>
+                    Dashboard
                 </a>
-                <a class="nav-link" href="/app/locations">
-                    <span class="nav-icon material-symbols-outlined">map</span>
-                    Manage Locations
-                </a>
-                <a class="nav-link" href="{% url 'service_management' %}">
-                    <span class="nav-icon material-symbols-outlined">medical_services</span>
-                    Manage Services
+                <a class="nav-link" href="{% url 'referral_analytics' %}">
+                    <span class="nav-icon material-symbols-outlined">monitoring</span>
+                    Referral Analytics
                 </a>
             </nav>
         </div>
-    {% endif %}
-    <div class="nav-section collapsed">
-        <button class="nav-section-title" type="button" aria-expanded="false">
-            Main
-            <span class="material-symbols-outlined">expand_more</span>
-        </button>
-        <nav class="nav flex-column nav-section-items">
-            {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'supervisor' %}
-                <a class="nav-link" href="/app/dashboard">
-                    <span class="nav-icon material-symbols-outlined">home</span>
-                    Command Center
-                </a>
-            {% endif %}
-            {% if request.user.is_superuser or request.user.profile.role == 'admin' or request.user.profile.role == 'supervisor' or request.user.profile.role == 'provider' or request.user.profile.role == 'chw' or request.user.profile.role == 'mobiliser' or request.user.profile.role == 'client' %}
-                <a class="nav-link" href="/app/appointments">
-                    <span class="nav-icon material-symbols-outlined">calendar_month</span>
-                    Appointments
-                </a>
-            {% endif %}
-            {% if request.user.is_authenticated %}
-                <a class="nav-link" href="/app/profile">
-                    <span class="nav-icon material-symbols-outlined">account_circle</span>
-                    My Profile
-                </a>
-            {% else %}
-                <a class="nav-link" href="{% url 'login' %}">
-                    <span class="nav-icon material-symbols-outlined">login</span>
-                    Login
-                </a>
-                <a class="nav-link" href="{% url 'register' %}">
-                    <span class="nav-icon material-symbols-outlined">person_add</span>
-                    Create Account
-                </a>
-            {% endif %}
-            <a class="nav-link" href="/app/">
-                <span class="nav-icon material-symbols-outlined">download</span>
-                Open App
-            </a>
-            {% if request.user.is_staff %}
-                <a class="nav-link" href="{% url 'admin:index' %}">
-                    <span class="nav-icon material-symbols-outlined">admin_panel_settings</span>
-                    Admin Panel
-                </a>
-            {% endif %}
-            <a class="nav-link" href="{% url 'medication_reminders' %}">
-                <span class="nav-icon material-symbols-outlined">medical_services</span>
-                Medication Reminders
-            </a>
-        </nav>
-    </div>
-    {% if request.user.is_staff %}
+        {% endif %}
+
+        <!-- Admin -->
+        {% if request.user.is_superuser or role == 'admin' %}
         <div class="nav-section collapsed">
             <button class="nav-section-title" type="button" aria-expanded="false">
                 Admin
                 <span class="material-symbols-outlined">expand_more</span>
             </button>
             <nav class="nav flex-column nav-section-items">
-                <a class="nav-link" href="{% url 'admin:auth_user_changelist' %}">
-                    <span class="nav-icon material-symbols-outlined">people</span>
+                <a class="nav-link" href="{% url 'user_list' %}">
+                    <span class="nav-icon material-symbols-outlined">manage_accounts</span>
                     Users
                 </a>
-                <a class="nav-link" href="{% url 'location_management_tab' tab='provinces' %}">
-                    <span class="nav-icon material-symbols-outlined">location_on</span>
-                    Provinces
+
+                <a class="nav-link" href="{% url 'location_management' %}">
+                    <span class="nav-icon material-symbols-outlined">map</span>
+                    Locations
                 </a>
-                <a class="nav-link" href="{% url 'location_management_tab' tab='districts' %}">
-                    <span class="nav-icon material-symbols-outlined">public</span>
-                    Districts
-                </a>
-                <a class="nav-link" href="{% url 'location_management_tab' tab='facilities' %}">
-                    <span class="nav-icon material-symbols-outlined">local_hospital</span>
-                    Facilities
-                </a>
+
                 <a class="nav-link" href="{% url 'service_management' %}">
                     <span class="nav-icon material-symbols-outlined">medical_services</span>
                     Services
                 </a>
+
+                <a class="nav-link" href="{% url 'population_group_management' %}">
+                    <span class="nav-icon material-symbols-outlined">groups</span>
+                    Population Groups
+                </a>
+
+                <a class="nav-link" href="{% url 'safeguarding_management' %}">
+                    <span class="nav-icon material-symbols-outlined">shield</span>
+                    Safeguarding Cases
+                </a>
+
+                <a class="nav-link" href="{% url 'grievance_management' %}">
+                    <span class="nav-icon material-symbols-outlined">campaign</span>
+                    Grievance Cases
+                </a>
+
+                <a class="nav-link" href="{% url 'exit_interview_dashboard' %}">
+                    <span class="nav-icon material-symbols-outlined">analytics</span>
+                    Exit Interviews
+                </a>
+
+                <a class="nav-link" href="{% url 'medication_reminders' %}">
+                    <span class="nav-icon material-symbols-outlined">notifications</span>
+                    Notifications
+                </a>
             </nav>
         </div>
-    {% endif %}
-    <div class="nav-section collapsed">
-        <button class="nav-section-title" type="button" aria-expanded="false">
-            Services
-            <span class="material-symbols-outlined">expand_more</span>
-        </button>
-        <nav class="nav flex-column nav-section-items">
-            <a class="nav-link" href="{% url 'self_test_report' %}">
-                <span class="nav-icon material-symbols-outlined">science</span>
-                Recent Self-Test
-            </a>
-            <a class="nav-link" href="{% url 'self_risk_assessment' %}">
-                <span class="nav-icon material-symbols-outlined">health_metrics</span>
-                Self-Risk Screening
-            </a>
-            <a class="nav-link" href="{% url 'side_effect_report' %}">
-                <span class="nav-icon material-symbols-outlined">warning</span>
-                Report Side Effects
-            </a>
-            <a class="nav-link" href="{% url 'clinic_feedback' %}">
-                <span class="nav-icon material-symbols-outlined">hotel_class</span>
-                Rate Clinic Services
-            </a>
-        </nav>
-    </div>
-    <div class="nav-section collapsed">
-        <button class="nav-section-title" type="button" aria-expanded="false">
-            Information
-            <span class="material-symbols-outlined">expand_more</span>
-        </button>
-        <nav class="nav flex-column nav-section-items">
-            <a class="nav-link" href="#">
-                <span class="nav-icon material-symbols-outlined">menu_book</span>
-                Health Education
-            </a>
-            <a class="nav-link" href="{% url 'facility_map' %}">
-                <span class="nav-icon material-symbols-outlined">map</span>
-                Find a Clinic
-            </a>
-            <a class="nav-link" href="#">
-                <span class="nav-icon material-symbols-outlined">help</span>
-                Help & Support
-            </a>
-        </nav>
-    </div>
-    <div class="sidebar-footer">
-        <div class="user-pill">
-            <a class="topbar-life topbar-brand" href="/app/">
-            <span class="topbar-life-icon material-symbols-outlined">health_and_safety</span>
-            <span>
-                {% comment %} <strong>MyThanzi</strong> {% endcomment %}
-                <small>my life, cared for</small>
-            </span>
-        </a>
-            {% comment %} <div>
-                <div class="fw-semibold">{{ request.user.get_full_name|default:request.user.username }}</div>
-                <small>{{ request.user.profile.get_role_display|default:"Portal User" }}</small>
-            </div>
-            <span class="life-dot">●</span> {% endcomment %}
+        {% endif %}
+
+        <!-- Clinical -->
+        {% if request.user.is_superuser %}
+        <div class="nav-section collapsed">
+            <button class="nav-section-title" type="button" aria-expanded="false">
+                Clinical
+                <span class="material-symbols-outlined">expand_more</span>
+            </button>
+            <nav class="nav flex-column nav-section-items">
+                <a class="nav-link" href="{% url 'appointment_list' %}">
+                    <span class="nav-icon material-symbols-outlined">calendar_month</span>
+                    Appointments
+                </a>
+
+                <a class="nav-link" href="{% url 'client_management' %}">
+                    <span class="nav-icon material-symbols-outlined">clinical_notes</span>
+                    Client Management
+                </a>
+            </nav>
         </div>
-    </div>
-</div>
-<div class="app-shell">
-    <div class="topbar">
-        <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="sidebar">
-            <span class="material-symbols-outlined">menu</span>
-        </button>
+
         
-        <a class="brand" href="/app/">
-            <div class="brand-icon material-symbols-outlined">health_and_safety</div>
-            <div class="brand-name">
-                MyThanzi
-                <small>My life. My care.</small>
-            </div>
-            <div class="topbar-actions">
-        </a>
-            <div class="account-menu">
-                <button class="account-menu-button" id="accountMenuButton" type="button" aria-expanded="false" aria-controls="accountDropdown">
-                    <span class="material-symbols-outlined">account_circle</span>
+        {% endif %}
+
+        <!-- Self Service -->
+        <div class="nav-section collapsed">
+            <button class="nav-section-title" type="button" aria-expanded="false">
+                Self Service
+                <span class="material-symbols-outlined">expand_more</span>
+            </button>
+
+            <nav class="nav flex-column nav-section-items">
+
+                {% if request.user.is_authenticated %}
+                <a class="nav-link" href="{% url 'my_journey' %}">
+                    <span class="nav-icon material-symbols-outlined">timeline</span>
+                    My Journey
+                </a>
+                <a class="nav-link" href="{% url 'notification_inbox' %}">
+                    <span class="nav-icon material-symbols-outlined">notifications</span>
+                    Notifications
+                    {% if portal_unread_notifications_count %}
+                        <span class="badge rounded-pill text-bg-primary ms-auto">{{ portal_unread_notifications_count }}</span>
+                    {% endif %}
+                </a>
+                {% endif %}
+
+                <a class="nav-link" href="{% url 'self_test_report' %}">
+                    <span class="nav-icon material-symbols-outlined">science</span>
+                    Recent Self-Test
+                </a>
+
+                <a class="nav-link" href="{% url 'self_risk_assessment' %}">
+                    <span class="nav-icon material-symbols-outlined">health_metrics</span>
+                    Self-Risk Screening
+                </a>
+
+                <a class="nav-link" href="{% url 'side_effect_report' %}">
+                    <span class="nav-icon material-symbols-outlined">warning</span>
+                    Report Side Effects
+                </a>
+
+                <a class="nav-link" href="{% url 'clinic_feedback' %}">
+                    <span class="nav-icon material-symbols-outlined">hotel_class</span>
+                    Rate Clinic Services
+                </a>
+
+                <a class="nav-link" href="{% url 'safeguarding_report' %}">
+                    <span class="nav-icon material-symbols-outlined">shield</span>
+                    Safeguarding
+                </a>
+
+                <a class="nav-link" href="{% url 'grievance_submit' %}">
+                    <span class="nav-icon material-symbols-outlined">campaign</span>
+                    Grievance
+                </a>
+
+                <a class="nav-link" href="{% url 'client_exit_interview' %}">
+                    <span class="nav-icon material-symbols-outlined">rate_review</span>
+                    Exit Interview
+                </a>
+            </nav>
+        </div>
+
+        <!-- Information -->
+        <div class="nav-section collapsed">
+            <button class="nav-section-title" type="button" aria-expanded="false">
+                Information
+                <span class="material-symbols-outlined">expand_more</span>
+            </button>
+
+            <nav class="nav flex-column nav-section-items">
+                <a class="nav-link" href="#">
+                    <span class="nav-icon material-symbols-outlined">menu_book</span>
+                    Health Education
+                </a>
+
+                <a class="nav-link" href="{% url 'facility_map' %}">
+                    <span class="nav-icon material-symbols-outlined">map</span>
+                    Find a Clinic
+                </a>
+
+                <a class="nav-link" href="#">
+                    <span class="nav-icon material-symbols-outlined">help</span>
+                    Help & Support
+                </a>
+            </nav>
+        </div>
+
+        <!-- Footer -->
+        <div class="sidebar-footer">
+            <div class="user-pill">
+                <a class="topbar-life topbar-brand" href="{% url 'user_dashboard' %}">
+                    <span class="topbar-life-icon material-symbols-outlined">health_and_safety</span>
                     <span>
-                        {% if request.user.is_authenticated %}
+                        <small>my life, cared for</small>
+                    </span>
+                </a>
+            </div>
+        </div>
+
+        {% endwith %}
+
+    </div>
+    <div class="app-shell">
+        <div class="topbar">
+            <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="sidebar">
+                <span class="material-symbols-outlined">menu</span>
+            </button>
+
+            <a class="brand" href="{% url 'user_dashboard' %}">
+                <div class="brand-icon material-symbols-outlined">health_and_safety</div>
+                <div class="brand-name">
+                    MyThanzi
+                    <small>My life. My care.</small>
+                </div>
+            </a>
+            <div class="topbar-actions">
+                {% if request.user.is_authenticated %}
+                <div class="topbar-notification-menu">
+                    <button class="topbar-notification-link{% if portal_unread_notifications_count %} has-unread{% endif %}" id="notificationMenuButton" type="button" aria-expanded="false" aria-controls="notificationDropdown" aria-label="Alerts{% if portal_unread_notifications_count %}: {{ portal_unread_notifications_count }} unread{% endif %}">
+                        <span class="material-symbols-outlined" aria-hidden="true">notifications</span>
+                        {% if portal_unread_notifications_count %}
+                        <span class="notification-count">{{ portal_unread_notifications_count }}</span>
+                        {% endif %}
+                    </button>
+                    <div class="notification-dropdown" id="notificationDropdown">
+                        <div class="notification-dropdown-header">
+                            <span>Alerts</span>
+                            {% if portal_unread_notifications_count %}
+                            <span class="badge">{{ portal_unread_notifications_count }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="notification-dropdown-list">
+                            {% for notification in portal_recent_notifications %}
+                            <a class="notification-dropdown-item {% if notification.is_unread %}is-unread{% else %}is-read{% endif %}" href="{% url 'notification_inbox' %}">
+                                <span class="alert-stripe" aria-hidden="true"></span>
+                                <span>
+                                    <span class="notification-dropdown-title">{{ notification.title }}</span>
+                                    <span class="notification-dropdown-meta">{{ notification.created_at|date:"l, F j, g:i a" }}</span>
+                                </span>
+                            </a>
+                            {% empty %}
+                            <div class="notification-dropdown-empty">No alerts yet.</div>
+                            {% endfor %}
+                        </div>
+                        <div class="notification-dropdown-footer">
+                            <a href="{% url 'notification_inbox' %}">View All Alerts</a>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="account-menu">
+                    <button class="account-menu-button" id="accountMenuButton" type="button" aria-expanded="false"
+                        aria-controls="accountDropdown">
+                        <span class="material-symbols-outlined">account_circle</span>
+                        <span>
+                            {% if request.user.is_authenticated %}
                             <span>{{ request.user.get_full_name|default:request.user.username }}</span>
                             {% if request.user.profile.facility %}
-                                <small>{{ request.user.profile.facility.name }}</small>
+                            <small>{{ request.user.profile.facility.name }}</small>
                             {% endif %}
-                        {% else %}
+                            {% else %}
                             <span>Guest</span>
                             <small>Public access</small>
-                        {% endif %}
-                    </span>
-                    <span class="material-symbols-outlined">expand_more</span>
-                </button>
-                <div class="account-dropdown" id="accountDropdown">
-                    {% if request.user.is_authenticated %}
+                            {% endif %}
+                        </span>
+                        <span class="material-symbols-outlined">expand_more</span>
+                    </button>
+                    <div class="account-dropdown" id="accountDropdown">
+                        {% if request.user.is_authenticated %}
                         <a href="{% url 'user_detail' pk=request.user.pk %}">
                             <span class="material-symbols-outlined">person</span>
                             My Profile
@@ -988,14 +1353,9 @@
                             {% csrf_token %}
                             <input type="hidden" name="next" value="{{ request.path }}">
                             {% for theme_value, theme_label in request.user.profile.THEME_CHOICES %}
-                                <button
-                                    type="submit"
-                                    name="theme_color"
-                                    value="{{ theme_value }}"
-                                    class="theme-swatch theme-swatch-{{ theme_value }}{% if request.user.profile.theme_color == theme_value %} is-selected{% endif %}"
-                                    title="{{ theme_label }}"
-                                    aria-label="{{ theme_label }} theme"
-                                ></button>
+                            <button type="submit" name="theme_color" value="{{ theme_value }}"
+                                class="theme-swatch theme-swatch-{{ theme_value }}{% if request.user.profile.theme_color == theme_value %} is-selected{% endif %}"
+                                title="{{ theme_label }}" aria-label="{{ theme_label }} theme"></button>
                             {% endfor %}
                         </form>
                         <form method="post" action="{% url 'logout' %}">
@@ -1005,7 +1365,7 @@
                                 Logout
                             </button>
                         </form>
-                    {% else %}
+                        {% else %}
                         <a href="{% url 'login' %}">
                             <span class="material-symbols-outlined">login</span>
                             Login
@@ -1014,249 +1374,274 @@
                             <span class="material-symbols-outlined">person_add</span>
                             Create Account
                         </a>
-                    {% endif %}
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
     <main class="content-wrapper">
         {% for message in messages %}
-            <div class="sweetalert-message d-none" data-tag="{{ message.tags }}" data-text="{{ message }}"></div>
+        <div class="sweetalert-message d-none" data-tag="{{ message.tags }}" data-text="{{ message }}"></div>
         {% endfor %}
         {% block content %}{% endblock %}
     </main>
     <footer>
         <small>MyThanzi keeps care, connection, and support within reach.</small>
     </footer>
-</div>
-{% include "chatbot/widget.html" %}
-<script src="{% static 'vendor/bootstrap/5.3.2/js/bootstrap.bundle.min.js' %}"></script>
-<script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
-<script>
-    function showProcessingAlert() {
-        Swal.fire({
-            title: 'Processing',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            showConfirmButton: false,
-            didOpen: () => Swal.showLoading(),
-        });
-    }
-
-    function getThemePrimaryColor() {
-        return getComputedStyle(document.body).getPropertyValue('--theme-primary').trim() || '#087568';
-    }
-
-    document.addEventListener('DOMContentLoaded', function () {
-        const idleLogoutAfterMs = 5 * 60 * 1000;
-        let idleLogoutTimer = null;
-        let autoLogoutInProgress = false;
-
-        function getCsrfToken() {
-            const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
-            return csrfInput ? csrfInput.value : '';
-        }
-
-        function currentReturnPath() {
-            return `${window.location.pathname}${window.location.search}${window.location.hash}`;
-        }
-
-        function idleLoginUrl() {
-            const params = new URLSearchParams({
-                next: currentReturnPath(),
-                idle_timeout: '1',
+    </div>
+    {% include "chatbot/widget.html" %}
+    <script src="{% static 'vendor/bootstrap/5.3.2/js/bootstrap.bundle.min.js' %}"></script>
+    <script src="{% static 'vendor/sweetalert2/sweetalert2.all.min.js' %}"></script>
+    <script>
+        function showProcessingAlert() {
+            Swal.fire({
+                title: 'Processing',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => Swal.showLoading(),
             });
-            return `{% url "login" %}?${params.toString()}`;
         }
 
-        async function autoLogoutForIdleSession() {
-            if (autoLogoutInProgress) return;
-            autoLogoutInProgress = true;
+        function getThemePrimaryColor() {
+            return getComputedStyle(document.body).getPropertyValue('--theme-primary').trim() || '#087568';
+        }
 
-            try {
-                const body = new URLSearchParams({
+        document.addEventListener('DOMContentLoaded', function () {
+            const idleLogoutAfterMs = 5 * 60 * 1000;
+            let idleLogoutTimer = null;
+            let autoLogoutInProgress = false;
+
+            function getCsrfToken() {
+                const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+                return csrfInput ? csrfInput.value : '';
+            }
+
+            function currentReturnPath() {
+                return `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            }
+
+            function idleLoginUrl() {
+                const params = new URLSearchParams({
                     next: currentReturnPath(),
+                    idle_timeout: '1',
                 });
-                const response = await fetch('{% url "auto_logout" %}', {
-                    method: 'POST',
-                    cache: 'no-store',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded',
-                        'X-CSRFToken': getCsrfToken(),
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
-                    body,
+                return `{% url "login" %}?${params.toString()}`;
+            }
+
+            async function autoLogoutForIdleSession() {
+                if (autoLogoutInProgress) return;
+                autoLogoutInProgress = true;
+
+                try {
+                    const body = new URLSearchParams({
+                        next: currentReturnPath(),
+                    });
+                    const response = await fetch('{% url "auto_logout" %}', {
+                        method: 'POST',
+                        cache: 'no-store',
+                        credentials: 'same-origin',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': getCsrfToken(),
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                        body,
+                    });
+                    const data = await response.json();
+                    window.location.href = data.login_url || idleLoginUrl();
+                } catch (error) {
+                    console.error('Idle auto logout failed:', error);
+                    window.location.href = idleLoginUrl();
+                }
+            }
+
+            function resetIdleLogoutTimer() {
+                if (autoLogoutInProgress) return;
+                window.clearTimeout(idleLogoutTimer);
+                idleLogoutTimer = window.setTimeout(autoLogoutForIdleSession, idleLogoutAfterMs);
+            }
+
+            ['click', 'keydown', 'mousemove', 'pointerdown', 'touchstart', 'scroll'].forEach(function (eventName) {
+                document.addEventListener(eventName, resetIdleLogoutTimer, { passive: true });
+            });
+            resetIdleLogoutTimer();
+
+            const menuToggle = document.getElementById('menuToggle');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            function setMobileNavOpen(isOpen) {
+                document.body.classList.toggle('nav-open', isOpen);
+                if (menuToggle) {
+                    menuToggle.setAttribute('aria-expanded', String(isOpen));
+                }
+                if (sidebarOverlay) {
+                    sidebarOverlay.hidden = !isOpen;
+                }
+            }
+
+            if (menuToggle && sidebarOverlay) {
+                menuToggle.addEventListener('click', function () {
+                    setMobileNavOpen(!document.body.classList.contains('nav-open'));
                 });
-                const data = await response.json();
-                window.location.href = data.login_url || idleLoginUrl();
-            } catch (error) {
-                console.error('Idle auto logout failed:', error);
-                window.location.href = idleLoginUrl();
-            }
-        }
 
-        function resetIdleLogoutTimer() {
-            if (autoLogoutInProgress) return;
-            window.clearTimeout(idleLogoutTimer);
-            idleLogoutTimer = window.setTimeout(autoLogoutForIdleSession, idleLogoutAfterMs);
-        }
-
-        ['click', 'keydown', 'mousemove', 'pointerdown', 'touchstart', 'scroll'].forEach(function (eventName) {
-            document.addEventListener(eventName, resetIdleLogoutTimer, { passive: true });
-        });
-        resetIdleLogoutTimer();
-
-        const menuToggle = document.getElementById('menuToggle');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
-        function setMobileNavOpen(isOpen) {
-            document.body.classList.toggle('nav-open', isOpen);
-            if (menuToggle) {
-                menuToggle.setAttribute('aria-expanded', String(isOpen));
-            }
-            if (sidebarOverlay) {
-                sidebarOverlay.hidden = !isOpen;
-            }
-        }
-
-        if (menuToggle && sidebarOverlay) {
-            menuToggle.addEventListener('click', function () {
-                setMobileNavOpen(!document.body.classList.contains('nav-open'));
-            });
-
-            sidebarOverlay.addEventListener('click', function () {
-                setMobileNavOpen(false);
-            });
-
-            document.querySelectorAll('#sidebar a').forEach(function (link) {
-                link.addEventListener('click', function () {
+                sidebarOverlay.addEventListener('click', function () {
                     setMobileNavOpen(false);
                 });
-            });
-        }
 
-        const accountMenuButton = document.getElementById('accountMenuButton');
-        const accountDropdown = document.getElementById('accountDropdown');
-        if (accountMenuButton && accountDropdown) {
-            accountMenuButton.addEventListener('click', function () {
-                const isOpen = accountDropdown.classList.toggle('open');
-                accountMenuButton.setAttribute('aria-expanded', isOpen);
-            });
-
-            document.addEventListener('click', function (event) {
-                if (!event.target.closest('.account-menu')) {
-                    accountDropdown.classList.remove('open');
-                    accountMenuButton.setAttribute('aria-expanded', 'false');
-                }
-            });
-        }
-
-        document.querySelectorAll('.sidebar .nav-section').forEach(function (section, index) {
-            const toggle = section.querySelector('.nav-section-title');
-            if (!toggle) return;
-
-            const storageKey = `sidebar-section-${index}`;
-            const isCollapsed = localStorage.getItem(storageKey) !== 'expanded';
-            section.classList.toggle('collapsed', isCollapsed);
-            toggle.setAttribute('aria-expanded', String(!isCollapsed));
-
-            toggle.addEventListener('click', function () {
-                const willExpand = section.classList.contains('collapsed');
-                if (willExpand) {
-                    document.querySelectorAll('.sidebar .nav-section').forEach(function (otherSection, otherIndex) {
-                        if (otherSection === section) return;
-
-                        const otherToggle = otherSection.querySelector('.nav-section-title');
-                        otherSection.classList.add('collapsed');
-                        if (otherToggle) {
-                            otherToggle.setAttribute('aria-expanded', 'false');
-                        }
-                        localStorage.setItem(`sidebar-section-${otherIndex}`, 'collapsed');
+                document.querySelectorAll('#sidebar a').forEach(function (link) {
+                    link.addEventListener('click', function () {
+                        setMobileNavOpen(false);
                     });
-                }
+                });
+            }
 
-                const collapsed = section.classList.toggle('collapsed');
-                toggle.setAttribute('aria-expanded', String(!collapsed));
-                localStorage.setItem(storageKey, collapsed ? 'collapsed' : 'expanded');
-            });
-        });
-
-        document.querySelectorAll('.sweetalert-message').forEach(function (message) {
-            const icon = message.dataset.tag === 'error' ? 'error' : 'success';
-            Swal.fire({
-                icon,
-                title: message.dataset.text,
-                toast: true,
-                position: 'top-end',
-                showConfirmButton: false,
-                timer: 3000,
-                timerProgressBar: true,
-            });
-        });
-
-        async function checkSessionStatus() {
-            if (autoLogoutInProgress) return;
-
-            try {
-                const response = await fetch('{% url "session_status" %}', {
-                    cache: 'no-store',
-                    credentials: 'same-origin',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest',
-                    },
+            const accountMenuButton = document.getElementById('accountMenuButton');
+            const accountDropdown = document.getElementById('accountDropdown');
+            const notificationMenuButton = document.getElementById('notificationMenuButton');
+            const notificationDropdown = document.getElementById('notificationDropdown');
+            if (notificationMenuButton && notificationDropdown) {
+                notificationMenuButton.addEventListener('click', function () {
+                    const isOpen = notificationDropdown.classList.toggle('open');
+                    notificationMenuButton.setAttribute('aria-expanded', String(isOpen));
+                    if (accountDropdown && isOpen) {
+                        accountDropdown.classList.remove('open');
+                        accountMenuButton?.setAttribute('aria-expanded', 'false');
+                    }
                 });
 
-                if (response.status === 401) {
-                    const data = await response.json();
-                    if (data.login_url) {
-                        window.location.href = data.login_url;
+                document.addEventListener('click', function (event) {
+                    if (!event.target.closest('.topbar-notification-menu')) {
+                        notificationDropdown.classList.remove('open');
+                        notificationMenuButton.setAttribute('aria-expanded', 'false');
                     }
-                }
-            } catch (error) {
-                console.error('Session status check failed:', error);
+                });
             }
-        }
 
-        setInterval(checkSessionStatus, 3000);
+            if (accountMenuButton && accountDropdown) {
+                accountMenuButton.addEventListener('click', function () {
+                    const isOpen = accountDropdown.classList.toggle('open');
+                    accountMenuButton.setAttribute('aria-expanded', isOpen);
+                    if (notificationDropdown && isOpen) {
+                        notificationDropdown.classList.remove('open');
+                        notificationMenuButton?.setAttribute('aria-expanded', 'false');
+                    }
+                });
 
-        document.querySelectorAll('.js-confirm-form').forEach(function (form) {
-            form.addEventListener('submit', function (event) {
-                if (form.dataset.confirmed === 'true') {
-                    return;
-                }
+                document.addEventListener('click', function (event) {
+                    if (!event.target.closest('.account-menu')) {
+                        accountDropdown.classList.remove('open');
+                        accountMenuButton.setAttribute('aria-expanded', 'false');
+                    }
+                });
+            }
 
-                event.preventDefault();
+            document.querySelectorAll('.sidebar .nav-section').forEach(function (section, index) {
+                const toggle = section.querySelector('.nav-section-title');
+                if (!toggle) return;
+
+                const storageKey = `sidebar-section-${index}`;
+                const isCollapsed = localStorage.getItem(storageKey) !== 'expanded';
+                section.classList.toggle('collapsed', isCollapsed);
+                toggle.setAttribute('aria-expanded', String(!isCollapsed));
+
+                toggle.addEventListener('click', function () {
+                    const willExpand = section.classList.contains('collapsed');
+                    if (willExpand) {
+                        document.querySelectorAll('.sidebar .nav-section').forEach(function (otherSection, otherIndex) {
+                            if (otherSection === section) return;
+
+                            const otherToggle = otherSection.querySelector('.nav-section-title');
+                            otherSection.classList.add('collapsed');
+                            if (otherToggle) {
+                                otherToggle.setAttribute('aria-expanded', 'false');
+                            }
+                            localStorage.setItem(`sidebar-section-${otherIndex}`, 'collapsed');
+                        });
+                    }
+
+                    const collapsed = section.classList.toggle('collapsed');
+                    toggle.setAttribute('aria-expanded', String(!collapsed));
+                    localStorage.setItem(storageKey, collapsed ? 'collapsed' : 'expanded');
+                });
+            });
+
+            document.querySelectorAll('.sweetalert-message').forEach(function (message) {
+                const icon = message.dataset.tag === 'error' ? 'error' : 'success';
                 Swal.fire({
-                    icon: form.dataset.confirmIcon || 'question',
-                    title: form.dataset.confirmTitle || 'Are you sure?',
-                    text: form.dataset.confirmText || '',
-                    showCancelButton: true,
-                    confirmButtonText: form.dataset.confirmButton || 'Continue',
-                    cancelButtonText: 'Cancel',
-                    confirmButtonColor: getThemePrimaryColor(),
-                }).then(function (result) {
-                    if (result.isConfirmed) {
-                        form.dataset.confirmed = 'true';
-                        showProcessingAlert();
-                        form.requestSubmit();
-                    }
+                    icon,
+                    title: message.dataset.text,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
                 });
             });
-        });
 
-        document.querySelectorAll('form:not(.js-confirm-form):not(.js-ajax-form)').forEach(function (form) {
-            form.addEventListener('submit', function () {
-                showProcessingAlert();
+            async function checkSessionStatus() {
+                if (autoLogoutInProgress) return;
+
+                try {
+                    const response = await fetch('{% url "session_status" %}', {
+                        cache: 'no-store',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                        },
+                    });
+
+                    if (response.status === 401) {
+                        const data = await response.json();
+                        if (data.login_url) {
+                            window.location.href = data.login_url;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Session status check failed:', error);
+                }
+            }
+
+            setInterval(checkSessionStatus, 3000);
+
+            document.querySelectorAll('.js-confirm-form').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    if (form.dataset.confirmed === 'true') {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    Swal.fire({
+                        icon: form.dataset.confirmIcon || 'question',
+                        title: form.dataset.confirmTitle || 'Are you sure?',
+                        text: form.dataset.confirmText || '',
+                        showCancelButton: true,
+                        confirmButtonText: form.dataset.confirmButton || 'Continue',
+                        cancelButtonText: 'Cancel',
+                        confirmButtonColor: getThemePrimaryColor(),
+                    }).then(function (result) {
+                        if (result.isConfirmed) {
+                            form.dataset.confirmed = 'true';
+                            showProcessingAlert();
+                            form.requestSubmit();
+                        }
+                    });
+                });
+            });
+
+            document.querySelectorAll('form:not(.js-confirm-form):not(.js-ajax-form):not([data-skip-processing-alert="true"])').forEach(function (form) {
+                form.addEventListener('submit', function () {
+                    showProcessingAlert();
+                });
+            });
+
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'Escape') {
+                    setMobileNavOpen(false);
+                }
             });
         });
-
-        document.addEventListener('keydown', function (event) {
-            if (event.key === 'Escape') {
-                setMobileNavOpen(false);
-            }
-        });
-    });
-</script>
-{% block extra_js %}{% endblock %}
+    </script>
+    {% block extra_js %}{% endblock %}
 </body>
+
 </html>

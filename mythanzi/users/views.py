@@ -1,4 +1,7 @@
+import base64
 import calendar
+import csv
+import io
 import json
 import logging
 from datetime import date, datetime, time, timedelta
@@ -13,13 +16,16 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import AuthenticationForm, SetPasswordForm
 from django.contrib.auth.hashers import check_password, make_password
+from django.forms import formset_factory
 from django.contrib.sessions.models import Session
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.mail import send_mail
 from django.core.paginator import EmptyPage, Paginator
-from django.db.models import Count, Q
-from django.http import JsonResponse
+from django.db import transaction
+from django.db.models import Avg, Count, Q
+from django.db.models.deletion import ProtectedError
+from django.http import HttpResponse, JsonResponse
 from django.urls import reverse
 from django.conf import settings
 from django.utils.crypto import get_random_string
@@ -31,21 +37,44 @@ from django.views.decorators.http import require_POST
 from .models import (
     Appointment,
     AuditLog,
+    ClientConsent,
+    ClientExitInterview,
     ClinicFeedbackSubmission,
+    ClientLocator,
+    GrievanceCase,
+    Notification,
+    NotificationTypeSetting,
     PersonIdentity,
+    PopulationGroup,
+    ReferralRecord,
+    SafeguardingCase,
     SelfRiskAssessmentSubmission,
     SelfTestReportSubmission,
     SideEffectReportSubmission,
     UserProfile,
 )
 from .audit import should_audit_model
+from .notifications import notify_appointment_created
 from .forms import (
     AppointmentForm,
     AppointmentEditForm,
+    ClientConsentForm,
+    ClientExitInterviewForm,
+    ClientAppointmentForm,
     ClinicFeedbackForm,
+    ClientJourneyEventForm,
+    ClientLocatorForm,
     FACILITY_ASSIGNABLE_ROLES,
     FACILITY_REQUIRED_ROLES,
+    FollowUpTaskForm,
+    GrievanceCaseUpdateForm,
+    GrievanceSubmissionForm,
+    PopulationGroupForm,
     PublicRegistrationForm,
+    ReferralConfirmationForm,
+    ReferralRecordForm,
+    SafeguardingCaseUpdateForm,
+    SafeguardingReportForm,
     SideEffectReportForm,
     SelfProfileForm,
     SelfRiskAssessmentForm,
@@ -70,6 +99,249 @@ from locations.models import District, Facility, Province, Service
 logger = logging.getLogger(__name__)
 TEMPORARY_PASSWORD_TTL = timedelta(minutes=10)
 ACCOUNT_OTP_TTL = timedelta(minutes=10)
+ClientJourneyEventFormSet = formset_factory(ClientJourneyEventForm, extra=3, max_num=10)
+
+CLIENT_BULK_UPLOAD_SPECS = {
+    'journey-events': {
+        'label': 'Journey Events',
+        'filename': 'journey-events-template.csv',
+        'fields': ['stage', 'event_date', 'outcome', 'notes'],
+        'form_class': ClientJourneyEventForm,
+        'help_text': (
+            'Use stage values: contact, risk_assessment, referral, hivst, prep_len_initiation, '
+            'follow_up, continuation. Dates must use YYYY-MM-DD.'
+        ),
+    },
+    'referrals': {
+        'label': 'Referrals',
+        'filename': 'referrals-template.csv',
+        'fields': [
+            'receiving_facility',
+            'assigned_mobiliser',
+            'confirmation_status',
+            'initiation_outcome',
+            'referred_on',
+            'notes',
+        ],
+        'form_class': ReferralRecordForm,
+        'help_text': (
+            'receiving_facility can be a facility id, code, or exact facility name. assigned_mobiliser is optional username. '
+            'Use confirmation_status values: generated, sent, received, attended, initiated, not_attended, closed. '
+            'Use initiation_outcome values: pending, len_prep_initiated, hivst_received, referred_elsewhere, declined.'
+        ),
+    },
+    'follow-ups': {
+        'label': 'Follow-Up Tasks',
+        'filename': 'follow-up-tasks-template.csv',
+        'fields': ['assigned_to', 'reason', 'status', 'priority', 'due_date', 'notes', 'outcome_notes'],
+        'form_class': FollowUpTaskForm,
+        'help_text': (
+            'assigned_to is optional and should be a username when provided. '
+            'Use reason/status/priority choice values exactly as shown in the template.'
+        ),
+    },
+    'appointments': {
+        'label': 'Appointments',
+        'filename': 'appointments-template.csv',
+        'fields': ['visit_purpose', 'appointment_date', 'appointment_time', 'facility', 'notes'],
+        'form_class': ClientAppointmentForm,
+        'help_text': (
+            'facility can be a facility id, code, or exact facility name. appointment_time must use HH:MM.'
+        ),
+    },
+}
+
+DEFAULT_NOTIFICATION_TYPE_SETTINGS = [
+    {
+        'key': 'medication_dose',
+        'name': 'Medication Dose',
+        'description': 'Daily medicine, PrEP, LEN, or other prevention product reminders.',
+        'cadence': 'daily',
+        'channel': 'portal',
+        'timing': '08:00',
+    },
+    {
+        'key': 'appointment',
+        'name': 'Appointment',
+        'description': 'Upcoming clinic, review, initiation, injection, or refill visits.',
+        'cadence': 'before_event',
+        'channel': 'portal_email',
+        'timing': '24h',
+    },
+    {
+        'key': 'medication_refill',
+        'name': 'Medication Refill',
+        'description': 'Refill collection and stock continuity reminders.',
+        'cadence': 'before_event',
+        'channel': 'portal',
+        'timing': '72h',
+    },
+    {
+        'key': 'lab_collection',
+        'name': 'Lab Collection',
+        'description': 'Lab sample collection and result follow-up reminders.',
+        'cadence': 'before_event',
+        'channel': 'portal',
+        'timing': '24h',
+    },
+    {
+        'key': 'referral_follow_up',
+        'name': 'Referral Follow-Up',
+        'description': 'Reminders to confirm attendance, linkage, and referral outcomes.',
+        'cadence': 'after_event',
+        'channel': 'portal',
+        'timing': '48h',
+    },
+    {
+        'key': 'side_effect_check_in',
+        'name': 'Side-Effect Check-In',
+        'description': 'Safety and tolerability check-ins after initiation or product changes.',
+        'cadence': 'after_event',
+        'channel': 'portal',
+        'timing': '7d',
+    },
+]
+
+
+def get_client_bulk_upload_spec(kind):
+    spec = CLIENT_BULK_UPLOAD_SPECS.get(kind)
+    if not spec:
+        raise PermissionDenied('Unknown bulk upload type.')
+    return spec
+
+
+def get_client_bulk_session_key(client, kind):
+    return f'client_bulk_upload:{client.pk}:{kind}'
+
+
+def get_client_bulk_template_rows(kind):
+    next_week = timezone.localdate() + timedelta(days=7)
+    today = timezone.localdate()
+    if kind == 'journey-events':
+        return [{
+            'stage': 'contact',
+            'event_date': today.isoformat(),
+            'outcome': 'completed',
+            'notes': 'Initial contact completed',
+        }]
+    if kind == 'referrals':
+        facility = Facility.objects.order_by('name').first()
+        return [{
+            'receiving_facility': facility.code or facility.name if facility else '',
+            'assigned_mobiliser': '',
+            'confirmation_status': 'generated',
+            'initiation_outcome': 'pending',
+            'referred_on': today.isoformat(),
+            'notes': 'Referral generated',
+        }]
+    if kind == 'follow-ups':
+        return [{
+            'assigned_to': '',
+            'reason': 'tracing',
+            'status': 'open',
+            'priority': 'normal',
+            'due_date': next_week.isoformat(),
+            'notes': 'Follow up with client',
+            'outcome_notes': '',
+        }]
+    if kind == 'appointments':
+        facility = Facility.objects.order_by('name').first()
+        return [{
+            'visit_purpose': 'follow_up',
+            'appointment_date': next_week.isoformat(),
+            'appointment_time': '09:00',
+            'facility': facility.code or facility.name if facility else '',
+            'notes': 'Routine follow-up appointment',
+        }]
+    return []
+
+
+def resolve_bulk_assigned_user(value):
+    if not value:
+        return '', None
+    assigned_to = User.objects.filter(username__iexact=value).first()
+    if not assigned_to:
+        return value, f'No active user was found for assigned_to "{value}".'
+    return str(assigned_to.pk), None
+
+
+def resolve_bulk_facility(value):
+    if not value:
+        return '', 'Facility is required.'
+    facility_filter = Q(code__iexact=value) | Q(name__iexact=value)
+    if value.isdigit():
+        facility_filter |= Q(pk=int(value))
+    facility = Facility.objects.filter(facility_filter).first()
+    if not facility:
+        return value, f'No facility was found for "{value}". Use a facility id, code, or exact name.'
+    return str(facility.pk), None
+
+
+def normalize_client_bulk_row(kind, row, fields):
+    normalized = {field: (row.get(field) or '').strip() for field in fields}
+    errors = []
+    if kind == 'follow-ups':
+        normalized['assigned_to'], error = resolve_bulk_assigned_user(normalized.get('assigned_to'))
+        if error:
+            errors.append(error)
+    elif kind == 'referrals':
+        normalized['receiving_facility'], error = resolve_bulk_facility(normalized.get('receiving_facility'))
+        if error:
+            errors.append(error)
+        normalized['assigned_mobiliser'], error = resolve_bulk_assigned_user(normalized.get('assigned_mobiliser'))
+        if error:
+            errors.append(error)
+    elif kind == 'appointments':
+        normalized['facility'], error = resolve_bulk_facility(normalized.get('facility'))
+        if error:
+            errors.append(error)
+    return normalized, errors
+
+
+def get_client_bulk_form(kind, data, client, user):
+    spec = get_client_bulk_upload_spec(kind)
+    if kind == 'appointments':
+        return spec['form_class'](data, client=client, created_by=user)
+    return spec['form_class'](data)
+
+
+def save_client_bulk_form(kind, form, client, user):
+    if kind == 'appointments':
+        return form.save()
+
+    obj = form.save(commit=False)
+    obj.client = client
+    if kind in {'journey-events', 'referrals'}:
+        obj.recorded_by = user
+    elif kind == 'follow-ups':
+        obj.created_by = user
+    obj.save()
+    return obj
+
+
+def validate_client_bulk_rows(kind, rows, client, user):
+    spec = get_client_bulk_upload_spec(kind)
+    results = []
+    valid_rows = []
+    for index, row in enumerate(rows, start=2):
+        if not any((value or '').strip() for value in row.values()):
+            continue
+        normalized, errors = normalize_client_bulk_row(kind, row, spec['fields'])
+        form = get_client_bulk_form(kind, normalized, client, user)
+        if not form.is_valid():
+            for field, field_errors in form.errors.items():
+                label = field if field != '__all__' else 'row'
+                errors.extend(f'{label}: {error}' for error in field_errors)
+        valid = not errors
+        results.append({
+            'row_number': index,
+            'valid': valid,
+            'errors': errors,
+            'data': normalized,
+        })
+        if valid:
+            valid_rows.append(normalized)
+    return results, valid_rows
 
 
 def zamtel_sms_is_configured():
@@ -176,6 +448,9 @@ def claim_session_submissions_for_user(request, user):
         SelfTestReportSubmission,
         SideEffectReportSubmission,
         ClinicFeedbackSubmission,
+        SafeguardingCase,
+        GrievanceCase,
+        ClientExitInterview,
     )
     for model in submission_models:
         model.objects.filter(
@@ -196,7 +471,11 @@ def get_user_management_stats():
 
 
 def get_user_management_rows(search_term='', role_filter=''):
-    users = User.objects.select_related('profile__person_identity', 'profile__facility__district').order_by('-date_joined')
+    users = User.objects.select_related(
+        'profile__person_identity',
+        'profile__facility__district',
+        'profile__population_group',
+    ).order_by('-date_joined')
 
     if search_term:
         users = users.filter(
@@ -222,6 +501,21 @@ def get_user_management_rows(search_term='', role_filter=''):
     return users_with_profiles
 
 
+def population_group_matches_sex(population_group, sex):
+    return (
+        population_group
+        and population_group.is_active
+        and population_group.sex_eligibility in {'all', sex}
+    )
+
+
+def normalize_user_role_for_staff(role, is_staff):
+    staff_roles = {value for value, _label in UserProfile.ROLE_CHOICES if value != 'client'}
+    if is_staff:
+        return role if role in staff_roles else ''
+    return 'client'
+
+
 def get_visible_appointments(user):
     queryset = Appointment.objects.select_related(
         'beneficiary__profile',
@@ -231,6 +525,41 @@ def get_visible_appointments(user):
         'facility',
     )
     return queryset.filter(visible_appointment_filter(user))
+
+
+def get_visible_clients(user):
+    clients = User.objects.select_related(
+        'profile__facility',
+        'profile__person_identity',
+    ).filter(
+        profile__role='client',
+        profile__is_active=True,
+        is_active=True,
+    )
+    role = get_user_role(user)
+
+    if user.is_superuser or role in USER_ADMIN_ROLES or role == 'supervisor':
+        return clients
+
+    if role in APPOINTMENT_ROLES:
+        facility_id = getattr(getattr(user, 'profile', None), 'facility_id', None)
+        if facility_id:
+            return clients.filter(
+                Q(profile__facility_id=facility_id) |
+                Q(appointments__facility_id=facility_id) |
+                Q(client_locator__service_point_id=facility_id)
+            ).distinct()
+
+        return clients.filter(
+            Q(appointments__created_by=user) |
+            Q(follow_up_tasks__assigned_to=user)
+        ).distinct()
+
+    return clients.filter(pk=user.pk)
+
+
+def get_client_for_management(user, pk):
+    return get_object_or_404(get_visible_clients(user), pk=pk)
 
 
 def get_selected_person_identity(identity_id):
@@ -307,6 +636,8 @@ def login_view(request):
                 return redirect('password_change_required')
             next_url = request.POST.get('next', '')
             if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+                if next_url == reverse('user_dashboard') and get_user_role(user) not in DASHBOARD_ROLES and not user.is_superuser:
+                    return redirect(get_portal_landing_url(user))
                 return redirect(next_url)
             return redirect('portal_home')
 
@@ -494,47 +825,123 @@ def update_theme(request):
 
 @active_login_required
 def portal_home(request):
-    return redirect('/app/')
+    return redirect(get_portal_landing_url(request.user))
+
+
+def get_portal_landing_url(user):
+    role = get_user_role(user)
+    if user.is_superuser or role in DASHBOARD_ROLES:
+        return reverse('user_dashboard')
+    if role in APPOINTMENT_ROLES:
+        return reverse('client_management')
+    return '/app/'
 
 
 @active_login_required
 def medication_reminders(request):
-    prevention_methods = [
+    for default in DEFAULT_NOTIFICATION_TYPE_SETTINGS:
+        NotificationTypeSetting.objects.get_or_create(
+            key=default['key'],
+            defaults={
+                'name': default['name'],
+                'description': default['description'],
+                'cadence': default['cadence'],
+                'channel': default['channel'],
+                'timing': default['timing'],
+                'enabled': True,
+                'is_system': True,
+            },
+        )
+
+    if request.method == 'POST':
+        try:
+            payload = json.loads(request.body.decode('utf-8'))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse({'success': False, 'error': 'Invalid notification payload.'}, status=400)
+
+        notification_types = payload.get('notification_types', [])
+        if not isinstance(notification_types, list):
+            return JsonResponse({'success': False, 'error': 'Notification types must be a list.'}, status=400)
+
+        valid_channels = {choice[0] for choice in NotificationTypeSetting.CHANNEL_CHOICES}
+        valid_cadences = {choice[0] for choice in NotificationTypeSetting.CADENCE_CHOICES}
+        seen_keys = set()
+        for item in notification_types:
+            key = str(item.get('key', '')).strip().lower().replace(' ', '_')
+            name = str(item.get('name', '')).strip()
+            if not key or not name:
+                return JsonResponse({'success': False, 'error': 'Every notification type needs a name and code.'}, status=400)
+            if key in seen_keys:
+                return JsonResponse({'success': False, 'error': f'Duplicate notification code: {key}.'}, status=400)
+            seen_keys.add(key)
+            channel = item.get('channel') if item.get('channel') in valid_channels else 'portal'
+            cadence = item.get('cadence') if item.get('cadence') in valid_cadences else 'daily'
+            NotificationTypeSetting.objects.update_or_create(
+                key=key,
+                defaults={
+                    'name': name,
+                    'description': str(item.get('description', '')).strip(),
+                    'cadence': cadence,
+                    'channel': channel,
+                    'timing': str(item.get('timing', '')).strip() or '08:00',
+                    'enabled': bool(item.get('enabled')),
+                    'is_system': NotificationTypeSetting.objects.filter(key=key, is_system=True).exists(),
+                },
+            )
+
+        NotificationTypeSetting.objects.exclude(key__in=seen_keys).delete()
+        return JsonResponse({'success': True, 'count': len(seen_keys)})
+
+    notification_types = [
         {
-            'name': 'Oral PrEP (Daily Pill)',
-            'schedule': 'Daily',
-            'icon': 'pill',
-            'status': 'Available',
-        },
-        {
-            'name': 'CAB-LA Injectable',
-            'schedule': 'Every 2 months',
-            'icon': 'vaccines',
-            'status': 'Available',
-        },
-        {
-            'name': 'Dapivirine Ring',
-            'schedule': 'Monthly',
-            'icon': 'radio_button_unchecked',
-            'status': 'Available',
-        },
-        {
-            'name': 'Lenacapavir Injectable (LEN)',
-            'schedule': 'Every 6 months',
-            'icon': 'vaccines',
-            'status': 'Available',
-        },
-        {
-            'name': 'Event-Driven PrEP',
-            'schedule': 'Before and after sex',
-            'icon': 'bolt',
-            'status': 'Available',
-        },
+            'key': item.key,
+            'name': item.name,
+            'description': item.description,
+            'cadence': item.cadence,
+            'channel': item.channel,
+            'timing': item.timing,
+            'enabled': item.enabled,
+        }
+        for item in NotificationTypeSetting.objects.order_by('name')
     ]
 
     return render(request, 'users/medication_reminders.html', {
-        'prevention_methods': prevention_methods,
+        'notification_types': notification_types,
     })
+
+
+@active_login_required
+def notification_inbox(request):
+    notifications = Notification.objects.select_related(
+        'appointment__facility',
+        'appointment__district',
+        'appointment__province',
+        'actor',
+    ).filter(
+        recipient=request.user,
+        channel='portal',
+    )
+    unread_count = notifications.filter(read_at__isnull=True).count()
+    return render(request, 'users/notification_inbox.html', {
+        'notifications': notifications,
+        'unread_count': unread_count,
+    })
+
+
+@require_POST
+@active_login_required
+def notification_mark_read(request, pk):
+    notification = get_object_or_404(
+        Notification,
+        pk=pk,
+        recipient=request.user,
+        channel='portal',
+    )
+    notification.mark_read()
+    next_url = request.POST.get('next') or reverse('notification_inbox')
+    if url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return redirect(next_url)
+    return redirect('notification_inbox')
 
 
 def calculate_self_risk_assessment(cleaned_data):
@@ -880,6 +1287,261 @@ def clinic_feedback(request):
     })
 
 
+@active_login_required
+def safeguarding_report(request):
+    cases = SafeguardingCase.objects.select_related('location_facility__district__province').filter(user=request.user).order_by('-submitted_at')
+    form = SafeguardingReportForm()
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        is_draft = action == 'draft'
+        case_id = request.POST.get('case_id')
+        instance = None
+        if case_id:
+            instance = get_object_or_404(SafeguardingCase, pk=case_id, user=request.user)
+            if instance.status != 'draft' and is_draft:
+                messages.error(request, 'Submitted safeguarding cases cannot be moved back to draft.')
+                return redirect('safeguarding_report')
+
+        form = SafeguardingReportForm(request.POST, instance=instance, is_draft=is_draft)
+        if form.is_valid():
+            saved_case = form.save(commit=False)
+            saved_case.user = request.user
+            saved_case.session_key = ensure_session_key(request)
+            saved_case.answers = serialize_form_answers(form.cleaned_data)
+            if is_draft:
+                saved_case.status = 'draft'
+                saved_case.guidance = {
+                    'summary': 'Draft saved.',
+                    'next_steps': ['Return to this safeguarding case when you are ready to submit it.'],
+                }
+                message = 'Safeguarding draft saved.'
+            else:
+                saved_case.status = 'received'
+                saved_case.guidance = {
+                    'summary': 'Your safeguarding report has been received.',
+                    'next_steps': [
+                        'Keep the reference number for follow-up.',
+                        'A safeguarding focal point will review the report.',
+                    ],
+                }
+                message = 'Safeguarding case submitted.'
+            saved_case.risk_trigger_flag = form.cleaned_data.get('severity') in {'high', 'critical'}
+            saved_case.save()
+            messages.success(request, message)
+            return redirect('safeguarding_report')
+        messages.error(request, 'Please check the safeguarding case details.')
+
+    return render(request, 'users/safeguarding_report.html', {
+        'form': form,
+        'cases': cases,
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def safeguarding_management(request):
+    status_filter = request.GET.get('status', '').strip()
+    cases = SafeguardingCase.objects.select_related('user', 'focal_point', 'location_facility').exclude(status='draft')
+    if status_filter:
+        cases = cases.filter(status=status_filter)
+
+    today = timezone.localdate()
+    stats = {
+        'total': SafeguardingCase.objects.exclude(status='draft').count(),
+        'open': SafeguardingCase.objects.exclude(status__in=['draft', 'resolved', 'closed']).count(),
+        'overdue': SafeguardingCase.objects.exclude(status__in=['draft', 'resolved', 'closed']).filter(sla_deadline__lt=today).count(),
+        'cab_ready': SafeguardingCase.objects.exclude(status='draft').filter(cab_oversight_ready=True).count(),
+    }
+    return render(request, 'users/case_management.html', {
+        'title': 'Safeguarding Cases',
+        'subtitle': 'Track anonymous reports, focal point escalation, confidentiality, SLA status, and CAB oversight.',
+        'icon': 'shield',
+        'records': cases.order_by('status', 'sla_deadline', '-submitted_at'),
+        'stats': stats,
+        'status_choices': SafeguardingCase.STATUS_CHOICES,
+        'status_filter': status_filter,
+        'detail_url_name': 'safeguarding_case_detail',
+        'reference_label': 'Case',
+        'empty_message': 'No safeguarding cases found.',
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def safeguarding_case_detail(request, pk):
+    case = get_object_or_404(SafeguardingCase.objects.select_related('user', 'focal_point', 'location_facility'), pk=pk)
+    form = SafeguardingCaseUpdateForm(request.POST or None, instance=case)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        messages.success(request, 'Safeguarding case updated.')
+        return redirect('safeguarding_case_detail', pk=case.pk)
+
+    return render(request, 'users/case_detail.html', {
+        'title': case.reference_number,
+        'back_url_name': 'safeguarding_management',
+        'record': case,
+        'form': form,
+        'sensitive_body': case.incident_details,
+        'detail_rows': [
+            ('Incident type', case.get_incident_type_display()),
+            ('Incident date', case.incident_date or 'Not provided'),
+            ('Location / Facility', case.location_facility or case.location or 'Not provided'),
+            ('Severity', case.get_severity_display()),
+            ('Status', case.get_status_display()),
+            ('SLA deadline', case.sla_deadline),
+            ('Focal point', case.focal_point or 'Not assigned'),
+            ('Risk trigger', 'Yes' if case.risk_trigger_flag else 'No'),
+        ],
+    })
+
+
+def grievance_submit(request):
+    saved_case = None
+    form = GrievanceSubmissionForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        saved_case = form.save(commit=False)
+        saved_case.user = get_submission_user(request)
+        saved_case.session_key = ensure_session_key(request)
+        saved_case.answers = serialize_form_answers(form.cleaned_data)
+        saved_case.guidance = {
+            'summary': 'Your grievance has been received.',
+            'next_steps': [
+                'Keep the reference number for follow-up.',
+                'The responsible team will review and respond where contact is available.',
+            ],
+        }
+        saved_case.save()
+        form = GrievanceSubmissionForm()
+
+    return render(request, 'users/module_submission_form.html', {
+        'title': 'Submit a Grievance',
+        'subtitle': 'Submit a programme complaint through the grievance mechanism.',
+        'icon': 'campaign',
+        'form': form,
+        'saved_record': saved_case,
+        'reference_label': 'Grievance reference',
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def grievance_management(request):
+    status_filter = request.GET.get('status', '').strip()
+    cases = GrievanceCase.objects.select_related('user', 'assigned_to', 'district__province')
+    if status_filter:
+        cases = cases.filter(status=status_filter)
+
+    today = timezone.localdate()
+    stats = {
+        'total': GrievanceCase.objects.count(),
+        'open': GrievanceCase.objects.exclude(status__in=['resolved', 'closed']).count(),
+        'overdue': GrievanceCase.objects.exclude(status__in=['resolved', 'closed']).filter(sla_deadline__lt=today).count(),
+        'urgent': GrievanceCase.objects.filter(priority='urgent').count(),
+    }
+    district_summary = (
+        GrievanceCase.objects
+        .values('district__name')
+        .annotate(total=Count('pk'))
+        .order_by('-total')[:8]
+    )
+    category_summary = (
+        GrievanceCase.objects
+        .values('category')
+        .annotate(total=Count('pk'))
+        .order_by('-total')
+    )
+    return render(request, 'users/case_management.html', {
+        'title': 'Grievance Cases',
+        'subtitle': 'Track complaints, priority, investigator assignment, escalation, response, SLA, and district analytics.',
+        'icon': 'campaign',
+        'records': cases.order_by('status', 'sla_deadline', '-submitted_at'),
+        'stats': stats,
+        'status_choices': GrievanceCase.STATUS_CHOICES,
+        'status_filter': status_filter,
+        'detail_url_name': 'grievance_case_detail',
+        'reference_label': 'Grievance',
+        'empty_message': 'No grievance cases found.',
+        'district_summary': district_summary,
+        'category_summary': category_summary,
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def grievance_case_detail(request, pk):
+    case = get_object_or_404(GrievanceCase.objects.select_related('user', 'assigned_to', 'district__province'), pk=pk)
+    form = GrievanceCaseUpdateForm(request.POST or None, instance=case)
+    if request.method == 'POST' and form.is_valid():
+        updated_case = form.save(commit=False)
+        if updated_case.escalation_target and updated_case.status not in {'resolved', 'closed'}:
+            updated_case.status = 'escalated'
+        updated_case.save()
+        messages.success(request, 'Grievance case updated.')
+        return redirect('grievance_case_detail', pk=case.pk)
+
+    return render(request, 'users/case_detail.html', {
+        'title': case.reference_number,
+        'back_url_name': 'grievance_management',
+        'record': case,
+        'form': form,
+        'sensitive_body': case.complaint_details,
+        'detail_rows': [
+            ('Channel', case.get_submission_channel_display()),
+            ('Category', case.get_category_display()),
+            ('Priority', case.get_priority_display()),
+            ('Status', case.get_status_display()),
+            ('District', case.district or 'Not provided'),
+            ('SLA deadline', case.sla_deadline),
+            ('Assigned to', case.assigned_to or 'Not assigned'),
+            ('Response provided', 'Yes' if case.response_provided else 'No'),
+            ('Escalation', case.get_escalation_target_display() if case.escalation_target else 'Not escalated'),
+        ],
+    })
+
+
+def client_exit_interview(request):
+    saved_interview = None
+    form = ClientExitInterviewForm(request.POST or None)
+    if request.method == 'POST' and form.is_valid():
+        saved_interview = form.save(commit=False)
+        saved_interview.user = get_submission_user(request)
+        saved_interview.session_key = ensure_session_key(request)
+        saved_interview.answers = serialize_form_answers(form.cleaned_data)
+        saved_interview.guidance = {
+            'summary': 'Your exit interview has been received.',
+            'next_steps': ['Responses are aggregated into quality dashboards.'],
+        }
+        saved_interview.save()
+        form = ClientExitInterviewForm()
+
+    return render(request, 'users/module_submission_form.html', {
+        'title': 'Client Exit Interview',
+        'subtitle': 'Share service experience without exposing names or biometric data.',
+        'icon': 'rate_review',
+        'form': form,
+        'saved_record': saved_interview,
+        'reference_label': 'Submission',
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def exit_interview_dashboard(request):
+    interviews = ClientExitInterview.objects.select_related(
+        'service_point__district__province',
+        'population_group',
+        'user',
+    )
+    stats = {
+        'total': interviews.count(),
+        'avg_waiting': interviews.aggregate(value=Avg('waiting_time_rating'))['value'] or 0,
+        'avg_staff': interviews.aggregate(value=Avg('staff_attitude_rating'))['value'] or 0,
+        'avg_clarity': interviews.aggregate(value=Avg('information_clarity_score'))['value'] or 0,
+    }
+    return render(request, 'users/exit_interview_dashboard.html', {
+        'interviews': interviews.order_by('-submitted_at'),
+        'stats': stats,
+        'population_summary': interviews.values('population_group__name').annotate(total=Count('pk')).order_by('-total'),
+        'service_point_summary': interviews.values('service_point__name').annotate(total=Count('pk')).order_by('-total')[:10],
+    })
+
+
 @role_required(*USER_ADMIN_ROLES)
 def user_list(request):
     """Display users management list with edit/delete options"""
@@ -892,14 +1554,582 @@ def user_list(request):
         'search_term': search_term,
         'role_filter': role_filter,
         'role_choices': UserProfile.ROLE_CHOICES,
+        'sex_choices': UserProfile.SEX_CHOICES,
         'person_identity_choices': PersonIdentity.objects.order_by('full_name', 'id'),
         'facility_choices': Facility.objects.select_related('district__province').order_by(
             'district__province__name',
             'district__name',
             'name',
         ),
+        'population_group_choices': PopulationGroup.objects.filter(is_active=True).order_by('name'),
+        'facility_options': [
+            {
+                'id': facility.pk,
+                'label': f'{facility.name} - {facility.district.name}, {facility.district.province.name}',
+            }
+            for facility in Facility.objects.select_related('district__province').order_by(
+                'district__province__name',
+                'district__name',
+                'name',
+            )
+        ],
     }
     return render(request, 'users/user_management.html', context)
+
+
+@role_required(*USER_ADMIN_ROLES)
+def population_group_management(request):
+    """Create and manage client population groups."""
+    form = PopulationGroupForm(request.POST or None)
+    if request.method == 'POST':
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Population group saved.')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect('population_group_management')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+
+    search_term = request.GET.get('q', '').strip()
+    groups = PopulationGroup.objects.annotate(client_count=Count('client_profiles'))
+    if search_term:
+        groups = groups.filter(
+            Q(name__icontains=search_term) |
+            Q(code__icontains=search_term) |
+            Q(description__icontains=search_term)
+        )
+
+    return render(request, 'users/population_group_management.html', {
+        'form': form,
+        'groups': groups.order_by('name'),
+        'search_term': search_term,
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
+def population_group_edit(request, pk):
+    group = get_object_or_404(PopulationGroup, pk=pk)
+    form = PopulationGroupForm(request.POST or None, instance=group)
+    if request.method == 'POST':
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'Population group updated.')
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect('population_group_management')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+
+    return render(request, 'users/population_group_form.html', {
+        'form': form,
+        'group': group,
+        'title': f'Edit {group.name}',
+    })
+
+
+@require_POST
+@role_required(*USER_ADMIN_ROLES)
+def population_group_delete(request, pk):
+    group = get_object_or_404(PopulationGroup, pk=pk)
+    try:
+        group.delete()
+        messages.success(request, 'Population group deleted.')
+    except ProtectedError:
+        messages.error(request, 'This population group is assigned to clients and cannot be deleted.')
+    return redirect('population_group_management')
+
+
+@role_required(*APPOINTMENT_ROLES)
+def client_management(request):
+    """Client management workspace for locator, journey, referral, and follow-up workflows."""
+    search_term = request.GET.get('q', '').strip()
+    clients = get_visible_clients(request.user)
+
+    if search_term:
+        clients = clients.filter(
+            Q(username__icontains=search_term) |
+            Q(first_name__icontains=search_term) |
+            Q(last_name__icontains=search_term) |
+            Q(email__icontains=search_term) |
+            Q(profile__reference_number__icontains=search_term) |
+            Q(profile__phone__icontains=search_term) |
+            Q(client_locator__mobiliser_zone__icontains=search_term)
+        )
+
+    client_rows = []
+    for client in clients.order_by('first_name', 'last_name', 'username'):
+        client_rows.append({
+            'client': client,
+            'latest_journey': client.journey_events.first(),
+            'open_tasks': client.follow_up_tasks.exclude(status__in=['completed', 'cancelled']).count(),
+            'referrals': client.referral_records.count(),
+        })
+
+    return render(request, 'users/client_management.html', {
+        'client_rows': client_rows,
+        'search_term': search_term,
+    })
+
+
+@role_required(*APPOINTMENT_ROLES)
+def client_record(request, pk):
+    """Single client record for non-identifying profile, locator, journey, referral, and consent controls."""
+    client = get_client_for_management(request.user, pk)
+    locator, _ = ClientLocator.objects.get_or_create(client=client)
+    consent, _ = ClientConsent.objects.get_or_create(client=client)
+
+    locator_form = ClientLocatorForm(instance=locator, prefix='locator')
+    journey_formset = ClientJourneyEventFormSet(prefix='journey')
+    referral_form = ReferralRecordForm(prefix='referral')
+    follow_up_form = FollowUpTaskForm(prefix='followup')
+    consent_form = ClientConsentForm(instance=consent, prefix='consent')
+    appointment_form = ClientAppointmentForm(prefix='appointment', client=client, created_by=request.user)
+
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'locator':
+            locator_form = ClientLocatorForm(request.POST, instance=locator, prefix='locator')
+            if locator_form.is_valid():
+                locator = locator_form.save(commit=False)
+                locator.client = client
+                locator.updated_by = request.user
+                locator.save()
+                messages.success(request, 'Client locator details saved.')
+                return redirect('client_record', pk=client.pk)
+        elif action == 'journey':
+            journey_formset = ClientJourneyEventFormSet(request.POST, prefix='journey')
+            if journey_formset.is_valid():
+                created_events = 0
+                for journey_form in journey_formset:
+                    if not journey_form.has_changed():
+                        continue
+                    event = journey_form.save(commit=False)
+                    event.client = client
+                    event.recorded_by = request.user
+                    event.save()
+                    created_events += 1
+                if created_events:
+                    messages.success(request, f'{created_events} journey event{"s" if created_events != 1 else ""} recorded.')
+                else:
+                    messages.warning(request, 'Add at least one journey event before saving.')
+                return redirect('client_record', pk=client.pk)
+        elif action == 'referral':
+            referral_form = ReferralRecordForm(request.POST, prefix='referral')
+            if referral_form.is_valid():
+                referral = referral_form.save(commit=False)
+                referral.client = client
+                referral.recorded_by = request.user
+                referral.save()
+                messages.success(request, 'Referral record saved.')
+                return redirect('client_record', pk=client.pk)
+        elif action == 'followup':
+            follow_up_form = FollowUpTaskForm(request.POST, prefix='followup')
+            if follow_up_form.is_valid():
+                task = follow_up_form.save(commit=False)
+                task.client = client
+                task.created_by = request.user
+                task.save()
+                messages.success(request, 'Follow-up task saved.')
+                return redirect('client_record', pk=client.pk)
+        elif action == 'appointment':
+            appointment_form = ClientAppointmentForm(
+                request.POST,
+                prefix='appointment',
+                client=client,
+                created_by=request.user,
+            )
+            if appointment_form.is_valid():
+                appointment = appointment_form.save()
+                portal_notification, email_notification = notify_appointment_created(appointment, actor=request.user)
+                messages.success(request, 'Appointment booked.')
+                if email_notification and email_notification.status == 'failed':
+                    messages.warning(request, 'The portal notification was created, but the email notification could not be sent.')
+                elif portal_notification and not appointment.beneficiary.email:
+                    messages.warning(request, 'The portal notification was created. No email was sent because the client has no email address.')
+                return redirect('client_record', pk=client.pk)
+        elif action == 'consent':
+            consent_form = ClientConsentForm(request.POST, instance=consent, prefix='consent')
+            if consent_form.is_valid():
+                consent = consent_form.save(commit=False)
+                consent.client = client
+                consent.recorded_by = request.user
+                consent.save()
+                messages.success(request, 'Consent and privacy controls saved.')
+                return redirect('client_record', pk=client.pk)
+
+    return render(request, 'users/client_record.html', {
+        'client': client,
+        'locator': locator,
+        'consent': consent,
+        'locator_form': locator_form,
+        'journey_formset': journey_formset,
+        'referral_form': referral_form,
+        'follow_up_form': follow_up_form,
+        'consent_form': consent_form,
+        'appointment_form': appointment_form,
+        'journey_events': client.journey_events.all()[:10],
+        'referrals': client.referral_records.all()[:10],
+        'follow_up_tasks': client.follow_up_tasks.all()[:10],
+        'appointments': get_visible_appointments(request.user).filter(beneficiary=client)[:10],
+    })
+
+
+def build_referral_qr_data_uri(value):
+    try:
+        import qrcode
+    except ImportError:
+        return ''
+
+    image = qrcode.make(value)
+    buffer = io.BytesIO()
+    image.save(buffer, format='PNG')
+    encoded = base64.b64encode(buffer.getvalue()).decode('ascii')
+    return f'data:image/png;base64,{encoded}'
+
+
+@role_required(*APPOINTMENT_ROLES)
+def referral_slip(request, referral_code):
+    referral = get_object_or_404(
+        ReferralRecord.objects.select_related(
+            'receiving_facility',
+            'receiving_facility__district',
+            'client',
+            'recorded_by',
+        ),
+        referral_code=referral_code,
+    )
+    record_url = request.build_absolute_uri(reverse('referral_scan', kwargs={'referral_code': referral.referral_code}))
+    return render(request, 'users/referral_slip.html', {
+        'referral': referral,
+        'record_url': record_url,
+        'qr_data_uri': build_referral_qr_data_uri(record_url),
+    })
+
+
+def referral_scan_denied_response():
+    return HttpResponse(get_random_string(96), content_type='text/plain; charset=utf-8')
+
+
+def can_open_referral_scan(user, referral):
+    if not user.is_authenticated:
+        return False
+    profile = getattr(user, 'profile', None)
+    if not profile or not profile.is_active:
+        return False
+    if profile.must_change_password:
+        return False
+    if profile.role not in {'provider', 'chw', 'mobiliser', 'supervisor'}:
+        return False
+    if not referral.receiving_facility_id:
+        return False
+    return profile.facility_id == referral.receiving_facility_id
+
+
+def referral_scan(request, referral_code):
+    referral = ReferralRecord.objects.select_related(
+        'assigned_mobiliser',
+        'client',
+        'client__profile',
+        'confirmed_by',
+        'receiving_facility',
+        'receiving_facility__district',
+        'recorded_by',
+    ).filter(referral_code=referral_code).first()
+    if not referral or not can_open_referral_scan(request.user, referral):
+        return referral_scan_denied_response()
+
+    follow_up_tasks = referral.client.follow_up_tasks.filter(
+        reason='referral_confirmation',
+        notes__icontains=referral.referral_code,
+    ).select_related('assigned_to')[:5]
+    return render(request, 'users/referral_detail.html', {
+        'referral': referral,
+        'follow_up_tasks': follow_up_tasks,
+        'scanned_referral': True,
+    })
+
+
+@role_required(*APPOINTMENT_ROLES)
+def referral_detail(request, referral_code):
+    referral = get_object_or_404(
+        ReferralRecord.objects.select_related(
+            'assigned_mobiliser',
+            'client',
+            'client__profile',
+            'confirmed_by',
+            'receiving_facility',
+            'receiving_facility__district',
+            'recorded_by',
+        ),
+        referral_code=referral_code,
+    )
+    follow_up_tasks = referral.client.follow_up_tasks.filter(
+        reason='referral_confirmation',
+        notes__icontains=referral.referral_code,
+    ).select_related('assigned_to')[:5]
+    return render(request, 'users/referral_detail.html', {
+        'referral': referral,
+        'follow_up_tasks': follow_up_tasks,
+    })
+
+
+@role_required(*APPOINTMENT_ROLES)
+def referral_confirm(request, referral_code):
+    referral = get_object_or_404(
+        ReferralRecord.objects.select_related('client', 'receiving_facility'),
+        referral_code=referral_code,
+    )
+    form = ReferralConfirmationForm(instance=referral)
+    if request.method == 'POST':
+        form = ReferralConfirmationForm(request.POST, instance=referral)
+        if form.is_valid():
+            confirmed_referral = form.save(commit=False)
+            confirmed_referral.confirmed_by = request.user
+            confirmed_referral.save()
+            messages.success(request, 'Referral confirmation saved.')
+            return redirect('referral_detail', referral_code=confirmed_referral.referral_code)
+    return render(request, 'users/referral_confirm.html', {
+        'referral': referral,
+        'form': form,
+    })
+
+
+def referral_rate(numerator, denominator):
+    if not denominator:
+        return 0
+    return round((numerator / denominator) * 100, 1)
+
+
+@role_required(*DASHBOARD_ROLES)
+def referral_analytics(request):
+    referrals = ReferralRecord.objects.select_related(
+        'receiving_facility__district',
+        'assigned_mobiliser',
+        'client__profile__population_group',
+    )
+    total = referrals.count()
+    completed = referrals.filter(confirmation_status__in=ReferralRecord.COMPLETED_STATUSES).count()
+    converted = referrals.filter(initiation_outcome__in=['len_prep_initiated', 'hivst_received']).count()
+    not_attended = referrals.filter(confirmation_status='not_attended').count()
+
+    by_status = referrals.values('confirmation_status').annotate(total=Count('id')).order_by('-total')
+    by_district = referrals.values(
+        'receiving_facility__district__name',
+    ).annotate(total=Count('id')).order_by('-total', 'receiving_facility__district__name')
+    by_zone = referrals.values(
+        'client__client_locator__mobiliser_zone',
+    ).annotate(total=Count('id')).order_by('-total', 'client__client_locator__mobiliser_zone')
+    by_kpp = referrals.values(
+        'client__profile__population_group__name',
+    ).annotate(total=Count('id')).order_by('-total', 'client__profile__population_group__name')
+    by_mobiliser = referrals.values(
+        'assigned_mobiliser__first_name',
+        'assigned_mobiliser__last_name',
+        'assigned_mobiliser__username',
+    ).annotate(total=Count('id')).order_by('-total', 'assigned_mobiliser__username')
+
+    return render(request, 'users/referral_analytics.html', {
+        'total_referrals': total,
+        'completed_referrals': completed,
+        'converted_referrals': converted,
+        'not_attended_referrals': not_attended,
+        'completion_rate': referral_rate(completed, total),
+        'conversion_rate': referral_rate(converted, total),
+        'drop_off_rate': referral_rate(not_attended, total),
+        'by_status': by_status,
+        'by_district': by_district,
+        'by_zone': by_zone,
+        'by_kpp': by_kpp,
+        'by_mobiliser': by_mobiliser,
+    })
+
+
+@role_required(*APPOINTMENT_ROLES)
+def client_bulk_upload_template(request, pk, kind):
+    """Download a CSV template for client record bulk creation."""
+    client = get_client_for_management(request.user, pk)
+    spec = get_client_bulk_upload_spec(kind)
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="{spec["filename"]}"'
+    writer = csv.DictWriter(response, fieldnames=spec['fields'])
+    writer.writeheader()
+    writer.writerows(get_client_bulk_template_rows(kind))
+    return response
+
+
+@role_required(*APPOINTMENT_ROLES)
+def client_bulk_upload_validate(request, pk, kind):
+    """Validate a CSV upload before committing client record objects."""
+    client = get_client_for_management(request.user, pk)
+    spec = get_client_bulk_upload_spec(kind)
+    session_key = get_client_bulk_session_key(client, kind)
+    results = []
+    commit_ready = False
+    uploaded_filename = ''
+
+    if request.method == 'POST':
+        upload = request.FILES.get('bulk_file')
+        if not upload:
+            messages.error(request, 'Choose a CSV file to validate.')
+        else:
+            uploaded_filename = upload.name
+            try:
+                csv_text = upload.read().decode('utf-8-sig')
+                reader = csv.DictReader(io.StringIO(csv_text))
+                missing_fields = [field for field in spec['fields'] if field not in (reader.fieldnames or [])]
+                if missing_fields:
+                    messages.error(request, f'Missing required column{"s" if len(missing_fields) != 1 else ""}: {", ".join(missing_fields)}.')
+                    request.session.pop(session_key, None)
+                else:
+                    rows = list(reader)
+                    results, valid_rows = validate_client_bulk_rows(kind, rows, client, request.user)
+                    if not results:
+                        messages.error(request, 'The CSV file has no rows to upload.')
+                        request.session.pop(session_key, None)
+                    elif all(result['valid'] for result in results):
+                        request.session[session_key] = valid_rows
+                        request.session.modified = True
+                        commit_ready = True
+                        messages.success(request, 'Validation passed. Review the rows, then submit to post them.')
+                    else:
+                        request.session.pop(session_key, None)
+                        messages.error(request, 'Validation failed. Fix the rows marked with errors and upload again.')
+            except UnicodeDecodeError:
+                request.session.pop(session_key, None)
+                messages.error(request, 'Upload a UTF-8 encoded CSV file.')
+            except csv.Error as exc:
+                request.session.pop(session_key, None)
+                messages.error(request, f'The CSV file could not be read: {exc}')
+
+    return render(request, 'users/client_bulk_upload.html', {
+        'client': client,
+        'kind': kind,
+        'spec': spec,
+        'results': results,
+        'commit_ready': commit_ready,
+        'uploaded_filename': uploaded_filename,
+    })
+
+
+@role_required(*APPOINTMENT_ROLES)
+@require_POST
+def client_bulk_upload_commit(request, pk, kind):
+    """Create client record objects from the previously validated bulk upload."""
+    client = get_client_for_management(request.user, pk)
+    spec = get_client_bulk_upload_spec(kind)
+    session_key = get_client_bulk_session_key(client, kind)
+    rows = request.session.get(session_key)
+    if not rows:
+        messages.error(request, 'Validate a CSV file before submitting the upload.')
+        return redirect('client_bulk_upload', pk=client.pk, kind=kind)
+
+    results, valid_rows = validate_client_bulk_rows(kind, rows, client, request.user)
+    if not results or len(valid_rows) != len(results):
+        request.session.pop(session_key, None)
+        messages.error(request, 'The validated upload is no longer valid. Please upload and validate the file again.')
+        return redirect('client_bulk_upload', pk=client.pk, kind=kind)
+
+    with transaction.atomic():
+        for row in valid_rows:
+            form = get_client_bulk_form(kind, row, client, request.user)
+            if not form.is_valid():
+                raise ValueError(f'Validated {spec["label"]} row failed during save.')
+            save_client_bulk_form(kind, form, client, request.user)
+
+    request.session.pop(session_key, None)
+    messages.success(request, f'{len(valid_rows)} {spec["label"].lower()} row{"s" if len(valid_rows) != 1 else ""} posted.')
+    return redirect('client_record', pk=client.pk)
+
+
+@active_login_required
+def my_journey(request):
+    """Show the signed-in user's own care journey timeline."""
+    user = request.user
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    locator = getattr(user, 'client_locator', None)
+    consent = getattr(user, 'client_consent', None)
+    appointments = Appointment.objects.filter(beneficiary=user).select_related('facility', 'district', 'province')
+    journey_events = user.journey_events.select_related('recorded_by').all()
+    referrals = user.referral_records.select_related('recorded_by', 'receiving_facility').all()
+    follow_up_tasks = user.follow_up_tasks.select_related('assigned_to').all()
+
+    timeline = []
+    for event in journey_events:
+        timeline.append({
+            'date': event.event_date,
+            'type': 'Journey',
+            'title': event.get_stage_display(),
+            'status': event.get_outcome_display(),
+            'details': event.notes,
+        })
+    for appointment in appointments:
+        timeline.append({
+            'date': appointment.appointment_date,
+            'type': 'Appointment',
+            'title': appointment.get_visit_purpose_display(),
+            'status': appointment.get_status_display(),
+            'details': appointment.facility.name,
+        })
+    for referral in referrals:
+        timeline.append({
+            'date': referral.referred_on,
+            'type': 'Referral',
+            'title': referral.receiving_point_name,
+            'status': referral.get_confirmation_status_display(),
+            'details': referral.get_initiation_outcome_display(),
+        })
+    for task in follow_up_tasks:
+        timeline.append({
+            'date': task.due_date,
+            'type': 'Follow-up',
+            'title': task.get_reason_display(),
+            'status': task.get_status_display(),
+            'details': task.outcome_notes or task.notes,
+        })
+    timeline.sort(key=lambda item: item['date'], reverse=True)
+    timeline_by_year = []
+    year_lookup = {}
+    for index, item in enumerate(timeline, start=1):
+        item['index'] = index
+        year = item['date'].year
+        if year not in year_lookup:
+            year_group = {
+                'year': year,
+                'items': [],
+            }
+            year_lookup[year] = year_group
+            timeline_by_year.append(year_group)
+        year_lookup[year]['items'].append(item)
+    latest_item = timeline[0] if timeline else None
+    first_item = timeline[-1] if timeline else None
+    upcoming_appointment = (
+        appointments
+        .filter(status='upcoming', appointment_date__gte=timezone.localdate())
+        .order_by('appointment_date', 'appointment_time')
+        .first()
+    )
+    open_follow_up_count = follow_up_tasks.exclude(status__in=['completed', 'cancelled']).count()
+    timeline_summary = {
+        'total_items': len(timeline),
+        'first_item': first_item,
+        'latest_item': latest_item,
+        'upcoming_appointment': upcoming_appointment,
+        'open_follow_up_count': open_follow_up_count,
+    }
+
+    return render(request, 'users/my_journey.html', {
+        'profile': profile,
+        'locator': locator,
+        'consent': consent,
+        'appointments': appointments[:10],
+        'journey_events': journey_events[:10],
+        'referrals': referrals[:10],
+        'follow_up_tasks': follow_up_tasks[:10],
+        'timeline': timeline,
+        'timeline_by_year': timeline_by_year,
+        'timeline_summary': timeline_summary,
+    })
 
 
 @role_required(*USER_ADMIN_ROLES)
@@ -1101,12 +2331,20 @@ def user_create(request):
     """Create a new user"""
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
-        role = request.POST.get('role')
+        is_staff = request.POST.get('is_staff') == 'on'
+        role = normalize_user_role_for_staff(request.POST.get('role'), is_staff)
+        sex = request.POST.get('sex') or ''
         person_identity = get_selected_person_identity(request.POST.get('person_identity') or None)
         facility_id = request.POST.get('facility') or None
+        population_group_id = request.POST.get('population_group') or None
         valid_roles = {choice[0] for choice in UserProfile.ROLE_CHOICES}
+        role_error = None
         facility_error = None
+        population_group_error = None
         facility = None
+        population_group = None
+        if role not in valid_roles:
+            role_error = 'Select a valid staff role.' if is_staff else 'Select a valid role.'
         if role in FACILITY_REQUIRED_ROLES:
             if not facility_id:
                 facility_error = 'Select the facility where this user works.'
@@ -1118,19 +2356,45 @@ def user_create(request):
             facility = Facility.objects.filter(pk=facility_id).first()
             if not facility:
                 facility_error = 'Select a valid facility.'
+        if role == 'client' and population_group_id:
+            population_group = PopulationGroup.objects.filter(pk=population_group_id, is_active=True).first()
+            if not population_group:
+                population_group_error = 'Select a valid population group.'
+            elif not population_group_matches_sex(population_group, sex):
+                population_group_error = 'Select a population group that is applicable to this client sex.'
         if form.is_valid():
+            if role_error:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'errors': {'role': [role_error]}})
+                messages.error(request, role_error)
+                return redirect('user_list')
             if facility_error:
                 if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                     return JsonResponse({'success': False, 'errors': {'facility': [facility_error]}})
                 messages.error(request, facility_error)
                 return redirect('user_list')
+            if population_group_error:
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'errors': {'population_group': [population_group_error]}})
+                messages.error(request, population_group_error)
+                return redirect('user_list')
             user = form.save()
-            if role in valid_roles:
-                user.profile.role = role
+            user.is_staff = is_staff
+            user.save(update_fields=['is_staff'])
+            user.profile.role = role
+            user.profile.sex = sex
             user.profile.person_identity = person_identity or PersonIdentity.for_user_defaults(user)
             user.profile.facility = facility if role in FACILITY_ASSIGNABLE_ROLES else None
+            user.profile.population_group = population_group if role == 'client' else None
             user.profile.must_change_password = request.POST.get('must_change_password') == 'on'
-            user.profile.save(update_fields=['role', 'person_identity', 'facility', 'must_change_password'])
+            user.profile.save(update_fields=[
+                'role',
+                'sex',
+                'person_identity',
+                'facility',
+                'population_group',
+                'must_change_password',
+            ])
             
             # Handle AJAX requests
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
@@ -1144,15 +2408,23 @@ def user_create(request):
                 errors = {}
                 for field, error_list in form.errors.items():
                     errors[field] = error_list
+                if role_error:
+                    errors['role'] = [role_error]
                 if facility_error:
                     errors['facility'] = [facility_error]
+                if population_group_error:
+                    errors['population_group'] = [population_group_error]
                 return JsonResponse({'success': False, 'errors': errors})
             
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f"{field}: {error}")
+            if role_error:
+                messages.error(request, role_error)
             if facility_error:
                 messages.error(request, facility_error)
+            if population_group_error:
+                messages.error(request, population_group_error)
     else:
         form = UserCreationForm()
     
@@ -1170,11 +2442,19 @@ def user_edit(request, pk):
     profile, _ = UserProfile.objects.get_or_create(user=user)
     
     if request.method == 'POST':
-        user_form = UserForm(request.POST, instance=user)
-        profile_form = UserProfileForm(request.POST, instance=profile)
+        is_staff = request.POST.get('is_staff') == 'on'
+        post_data = request.POST.copy()
+        post_data['role'] = normalize_user_role_for_staff(post_data.get('role'), is_staff)
+        role_error = None
+        if post_data['role'] not in {choice[0] for choice in UserProfile.ROLE_CHOICES}:
+            role_error = 'Select a valid staff role.' if is_staff else 'Select a valid role.'
+        user_form = UserForm(post_data, instance=user)
+        profile_form = UserProfileForm(post_data, instance=profile)
         
-        if user_form.is_valid() and profile_form.is_valid():
+        if user_form.is_valid() and profile_form.is_valid() and not role_error:
             user_form.save()
+            user.is_staff = is_staff
+            user.save(update_fields=['is_staff'])
             profile = profile_form.save()
             if not profile.person_identity_id:
                 profile.person_identity = PersonIdentity.for_user_defaults(
@@ -1198,6 +2478,8 @@ def user_edit(request, pk):
                     errors[field] = error_list
                 for field, error_list in profile_form.errors.items():
                     errors[field] = error_list
+                if role_error:
+                    errors['role'] = [role_error]
                 return JsonResponse({'success': False, 'errors': errors})
             
             for field, errors in user_form.errors.items():
@@ -1206,6 +2488,8 @@ def user_edit(request, pk):
             for field, errors in profile_form.errors.items():
                 for error in errors:
                     messages.error(request, f"Profile - {field}: {error}")
+            if role_error:
+                messages.error(request, role_error)
     else:
         user_form = UserForm(instance=user)
         profile_form = UserProfileForm(instance=profile)
@@ -1400,10 +2684,15 @@ def appointment_list(request):
         raise PermissionDenied
     if request.method == 'POST' and form.is_valid():
         appointment = form.save()
+        portal_notification, email_notification = notify_appointment_created(appointment, actor=request.user)
         messages.success(
             request,
             f'Appointment for "{appointment.beneficiary.username}" booked successfully!'
         )
+        if email_notification and email_notification.status == 'failed':
+            messages.warning(request, 'The portal notification was created, but the email notification could not be sent.')
+        elif portal_notification and not appointment.beneficiary.email:
+            messages.warning(request, 'The portal notification was created. No email was sent because the client has no email address.')
         return redirect('appointment_list')
 
     appointments = get_visible_appointments(request.user)

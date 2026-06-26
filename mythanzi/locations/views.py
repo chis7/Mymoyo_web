@@ -73,6 +73,9 @@ LOCATION_SORT_FIELDS = {
         'name': 'name',
         'code': 'code',
         'level': 'level',
+        'facility_type': 'facility_type',
+        'hub': 'hub__name',
+        'spokes': 'spoke_count',
         'district': 'district__name',
         'province': 'district__province__name',
         'services': 'service_count',
@@ -116,8 +119,9 @@ def get_location_management_context(
         facility_count=Count('facilities', distinct=True),
     )
     services = Service.objects.annotate(facility_count=Count('facilities', distinct=True))
-    facilities = Facility.objects.select_related('district__province').prefetch_related('services').annotate(
+    facilities = Facility.objects.select_related('district__province', 'hub').prefetch_related('services').annotate(
         service_count=Count('services', distinct=True),
+        spoke_count=Count('spokes', distinct=True),
     )
 
     if search_term:
@@ -135,6 +139,8 @@ def get_location_management_context(
             Q(name__icontains=search_term) |
             Q(code__icontains=search_term) |
             Q(level__icontains=search_term) |
+            Q(facility_type__icontains=search_term) |
+            Q(hub__name__icontains=search_term) |
             Q(services__name__icontains=search_term) |
             Q(district__name__icontains=search_term) |
             Q(district__province__name__icontains=search_term)
@@ -348,6 +354,24 @@ def location_edit(request, tab, pk):
 
 
 @role_required(*USER_ADMIN_ROLES)
+def facility_detail(request, pk):
+    facility = get_object_or_404(
+        Facility.objects.select_related('district__province', 'hub').prefetch_related('services', 'spokes__district__province'),
+        pk=pk,
+    )
+    spokes = facility.spokes.select_related('district__province').prefetch_related('services').order_by(
+        'district__province__name',
+        'district__name',
+        'name',
+    )
+    return render(request, 'locations/facility_detail.html', {
+        'facility': facility,
+        'spokes': spokes,
+        'spoke_count': spokes.count(),
+    })
+
+
+@role_required(*USER_ADMIN_ROLES)
 @require_POST
 def location_delete(request, tab, pk):
     if tab not in LOCATION_MANAGEMENT_TABS:
@@ -385,7 +409,7 @@ def get_facility_filters(request):
 
 
 def get_filtered_facilities(search_term, province_id, district_id, level):
-    facilities = Facility.objects.select_related('district__province')
+    facilities = Facility.objects.select_related('district__province', 'hub')
     if search_term:
         facilities = facilities.filter(
             Q(name__icontains=search_term) |
@@ -408,6 +432,9 @@ def serialize_facility(facility):
         'district': facility.district.name,
         'province': facility.district.province.name,
         'level': facility.level or '',
+        'facility_type': facility.facility_type or '',
+        'facility_type_label': facility.get_facility_type_display() if facility.facility_type else '',
+        'hub': facility.hub.name if facility.hub_id else '',
         'code': facility.code or '',
         'latitude': float(facility.latitude) if facility.latitude is not None else None,
         'longitude': float(facility.longitude) if facility.longitude is not None else None,
@@ -421,6 +448,9 @@ def serialize_mapped_facilities(facilities):
             'district': facility.district.name,
             'province': facility.district.province.name,
             'level': facility.level or '',
+            'facility_type': facility.facility_type or '',
+            'facility_type_label': facility.get_facility_type_display() if facility.facility_type else '',
+            'hub': facility.hub.name if facility.hub_id else '',
             'code': facility.code or '',
             'latitude': float(facility.latitude),
             'longitude': float(facility.longitude),

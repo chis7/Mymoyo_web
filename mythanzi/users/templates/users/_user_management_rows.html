@@ -6,7 +6,10 @@
         data-sort-username="{{ item.user.username }}"
         data-sort-email="{{ item.user.email }}"
         data-sort-role="{{ item.profile.get_role_display }}"
+        data-sort-sex="{{ item.profile.get_sex_display }}"
+        data-sort-staff="{% if item.user.is_staff %}1{% else %}0{% endif %}"
         data-sort-facility="{% if item.profile.facility %}{{ item.profile.facility.name }}{% endif %}"
+        data-sort-population="{% if item.profile.population_group %}{{ item.profile.population_group.name }}{% endif %}"
         data-sort-status="{% if item.user.is_active %}Active{% else %}Inactive{% endif %}"
         data-sort-login="{% if item.is_logged_in %}1{% else %}0{% endif %}"
     >
@@ -18,13 +21,14 @@
                     <em></em>
                 {% endif %}
                 {% if item.profile.person_identity %}
-                    <small style="display:block;color:var(--theme-surface-muted);font-weight:700;">Person: {{ item.profile.person_identity.full_name }}</small>
+                    <small class="d-block text-muted fw-semibold">Person: {{ item.profile.person_identity.full_name }}</small>
                 {% endif %}
+                <small class="d-block text-muted fw-semibold">Role: {{ item.profile.get_role_display }}</small>
             </div>
              {% if item.user.email %}
-                {{ item.user.email|highlight_match:search_term }}
+               <small class="d-block text-muted fw-semibold">Email: {{ item.user.email|highlight_match:search_term }}</small>
             {% else %}
-                <em style="color: var(--theme-surface-muted);">—</em>
+                <em class="text-muted"></em>
             {% endif %}
         </td>
         <td data-label="Username">{{ item.user.username|highlight_match:search_term }} <br/>  <span class="login-status-details">
@@ -38,40 +42,59 @@
             {% endif %}
         </td> -->
         <td data-label="Role">
-            <span class="user-role">{{ item.profile.get_role_display }}</span>
+            <span class="badge rounded-pill text-bg-primary">{{ item.profile.get_role_display }}</span>
+        </td>
+        <td data-label="Sex">
+            {% if item.profile.sex %}
+                {{ item.profile.get_sex_display }}
+            {% else %}
+                <em class="text-muted">-</em>
+            {% endif %}
+        </td>
+        <td data-label="Staff">
+            <span class="badge rounded-pill text-bg-{% if item.user.is_staff %}primary{% else %}secondary{% endif %}">
+                {% if item.user.is_staff %}Staff{% else %}Client{% endif %}
+            </span>
         </td>
         <td data-label="Facility">
             {% if item.profile.facility %}
                 {{ item.profile.facility.name }}
-                <small style="display:block;color:var(--theme-surface-muted);font-weight:700;">{{ item.profile.facility.district.name }}</small>
+                <small class="d-block text-muted fw-semibold">{{ item.profile.facility.district.name }}</small>
             {% else %}
-                <em style="color: var(--theme-surface-muted);">-</em>
+                <em class="text-muted">-</em>
+            {% endif %}
+        </td>
+        <td data-label="Population">
+            {% if item.profile.population_group %}
+                {{ item.profile.population_group.name }}
+            {% else %}
+                <em class="text-muted">-</em>
             {% endif %}
         </td>
         <td data-label="Status">
-            <span class="user-status {% if item.user.is_active %}active{% else %}inactive{% endif %}">
+            <span class="badge rounded-pill {% if item.user.is_active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
                 {% if item.user.is_active %}Active{% else %}Inactive{% endif %}
             </span>
         </td>
         <td data-label="Login Status">
             <span class="login-status-details">
-                <span class="login-status {% if item.is_logged_in %}online{% else %}offline{% endif %}">
+                <span class="badge rounded-pill {% if item.is_logged_in %}text-bg-info{% else %}text-bg-light text-secondary border{% endif %}">
                     {% if item.is_logged_in %}online{% else %}offline{% endif %}
                 </span>
             </span>
         </td>
         <td data-label="Actions">
-            <div class="action-buttons">
-                <button class="btn-icon btn-history" onclick="openHistoryModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="View history">
+            <div class="action-buttons btn-group btn-group-sm" role="group" aria-label="User actions">
+                <button class="btn btn-outline-secondary btn-icon btn-history" type="button" onclick="openHistoryModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="View history">
                     <span class="material-symbols-outlined">history</span>
                 </button>
-                <button class="btn-icon btn-reset" onclick="openResetPasswordModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="Reset password">
+                <button class="btn btn-outline-secondary btn-icon btn-reset" type="button" onclick="openResetPasswordModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="Reset password">
                     <span class="material-symbols-outlined">key</span>
                 </button>
-                <button class="btn-icon btn-edit" onclick="openEditModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}', '{{ item.user.first_name|escapejs }}', '{{ item.user.last_name|escapejs }}', '{{ item.user.email|escapejs }}', '{{ item.profile.role }}', '{{ item.profile.person_identity_id|default:'' }}', '{{ item.profile.facility_id|default:'' }}', {{ item.user.is_active|lower }}, {{ item.profile.must_change_password|lower }})" title="Edit user">
+                <button class="btn btn-outline-primary btn-icon btn-edit" type="button" onclick="openEditModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}', '{{ item.user.first_name|escapejs }}', '{{ item.user.last_name|escapejs }}', '{{ item.profile.sex|escapejs }}', '{{ item.user.email|escapejs }}', '{{ item.profile.role }}', '{{ item.profile.person_identity_id|default:'' }}', '{{ item.profile.facility_id|default:'' }}', '{{ item.profile.population_group_id|default:'' }}', {{ item.user.is_active|lower }}, {{ item.profile.must_change_password|lower }}, {{ item.user.is_staff|lower }})" title="Edit user">
                     <span class="material-symbols-outlined">edit</span>
                 </button>
-                <button class="btn-icon btn-delete" onclick="openDeleteModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="Delete user">
+                <button class="btn btn-outline-danger btn-icon btn-delete" type="button" onclick="openDeleteModal({{ item.user.pk }}, '{{ item.user.username|escapejs }}')" title="Delete user">
                     <span class="material-symbols-outlined">delete</span>
                 </button>
             </div>
@@ -79,14 +102,14 @@
     </tr>
 {% empty %}
     <tr>
-        <td colspan="8">
+        <td colspan="10">
             <div class="no-users">
                 <p style="font-size: 1.1rem; margin-bottom: 1rem;">No users found</p>
                 <p>
                     {% if search_term or role_filter %}
                         Try adjusting your search filters.
                     {% else %}
-                        <button onclick="openCreateModal()" style="color: var(--theme-primary); font-weight: 600; cursor: pointer; border: none; background: none; text-decoration: underline;">Create the first user</button>
+                        <button class="btn btn-link p-0 fw-semibold" type="button" onclick="openCreateModal()">Create the first user</button>
                     {% endif %}
                 </p>
             </div>

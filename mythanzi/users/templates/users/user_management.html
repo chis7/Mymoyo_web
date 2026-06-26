@@ -116,7 +116,7 @@
         flex-direction: column;
         height: 100%;
         width: 100%;
-        min-width: 980px;
+        min-width: 1180px;
         border-collapse: collapse;
     }
     .users-table thead {
@@ -148,34 +148,42 @@
     }
     .users-table th:nth-child(1),
     .users-table td:nth-child(1) {
-        width: 14%;
+        width: 13%;
     }
     .users-table th:nth-child(2),
     .users-table td:nth-child(2) {
-        width: 12%;
+        width: 10%;
     }
     .users-table th:nth-child(3),
     .users-table td:nth-child(3) {
-        width: 18%;
+        width: 13%;
     }
     .users-table th:nth-child(4),
     .users-table td:nth-child(4) {
-        width: 11%;
+        width: 8%;
     }
     .users-table th:nth-child(5),
     .users-table td:nth-child(5) {
-        width: 15%;
+        width: 7%;
     }
     .users-table th:nth-child(6),
     .users-table td:nth-child(6) {
-        width: 10%;
+        width: 15%;
     }
     .users-table th:nth-child(7),
     .users-table td:nth-child(7) {
-        width: 10%;
+        width: 12%;
     }
     .users-table th:nth-child(8),
     .users-table td:nth-child(8) {
+        width: 8%;
+    }
+    .users-table th:nth-child(9),
+    .users-table td:nth-child(9) {
+        width: 8%;
+    }
+    .users-table th:nth-child(10),
+    .users-table td:nth-child(10) {
         width: 10%;
     }
     .sort-button {
@@ -609,6 +617,22 @@
     .form-grid .form-group.full-width {
         grid-column: 1 / -1;
     }
+    .form-section-title {
+        grid-column: 1 / -1;
+        margin: 0.35rem 0 0.15rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(var(--theme-primary-rgb), 0.1);
+        color: var(--theme-surface-text);
+        font-size: 0.82rem;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+    .form-section-title:first-child {
+        margin-top: 0;
+        padding-top: 0;
+        border-top: 0;
+    }
     .modal-footer {
         padding: 1.5rem;
         border-top: 1px solid rgba(var(--theme-primary-rgb), 0.1);
@@ -796,23 +820,272 @@
         font-size: 0.72rem;
         line-height: 1.2;
     }
+
+    .users-management-page {
+        gap: 1rem;
+    }
+    .management-header {
+        flex-wrap: wrap;
+        padding: 1rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        border-radius: 0.75rem;
+        background: var(--theme-surface);
+        box-shadow: 0 0.125rem 0.75rem rgba(16, 32, 48, 0.06);
+    }
+    .search-bar {
+        flex: 1 1 320px;
+        max-width: 520px;
+    }
+    .search-bar input {
+        min-height: 2.75rem;
+        border-radius: 0.5rem;
+    }
+    .create-btn,
+    .modal-footer .btn-primary,
+    .modal-footer .btn-secondary,
+    .modal-footer .btn-danger {
+        min-height: 2.5rem;
+        border-radius: 0.5rem;
+    }
+    .users-table-wrapper {
+        overflow: auto;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        border-radius: 0.75rem;
+        background: var(--theme-surface);
+    }
+    .users-table {
+        display: table;
+        height: auto;
+        min-width: 1320px;
+        table-layout: auto;
+        border-collapse: collapse;
+    }
+    .users-table thead {
+        display: table-header-group;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+    }
+    .users-table tbody {
+        display: table-row-group;
+        overflow: visible;
+    }
+    .users-table thead tr,
+    .users-table tbody tr {
+        display: table-row;
+        width: auto;
+    }
+    .users-table th,
+    .users-table td {
+        display: table-cell;
+        width: auto !important;
+        vertical-align: middle;
+    }
+    .users-table th {
+        white-space: nowrap;
+    }
+    .users-table td {
+        color: var(--theme-surface-text);
+    }
+    .sort-button {
+        white-space: nowrap;
+    }
+    .table-pagination {
+        flex-wrap: wrap;
+        border-radius: 0.75rem;
+    }
+    .table-page-size select {
+        min-width: 5rem;
+    }
+    .modal-overlay.active {
+        display: block;
+        overflow-y: auto;
+        padding: 1.5rem;
+    }
+    .management-modal-dialog {
+        margin: 1.75rem auto;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.12);
+        border-radius: 0.75rem;
+    }
+    .modal-header,
+    .modal-footer {
+        padding: 1rem 1.25rem;
+    }
+    .modal-body {
+        padding: 1.25rem;
+    }
+    .form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        column-gap: 1rem;
+        row-gap: 0.25rem;
+    }
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    .form-group label {
+        font-size: 0.875rem;
+    }
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        min-height: 2.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 0.5rem;
+    }
+    .form-group label input[type="checkbox"],
+    .form-group .form-check-input {
+        width: 1rem;
+        height: 1rem;
+        min-height: 1rem;
+        padding: 0;
+        float: none;
+        margin: 0;
+    }
+    .form-group .form-check-input:checked {
+        background-color: var(--theme-primary);
+        border-color: var(--theme-primary);
+        background-image: var(--bs-form-check-bg-image);
+    }
+    .form-group .form-check-input:focus {
+        border-color: var(--theme-primary);
+        box-shadow: 0 0 0 0.25rem var(--theme-focus);
+    }
+    .form-group .form-check {
+        display: flex;
+        align-items: center;
+        min-height: 2.5rem;
+        gap: 0.5rem;
+        padding-left: 0;
+    }
+    .form-group .form-check-label {
+        margin-bottom: 0;
+        font-weight: 600;
+    }
+    .form-group .form-check-label + .form-check-input,
+    .form-group .form-check-input + .form-check-label {
+        margin-left: 0.5rem;
+    }
+    .form-group label .form-check-input {
+        margin-left: 0.5rem;
+    }
+    .action-buttons {
+        justify-content: flex-end;
+    }
+    .action-buttons .btn-icon {
+        width: 2rem;
+        height: 2rem;
+        padding: 0;
+        border-radius: 0.375rem;
+        background: transparent;
+    }
+    .action-buttons .btn-icon .material-symbols-outlined {
+        font-size: 1.05rem;
+        line-height: 1;
+    }
+    .modal-close.btn-close {
+        width: 1rem;
+        height: 1rem;
+        padding: 0.75rem;
+        font-size: 1rem;
+        background-color: transparent;
+    }
+    .modal-footer .btn {
+        padding-inline: 1rem;
+        font-weight: 600;
+    }
+    .table > :not(caption) > * > * {
+        background-color: transparent;
+    }
+    @media (max-width: 991.98px) {
+        .app-shell > .content-wrapper,
+        .users-management-page {
+            overflow: visible;
+        }
+        .users-table-wrapper {
+            overflow-x: auto;
+            background: var(--theme-surface);
+            box-shadow: 0 0.125rem 0.75rem rgba(16, 32, 48, 0.06);
+        }
+        .users-table,
+        .users-table thead,
+        .users-table tbody,
+        .users-table tr,
+        .users-table th,
+        .users-table td {
+            display: revert;
+        }
+        .users-table {
+            display: table;
+            min-width: 1320px;
+            border-spacing: 0;
+        }
+        .users-table thead {
+            display: table-header-group;
+        }
+        .users-table tbody {
+            display: table-row-group;
+        }
+        .users-table tr {
+            display: table-row;
+            box-shadow: none;
+            border: 0;
+            border-radius: 0;
+        }
+        .users-table td {
+            display: table-cell;
+            text-align: left;
+            word-break: normal;
+        }
+        .users-table td::before {
+            content: none;
+        }
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    @media (max-width: 575.98px) {
+        .management-header,
+        .table-pagination {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .search-bar,
+        .create-btn {
+            width: 100%;
+            max-width: none;
+        }
+        .modal-overlay.active {
+            padding: 0.75rem;
+        }
+        .management-modal-dialog {
+            width: 100%;
+            max-width: 100%;
+            margin: 0.75rem auto;
+        }
+        .modal-footer {
+            flex-direction: column-reverse;
+        }
+        .modal-footer button {
+            width: 100%;
+        }
+    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="users-management-page">
-    <nav class="management-breadcrumb" aria-label="Breadcrumb">
-        <a href="/app/">Home</a>
+<div class="users-management-page container-fluid px-0">
+    <nav class="management-breadcrumb mb-3" aria-label="Breadcrumb">
+        <a href="{% url 'user_dashboard' %}">Home</a>
         <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
         <span aria-current="page">Users</span>
     </nav>
     <div class="management-header">
         <div class="search-bar">
             <form id="userSearchForm" method="GET">
-                <input type="text" name="q" placeholder="Search by name, username, or email..." value="{{ search_term }}">
+                <input class="form-control" type="search" name="q" placeholder="Search by name, username, or email..." value="{{ search_term }}">
             </form>
         </div>
-        <button class="create-btn" onclick="openCreateModal()">
+        <button class="btn btn-primary create-btn" type="button" onclick="openCreateModal()">
             <span class="material-symbols-outlined" style="font-size: 1.2rem;">person_add</span>
             Add User
         </button>
@@ -837,43 +1110,55 @@
         </div>
     </div> {% endcomment %}
 
-    <div class="users-table-wrapper">
-        <table class="users-table" id="usersTable">
+    <div class="users-table-wrapper table-responsive">
+        <table class="table table-hover align-middle users-table mb-0" id="usersTable">
             <thead>
                 <tr>
                     <th>
                         <button type="button" class="sort-button" data-sort-key="name" data-sort-type="text" aria-sort="none">
-                            Name <span class="sort-icon" aria-hidden="true">↕</span>
+                            Name <span class="material-symbols-outlined sort-icon" aria-hidden="true">unfold_more</span>
                         </button>
                     </th>
                     <th>
                         <button type="button" class="sort-button" data-sort-key="username" data-sort-type="text" aria-sort="none">
-                            Username <span class="sort-icon" aria-hidden="true">↕</span>
+                            Username <span class="material-symbols-outlined sort-icon" aria-hidden="true">unfold_more</span>
                         </button>
                     </th>
-                    <!-- <th>
-                        <button type="button" class="sort-button" data-sort-key="email" data-sort-type="text" aria-sort="none">
-                            Email <span class="sort-icon" aria-hidden="true">↕</span>
-                        </button>
-                    </th> -->
                     <th>
                         <button type="button" class="sort-button" data-sort-key="role" data-sort-type="text" aria-sort="none">
-                            Role <span class="sort-icon" aria-hidden="true">↕</span>
+                            Role <span class="material-symbols-outlined sort-icon" aria-hidden="true">unfold_more</span>
+                        </button>
+                    </th>
+                    
+                    <th>
+                        <button type="button" class="sort-button" data-sort-key="sex" data-sort-type="text" aria-sort="none">
+                            Sex <span class="material-symbols-outlined sort-icon" aria-hidden="true">unfold_more</span>
+                        </button>
+                    </th>
+                    <th>
+                        <button type="button" class="sort-button" data-sort-key="staff" data-sort-type="number" aria-sort="none">
+                            Staff <span class="material-symbols-outlined sort-icon" aria-hidden="true">unfold_more</span>
                         </button>
                     </th>
                     <th>
                         <button type="button" class="sort-button" data-sort-key="facility" data-sort-type="text" aria-sort="none">
-                            Facility <span class="sort-icon" aria-hidden="true">↕</span>
+                            Facility <span class="material-symbols-outlined sort-icon" aria-hidden="true">unfold_more</span>
+                        </button>
+                    </th>
+                   
+                    <th>
+                        <button type="button" class="sort-button" data-sort-key="population" data-sort-type="text" aria-sort="none">
+                            Population <span class="material-symbols-outlined sort-icon" aria-hidden="true">unfold_more</span>
                         </button>
                     </th>
                     <th>
                         <button type="button" class="sort-button" data-sort-key="status" data-sort-type="text" aria-sort="none">
-                            Status <span class="sort-icon" aria-hidden="true">↕</span>
+                            Status <span class="material-symbols-outlined sort-icon" aria-hidden="true">unfold_more</span>
                         </button>
                     </th>
                     <th>
                         <button type="button" class="sort-button" data-sort-key="login" data-sort-type="number" aria-sort="none">
-                            Login Status <span class="sort-icon" aria-hidden="true">↕</span>
+                            Login Status <span class="material-symbols-outlined sort-icon" aria-hidden="true">unfold_more</span>
                         </button>
                     </th>
                     <th>Actions</th>
@@ -887,7 +1172,7 @@
     <div class="table-pagination" id="usersTablePagination">
         <div class="table-page-size">
             <label for="usersPageSize">Rows</label>
-            <select id="usersPageSize" aria-label="Rows per page">
+            <select class="form-select form-select-sm" id="usersPageSize" aria-label="Rows per page">
                 <option value="5" selected>5</option>
                 <option value="10">10</option>
                 <option value="20">20</option>
@@ -897,11 +1182,11 @@
         </div>
         <div class="table-pagination-summary" id="usersPaginationSummary" aria-live="polite"></div>
         <div class="table-pagination-controls">
-            <button type="button" class="pagination-button" id="usersPrevPage" aria-label="Previous page">
+            <button type="button" class="btn btn-outline-secondary btn-sm pagination-button" id="usersPrevPage" aria-label="Previous page">
                 <span class="material-symbols-outlined">chevron_left</span>
             </button>
             <span id="usersPaginationPage"></span>
-            <button type="button" class="pagination-button" id="usersNextPage" aria-label="Next page">
+            <button type="button" class="btn btn-outline-secondary btn-sm pagination-button" id="usersNextPage" aria-label="Next page">
                 <span class="material-symbols-outlined">chevron_right</span>
             </button>
         </div>
@@ -913,20 +1198,20 @@
     <div class="management-modal-dialog history-modal-dialog">
         <div class="modal-header">
             <h2 id="historyTitle">User History</h2>
-            <button class="modal-close" onclick="closeHistoryModal()">&times;</button>
+            <button class="btn-close modal-close" type="button" onclick="closeHistoryModal()" aria-label="Close"></button>
         </div>
         <div class="modal-body">
             <div class="history-toolbar">
                 <label class="history-date-search" for="historyDateSearch">
                     Search by date
-                    <input type="date" id="historyDateSearch">
+                    <input class="form-control" type="date" id="historyDateSearch">
                 </label>
             </div>
             <div id="historyContent" class="history-loading">Loading history...</div>
             <div class="table-pagination" id="historyPagination" hidden>
                 <div class="table-page-size">
                     <label for="historyPageSize">Rows</label>
-                    <select id="historyPageSize" aria-label="History rows per page">
+                    <select class="form-select form-select-sm" id="historyPageSize" aria-label="History rows per page">
                         <option value="5" selected>5</option>
                         <option value="10">10</option>
                         <option value="20">20</option>
@@ -936,18 +1221,18 @@
                 </div>
                 <div class="table-pagination-summary" id="historyPaginationSummary" aria-live="polite"></div>
                 <div class="table-pagination-controls">
-                    <button type="button" class="pagination-button" id="historyPrevPage" aria-label="Previous history page">
+                    <button type="button" class="btn btn-outline-secondary btn-sm pagination-button" id="historyPrevPage" aria-label="Previous history page">
                         <span class="material-symbols-outlined">chevron_left</span>
                     </button>
                     <span id="historyPageLabel">Page 1 of 1</span>
-                    <button type="button" class="pagination-button" id="historyNextPage" aria-label="Next history page">
+                    <button type="button" class="btn btn-outline-secondary btn-sm pagination-button" id="historyNextPage" aria-label="Next history page">
                         <span class="material-symbols-outlined">chevron_right</span>
                     </button>
                 </div>
             </div>
         </div>
         <div class="modal-footer">
-            <button type="button" class="btn-secondary" onclick="closeHistoryModal()">Close</button>
+            <button type="button" class="btn btn-secondary" onclick="closeHistoryModal()">Close</button>
         </div>
     </div>
 </div>
@@ -957,72 +1242,104 @@
     <div class="management-modal-dialog">
         <div class="modal-header">
             <h2>Add New User</h2>
-            <button class="modal-close" onclick="closeCreateModal()">&times;</button>
+            <button class="btn-close modal-close" type="button" onclick="closeCreateModal()" aria-label="Close"></button>
         </div>
         <form id="createForm" class="js-ajax-form">
             {% csrf_token %}
             <div class="modal-body form-grid" id="createBody">
-                <div class="form-group">
-                    <label for="username">Username *</label>
-                    <input type="text" id="username" name="username" required>
-                </div>
-                <div class="form-group">
-                    <label for="password">Password *</label>
-                    <input type="password" id="password" name="password" required>
-                </div>
-                <div class="form-group">
-                    <label for="password_confirm">Confirm Password *</label>
-                    <input type="password" id="password_confirm" name="password_confirm" required>
-                </div>
+                <div class="form-section-title">User Demographics</div>
                 <div class="form-group">
                     <label for="first_name">First Name</label>
-                    <input type="text" id="first_name" name="first_name">
+                    <input class="form-control" type="text" id="first_name" name="first_name">
                 </div>
                 <div class="form-group">
-                    <label for="last_name">Last Name</label>
-                    <input type="text" id="last_name" name="last_name">
+                    <label for="last_name">Surname</label>
+                    <input class="form-control" type="text" id="last_name" name="last_name">
                 </div>
                 <div class="form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email">
-                </div>
-                <div class="form-group">
-                    <label for="role">Role *</label>
-                    <select id="role" name="role" required>
-                        <option value="">Select a role</option>
-                        {% for role_key, role_label in role_choices %}
-                            <option value="{{ role_key }}">{{ role_label }}</option>
+                    <label for="sex">Sex</label>
+                    <select class="form-select" id="sex" name="sex">
+                        <option value="">Select sex</option>
+                        {% for sex_key, sex_label in sex_choices %}
+                            <option value="{{ sex_key }}">{{ sex_label }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="person_identity">Same Real Person</label>
-                    <select id="person_identity" name="person_identity">
+                    <select class="form-select" id="person_identity" name="person_identity">
                         <option value="">Create separate identity</option>
                         {% for identity in person_identity_choices %}
                             <option value="{{ identity.pk }}">{{ identity.full_name }}{% if identity.phone %} - {{ identity.phone }}{% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>
+
+                <div class="form-section-title">Account Details</div>
                 <div class="form-group">
-                    <label for="facility">Facility</label>
-                    <select id="facility" name="facility">
-                        <option value="">Select facility</option>
-                        {% for facility in facility_choices %}
-                            <option value="{{ facility.pk }}">{{ facility.name }} - {{ facility.district.name }}, {{ facility.district.province.name }}</option>
+                    <label for="username">Username *</label>
+                    <input class="form-control" type="text" id="username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input class="form-control" type="email" id="email" name="email">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password *</label>
+                    <input class="form-control" type="password" id="password" name="password" required>
+                </div>
+                <div class="form-group">
+                    <label for="password_confirm">Confirm Password *</label>
+                    <input class="form-control" type="password" id="password_confirm" name="password_confirm" required>
+                </div>
+
+                <div class="form-section-title">Access And Assignment</div>
+                <div class="form-group">
+                    <div class="form-check">
+                        <label class="form-check-label" for="is_staff">Is staff</label>
+                        <input class="form-check-input" type="checkbox" id="is_staff" name="is_staff" value="on">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="role">Role *</label>
+                    <select class="form-select" id="role" name="role" required>
+                        <option value="">Select a role</option>
+                        {% for role_key, role_label in role_choices %}
+                            <option value="{{ role_key }}" data-staff-role="{% if role_key == 'client' %}false{% else %}true{% endif %}">{{ role_label }}</option>
                         {% endfor %}
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="facility_search">Facility</label>
+                    <input class="form-control" type="search" id="facility_search" list="facility_options" autocomplete="off" placeholder="Search facility by name, district, or province">
+                    <input type="hidden" id="facility" name="facility">
+                    <datalist id="facility_options">
+                        {% for facility in facility_choices %}
+                            <option value="{{ facility.name }} - {{ facility.district.name }}, {{ facility.district.province.name }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label for="population_group">Population Group</label>
+                    <select class="form-select" id="population_group" name="population_group">
+                        <option value="">Select population group</option>
+                        {% for group in population_group_choices %}
+                            <option value="{{ group.pk }}" data-sex-eligibility="{{ group.sex_eligibility }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-section-title">Security</div>
                 <div class="form-group full-width">
-                    <label for="must_change_password">
-                        <input type="checkbox" id="must_change_password" name="must_change_password" value="on">
-                        Ask user to change password on first login
-                    </label>
+                    <div class="form-check">
+                        <label class="form-check-label" for="must_change_password">Ask user to change password on first login</label>
+                        <input class="form-check-input" type="checkbox" id="must_change_password" name="must_change_password" value="on">
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeCreateModal()">Cancel</button>
-                <button type="submit" class="btn-primary">Create User</button>
+                <button type="button" class="btn btn-secondary" onclick="closeCreateModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create User</button>
             </div>
         </form>
     </div>
@@ -1033,69 +1350,101 @@
     <div class="management-modal-dialog">
         <div class="modal-header">
             <h2>Edit User</h2>
-            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            <button class="btn-close modal-close" type="button" onclick="closeEditModal()" aria-label="Close"></button>
         </div>
         <form id="editForm" class="js-ajax-form">
             {% csrf_token %}
             <div class="modal-body form-grid" id="editBody">
-                <div class="form-group">
-                    <label for="edit_username">Username</label>
-                    <input type="text" id="edit_username" name="username" required>
-                </div>
+                <div class="form-section-title">User Demographics</div>
                 <div class="form-group">
                     <label for="edit_first_name">First Name</label>
-                    <input type="text" id="edit_first_name" name="first_name">
+                    <input class="form-control" type="text" id="edit_first_name" name="first_name">
                 </div>
                 <div class="form-group">
-                    <label for="edit_last_name">Last Name</label>
-                    <input type="text" id="edit_last_name" name="last_name">
+                    <label for="edit_last_name">Surname</label>
+                    <input class="form-control" type="text" id="edit_last_name" name="last_name">
                 </div>
                 <div class="form-group">
-                    <label for="edit_email">Email</label>
-                    <input type="email" id="edit_email" name="email">
-                </div>
-                <div class="form-group">
-                    <label for="edit_role">Role</label>
-                    <select id="edit_role" name="role">
-                        {% for role_key, role_label in role_choices %}
-                            <option value="{{ role_key }}">{{ role_label }}</option>
+                    <label for="edit_sex">Sex</label>
+                    <select class="form-select" id="edit_sex" name="sex">
+                        <option value="">Select sex</option>
+                        {% for sex_key, sex_label in sex_choices %}
+                            <option value="{{ sex_key }}">{{ sex_label }}</option>
                         {% endfor %}
                     </select>
                 </div>
                 <div class="form-group">
                     <label for="edit_person_identity">Same Real Person</label>
-                    <select id="edit_person_identity" name="person_identity">
+                    <select class="form-select" id="edit_person_identity" name="person_identity">
                         <option value="">Create separate identity</option>
                         {% for identity in person_identity_choices %}
                             <option value="{{ identity.pk }}">{{ identity.full_name }}{% if identity.phone %} - {{ identity.phone }}{% endif %}</option>
                         {% endfor %}
                     </select>
                 </div>
+
+                <div class="form-section-title">Account Details</div>
                 <div class="form-group">
-                    <label for="edit_facility">Facility</label>
-                    <select id="edit_facility" name="facility">
-                        <option value="">Select facility</option>
-                        {% for facility in facility_choices %}
-                            <option value="{{ facility.pk }}">{{ facility.name }} - {{ facility.district.name }}, {{ facility.district.province.name }}</option>
+                    <label for="edit_username">Username</label>
+                    <input class="form-control" type="text" id="edit_username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit_email">Email</label>
+                    <input class="form-control" type="email" id="edit_email" name="email">
+                </div>
+
+                <div class="form-section-title">Access And Assignment</div>
+                <div class="form-group">
+                    <div class="form-check">
+                        <label class="form-check-label" for="edit_is_staff">Is staff</label>
+                        <input class="form-check-input" type="checkbox" id="edit_is_staff" name="is_staff" value="on">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="edit_role">Role</label>
+                    <select class="form-select" id="edit_role" name="role">
+                        {% for role_key, role_label in role_choices %}
+                            <option value="{{ role_key }}" data-staff-role="{% if role_key == 'client' %}false{% else %}true{% endif %}">{{ role_label }}</option>
                         {% endfor %}
                     </select>
                 </div>
+                <div class="form-group">
+                    <label for="edit_facility_search">Facility</label>
+                    <input class="form-control" type="search" id="edit_facility_search" list="edit_facility_options" autocomplete="off" placeholder="Search facility by name, district, or province">
+                    <input type="hidden" id="edit_facility" name="facility">
+                    <datalist id="edit_facility_options">
+                        {% for facility in facility_choices %}
+                            <option value="{{ facility.name }} - {{ facility.district.name }}, {{ facility.district.province.name }}"></option>
+                        {% endfor %}
+                    </datalist>
+                </div>
+                <div class="form-group">
+                    <label for="edit_population_group">Population Group</label>
+                    <select class="form-select" id="edit_population_group" name="population_group">
+                        <option value="">Select population group</option>
+                        {% for group in population_group_choices %}
+                            <option value="{{ group.pk }}" data-sex-eligibility="{{ group.sex_eligibility }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-section-title">Status And Security</div>
                 <div class="form-group full-width">
-                    <label for="edit_is_active">
-                        <input type="checkbox" id="edit_is_active" name="is_active" value="on">
-                        Active
-                    </label>
+                    <div class="form-check">
+                        <label class="form-check-label" for="edit_is_active">Is active</label>
+                        <input class="form-check-input" type="checkbox" id="edit_is_active" name="is_active" value="on">
+                    </div>
                 </div>
                 <div class="form-group full-width">
-                    <label for="edit_must_change_password">
-                        <input type="checkbox" id="edit_must_change_password" name="must_change_password" value="on">
-                        Ask user to change password on next login
-                    </label>
+                    <div class="form-check">
+                        <label class="form-check-label" for="edit_must_change_password">Ask user to change password on next login</label>
+                        <input class="form-check-input" type="checkbox" id="edit_must_change_password" name="must_change_password" value="on">
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancel</button>
-                <button type="submit" class="btn-primary">Save Changes</button>
+                <button type="button" class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
             </div>
         </form>
     </div>
@@ -1106,7 +1455,7 @@
     <div class="management-modal-dialog compact-modal-dialog">
         <div class="modal-header">
             <h2 id="resetPasswordTitle">Reset Password</h2>
-            <button class="modal-close" onclick="closeResetPasswordModal()">&times;</button>
+            <button class="btn-close modal-close" type="button" onclick="closeResetPasswordModal()" aria-label="Close"></button>
         </div>
         <form id="resetPasswordForm" class="js-ajax-form">
             {% csrf_token %}
@@ -1116,14 +1465,14 @@
                 </p>
                 <div class="form-group">
                     <label for="reset_must_change_password">
-                        <input type="checkbox" id="reset_must_change_password" name="must_change_password" value="on" checked>
                         Ask user to change this password on next login
+                        <input class="form-check-input" type="checkbox" id="reset_must_change_password" name="must_change_password" value="on" checked>
                     </label>
                 </div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeResetPasswordModal()">Cancel</button>
-                <button type="submit" class="btn-primary">Reset Password</button>
+                <button type="button" class="btn btn-secondary" onclick="closeResetPasswordModal()">Cancel</button>
+                <button type="submit" class="btn btn-primary">Reset Password</button>
             </div>
         </form>
     </div>
@@ -1134,7 +1483,7 @@
     <div class="management-modal-dialog delete-modal-dialog">
         <div class="modal-header">
             <h2>Delete User</h2>
-            <button class="modal-close" onclick="closeDeleteModal()">&times;</button>
+            <button class="btn-close modal-close" type="button" onclick="closeDeleteModal()" aria-label="Close"></button>
         </div>
         <form id="deleteForm" class="js-ajax-form">
             {% csrf_token %}
@@ -1145,13 +1494,14 @@
                 <p>Are you sure you want to delete <strong id="deleteUsername"></strong>? All associated data will be permanently removed.</p>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeDeleteModal()">Cancel</button>
-                <button type="submit" class="btn-danger">Delete User</button>
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">Cancel</button>
+                <button type="submit" class="btn btn-danger">Delete User</button>
             </div>
         </form>
     </div>
 </div>
 
+{{ facility_options|json_script:"facility-options-data" }}
 <script>
     let currentEditUserId = null;
     let currentDeleteUserId = null;
@@ -1163,6 +1513,9 @@
         perPage: 5,
         date: '',
     };
+    const facilityOptions = JSON.parse(document.getElementById('facility-options-data').textContent);
+    const facilityByLabel = new Map(facilityOptions.map((facility) => [facility.label, String(facility.id)]));
+    const facilityLabelById = new Map(facilityOptions.map((facility) => [String(facility.id), facility.label]));
 
     async function loadManagementStats() {
         const statCards = document.querySelectorAll('[data-stat-card]');
@@ -1297,7 +1650,7 @@
 
     async function loadUserRows(params) {
         const tableBody = document.getElementById('usersTableBody');
-        tableBody.innerHTML = '<tr><td colspan="7"><div class="history-loading">Loading users...</div></td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="10"><div class="history-loading">Loading users...</div></td></tr>';
 
         try {
             params.set('_', Date.now());
@@ -1323,7 +1676,7 @@
             window.history.replaceState({}, '', nextUrl);
         } catch (error) {
             console.error('Search error:', error);
-            tableBody.innerHTML = '<tr><td colspan="7"><div class="history-empty">Could not load users. Please try again.</div></td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="10"><div class="history-empty">Could not load users. Please try again.</div></td></tr>';
             usersPaginationState.page = 1;
             applyUserTablePagination();
         }
@@ -1375,7 +1728,7 @@
                 const activeSort = sortState.find((item) => item.key === button.dataset.sortKey);
                 const icon = button.querySelector('.sort-icon');
                 button.setAttribute('aria-sort', activeSort ? activeSort.direction : 'none');
-                icon.textContent = activeSort ? (activeSort.direction === 'ascending' ? '↑' : '↓') : '↕';
+                icon.textContent = activeSort ? (activeSort.direction === 'ascending' ? 'arrow_upward' : 'arrow_downward') : 'unfold_more';
             });
         }
 
@@ -1437,32 +1790,143 @@
     initUserTablePagination();
     initAsyncUserSearch();
 
+    function syncFacilityHidden(searchInputId, hiddenInputId) {
+        const searchInput = document.getElementById(searchInputId);
+        const hiddenInput = document.getElementById(hiddenInputId);
+        hiddenInput.value = facilityByLabel.get(searchInput.value) || '';
+    }
+
+    function setFacilityValue(searchInputId, hiddenInputId, facilityId) {
+        const searchInput = document.getElementById(searchInputId);
+        const hiddenInput = document.getElementById(hiddenInputId);
+        hiddenInput.value = facilityId || '';
+        searchInput.value = facilityId ? (facilityLabelById.get(String(facilityId)) || '') : '';
+    }
+
+    function syncRoleOptions(roleSelectId, staffCheckboxId) {
+        const roleSelect = document.getElementById(roleSelectId);
+        const staffCheckbox = document.getElementById(staffCheckboxId);
+        const isStaff = staffCheckbox.checked;
+
+        Array.from(roleSelect.options).forEach((option) => {
+            if (!option.value) {
+                option.hidden = false;
+                option.disabled = false;
+                return;
+            }
+            const isStaffRole = option.dataset.staffRole === 'true';
+            option.hidden = isStaff ? !isStaffRole : isStaffRole;
+            option.disabled = option.hidden;
+        });
+
+        const selectedOption = roleSelect.selectedOptions[0];
+        if (selectedOption && selectedOption.disabled) {
+            roleSelect.value = isStaff ? '' : 'client';
+        } else if (!isStaff && !roleSelect.value) {
+            roleSelect.value = 'client';
+        }
+    }
+
+    function syncPopulationGroups(sexSelectId, populationSelectId) {
+        const sex = document.getElementById(sexSelectId).value;
+        const populationSelect = document.getElementById(populationSelectId);
+        Array.from(populationSelect.options).forEach((option) => {
+            if (!option.value) {
+                option.hidden = false;
+                option.disabled = false;
+                return;
+            }
+            const eligibility = option.dataset.sexEligibility || 'all';
+            const visible = eligibility === 'all' || (sex && eligibility === sex);
+            option.hidden = !visible;
+            option.disabled = !visible;
+        });
+        if (populationSelect.selectedOptions[0]?.disabled) {
+            populationSelect.value = '';
+        }
+    }
+
+    function syncClientStaffSections(roleSelectId, facilitySearchId, hiddenFacilityId, populationSelectId, staffCheckboxId) {
+        const role = document.getElementById(roleSelectId).value;
+        const isStaff = document.getElementById(staffCheckboxId).checked;
+        const facilityGroup = document.getElementById(facilitySearchId).closest('.form-group');
+        const populationGroup = document.getElementById(populationSelectId).closest('.form-group');
+
+        facilityGroup.hidden = !isStaff;
+        populationGroup.hidden = role !== 'client';
+        if (!isStaff) {
+            setFacilityValue(facilitySearchId, hiddenFacilityId, '');
+        }
+        if (role !== 'client') {
+            document.getElementById(populationSelectId).value = '';
+        }
+    }
+
+    function syncUserModalControls(prefix = '') {
+        const roleSelectId = prefix ? 'edit_role' : 'role';
+        const staffCheckboxId = prefix ? 'edit_is_staff' : 'is_staff';
+        const sexSelectId = prefix ? 'edit_sex' : 'sex';
+        const populationSelectId = prefix ? 'edit_population_group' : 'population_group';
+        const facilitySearchId = prefix ? 'edit_facility_search' : 'facility_search';
+        const hiddenFacilityId = prefix ? 'edit_facility' : 'facility';
+
+        syncRoleOptions(roleSelectId, staffCheckboxId);
+        syncPopulationGroups(sexSelectId, populationSelectId);
+        syncClientStaffSections(roleSelectId, facilitySearchId, hiddenFacilityId, populationSelectId, staffCheckboxId);
+        syncFacilityHidden(facilitySearchId, hiddenFacilityId);
+    }
+
+    function bindUserModalControls(prefix = '') {
+        const roleSelectId = prefix ? 'edit_role' : 'role';
+        const staffCheckboxId = prefix ? 'edit_is_staff' : 'is_staff';
+        const sexSelectId = prefix ? 'edit_sex' : 'sex';
+        const facilitySearchId = prefix ? 'edit_facility_search' : 'facility_search';
+        const hiddenFacilityId = prefix ? 'edit_facility' : 'facility';
+
+        document.getElementById(roleSelectId).addEventListener('change', () => syncUserModalControls(prefix));
+        document.getElementById(staffCheckboxId).addEventListener('change', () => syncUserModalControls(prefix));
+        document.getElementById(sexSelectId).addEventListener('change', () => syncUserModalControls(prefix));
+        document.getElementById(facilitySearchId).addEventListener('input', () => syncFacilityHidden(facilitySearchId, hiddenFacilityId));
+        document.getElementById(facilitySearchId).addEventListener('change', () => syncFacilityHidden(facilitySearchId, hiddenFacilityId));
+    }
+
+    bindUserModalControls();
+    bindUserModalControls('edit');
+
     function openCreateModal() {
+        syncUserModalControls();
         document.getElementById('createModal').classList.add('active');
     }
     
     function closeCreateModal() {
         document.getElementById('createModal').classList.remove('active');
         document.getElementById('createForm').reset();
+        setFacilityValue('facility_search', 'facility', '');
+        syncUserModalControls();
     }
     
-    function openEditModal(userId, username, firstName, lastName, email, role, personIdentityId, facilityId, isActive, mustChangePassword) {
+    function openEditModal(userId, username, firstName, lastName, sex, email, role, personIdentityId, facilityId, populationGroupId, isActive, mustChangePassword, isStaff) {
         currentEditUserId = userId;
         document.getElementById('edit_username').value = username;
         document.getElementById('edit_first_name').value = firstName;
         document.getElementById('edit_last_name').value = lastName;
-        document.getElementById('edit_email').value = email;
+        document.getElementById('edit_sex').value = sex;
+        document.getElementById('edit_email').value = email || '';
         document.getElementById('edit_role').value = role;
         document.getElementById('edit_person_identity').value = personIdentityId || '';
-        document.getElementById('edit_facility').value = facilityId || '';
+        setFacilityValue('edit_facility_search', 'edit_facility', facilityId || '');
+        document.getElementById('edit_population_group').value = populationGroupId || '';
         document.getElementById('edit_is_active').checked = isActive;
         document.getElementById('edit_must_change_password').checked = mustChangePassword;
+        document.getElementById('edit_is_staff').checked = isStaff;
+        syncUserModalControls('edit');
         document.getElementById('editModal').classList.add('active');
     }
     
     function closeEditModal() {
         document.getElementById('editModal').classList.remove('active');
         document.getElementById('editForm').reset();
+        setFacilityValue('edit_facility_search', 'edit_facility', '');
         currentEditUserId = null;
     }
 

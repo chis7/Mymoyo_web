@@ -1,0 +1,462 @@
+{% extends "users/base.html" %}
+
+{% block title %}My Journey{% endblock %}
+
+{% block extra_head %}
+<style>
+    .journey-page {
+        overflow-x: hidden;
+    }
+    .journey-summary {
+        border-left: 4px solid var(--theme-primary);
+    }
+    .journey-summary-list {
+        display: grid;
+        gap: 0.65rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    .journey-summary-list li {
+        display: flex;
+        gap: 0.55rem;
+        color: var(--theme-surface-text);
+        font-weight: 650;
+    }
+    .journey-summary-list .material-symbols-outlined {
+        color: var(--theme-primary);
+        font-size: 1.1rem;
+        margin-top: 0.08rem;
+    }
+    .journey-sidebar {
+        position: sticky;
+        top: 1rem;
+    }
+    .journey-cascade {
+        position: relative;
+        display: grid;
+        gap: 0.65rem;
+        padding-left: 0;
+    }
+    .journey-year-body {
+        position: relative;
+        display: grid;
+        gap: 0.65rem;
+        margin-top: 0.65rem;
+        padding-left: 3.25rem;
+    }
+    .journey-year-body[hidden] {
+        display: none;
+    }
+    .journey-year-body::before {
+        content: "";
+        position: absolute;
+        top: 0.25rem;
+        bottom: 0.25rem;
+        left: 1.32rem;
+        width: 2px;
+        background: rgba(var(--theme-primary-rgb), 0.22);
+    }
+    .journey-year {
+        display: grid;
+        gap: 0.5rem;
+    }
+    .journey-year-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        background: var(--theme-page-mid);
+        color: var(--theme-surface-text);
+        padding: 0.65rem 0.75rem;
+        font-weight: 900;
+        text-align: left;
+    }
+    .journey-year-toggle .material-symbols-outlined {
+        color: var(--theme-primary);
+        font-size: 1.15rem;
+    }
+    .journey-year-count {
+        color: var(--theme-surface-muted);
+        font-size: 0.76rem;
+        font-weight: 800;
+    }
+    .journey-step {
+        position: relative;
+        width: 100%;
+        min-height: 5.75rem;
+        border: 0;
+        border-radius: 8px;
+        background: var(--theme-page-mid);
+        padding: 0.65rem;
+        box-shadow: none;
+        transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .journey-step:focus {
+        outline: none;
+        box-shadow: 0 0 0 3px var(--theme-focus);
+    }
+    .journey-step::before {
+        content: attr(data-marker-date);
+        position: absolute;
+        top: 0.65rem;
+        left: -3.2rem;
+        display: grid;
+        place-items: center;
+        width: 2.55rem;
+        min-height: 1.45rem;
+        border: 2px solid var(--theme-primary);
+        border-radius: 999px;
+        background: var(--theme-surface);
+        color: var(--theme-primary);
+        font-size: 0.62rem;
+        font-weight: 900;
+        line-height: 1;
+        text-align: center;
+    }
+    .journey-step-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.55rem;
+    }
+    .journey-step-title {
+        margin: 0.45rem 0 0;
+        color: var(--theme-surface-text);
+        font-size: 0.88rem;
+        font-weight: 800;
+        line-height: 1.2;
+    }
+    .journey-step-body-meta {
+        margin-top: 0.2rem;
+        color: var(--theme-surface-muted);
+        font-size: 0.72rem;
+        font-weight: 800;
+    }
+    .journey-step-status {
+        color: var(--theme-surface-muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        margin-top: 0.2rem;
+    }
+    .journey-step-type {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        border-radius: 999px;
+        background: var(--theme-soft);
+        color: var(--theme-primary);
+        padding: 0.15rem 0.45rem;
+        font-size: 0.66rem;
+        font-weight: 800;
+    }
+    .journey-step-detail {
+        margin: 0.45rem 0 0;
+        color: var(--theme-surface-text);
+        font-size: 0.82rem;
+        white-space: pre-wrap;
+    }
+    .journey-step-body[hidden] {
+        display: none;
+    }
+    .journey-toggle {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--theme-primary);
+        padding: 0;
+        font-size: 0.78rem;
+        font-weight: 800;
+    }
+    .journey-toggle .material-symbols-outlined {
+        font-size: 1.15rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<nav class="management-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'user_dashboard' %}">Command Center</a>
+    <span class="material-symbols-outlined">chevron_right</span>
+    <span aria-current="page">My Journey</span>
+</nav>
+
+<div class="container-fluid journey-page">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">My Journey</h1>
+            <p class="text-muted mb-0">
+                {{ request.user.get_full_name|default:request.user.username }}
+                {% if profile.reference_number %} - {{ profile.reference_number }}{% endif %}
+            </p>
+        </div>
+        <a class="btn btn-outline-primary" href="{% url 'appointment_list' %}">Appointments</a>
+    </div>
+
+    <div class="row g-4 align-items-start">
+        <div class="col-lg-9">
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Journey Events</div>
+                            <div class="h3 mb-0">{{ journey_events|length }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Appointments</div>
+                            <div class="h3 mb-0">{{ appointments|length }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Referrals</div>
+                            <div class="h3 mb-0">{{ referrals|length }}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">Follow-ups</div>
+                            <div class="h3 mb-0">{{ follow_up_tasks|length }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card journey-summary border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <h2 class="h5 mb-3">Whole Journey Summary</h2>
+                    <ul class="journey-summary-list">
+                        <li>
+                            <span class="material-symbols-outlined" aria-hidden="true">timeline</span>
+                            <span>{{ timeline_summary.total_items }} timeline item{{ timeline_summary.total_items|pluralize }} recorded across journey events, appointments, referrals, and follow-ups.</span>
+                        </li>
+                        {% if timeline_summary.first_item %}
+                            <li>
+                                <span class="material-symbols-outlined" aria-hidden="true">flag</span>
+                                <span>Started with {{ timeline_summary.first_item.type|lower }}: {{ timeline_summary.first_item.title }} on {{ timeline_summary.first_item.date|date:"M d, Y" }}.</span>
+                            </li>
+                        {% endif %}
+                        {% if timeline_summary.latest_item %}
+                            <li>
+                                <span class="material-symbols-outlined" aria-hidden="true">new_releases</span>
+                                <span>Latest update is {{ timeline_summary.latest_item.type|lower }}: {{ timeline_summary.latest_item.title }} on {{ timeline_summary.latest_item.date|date:"M d, Y" }}.</span>
+                            </li>
+                        {% endif %}
+                        {% if timeline_summary.upcoming_appointment %}
+                            <li>
+                                <span class="material-symbols-outlined" aria-hidden="true">event</span>
+                                <span>Next appointment: {{ timeline_summary.upcoming_appointment.get_visit_purpose_display }} at {{ timeline_summary.upcoming_appointment.facility.name }} on {{ timeline_summary.upcoming_appointment.appointment_date|date:"M d, Y" }}.</span>
+                            </li>
+                        {% endif %}
+                        <li>
+                            <span class="material-symbols-outlined" aria-hidden="true">task_alt</span>
+                            <span>{{ timeline_summary.open_follow_up_count }} open follow-up task{{ timeline_summary.open_follow_up_count|pluralize }}.</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header"><h2 class="h6 mb-0">Locator</h2></div>
+                        <div class="card-body">
+                            {% if locator %}
+                                <dl class="mb-0">
+                                    <dt>Service point</dt>
+                                    <dd>{{ locator.service_point.name|default:"Not set" }}</dd>
+                                    <dt>Mobiliser zone</dt>
+                                    <dd>{{ locator.mobiliser_zone|default:"Not set" }}</dd>
+                                    <dt>Preferred contact</dt>
+                                    <dd>{{ locator.get_preferred_contact_method_display|default:"Not set" }}</dd>
+                                </dl>
+                            {% else %}
+                                <p class="text-muted mb-0">No locator details recorded.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6">
+                    <div class="card border-0 shadow-sm h-100">
+                        <div class="card-header"><h2 class="h6 mb-0">Consent And Privacy</h2></div>
+                        <div class="card-body">
+                            {% if consent %}
+                                <dl class="mb-0">
+                                    <dt>Code-based management</dt>
+                                    <dd>{% if consent.code_based_management %}Yes{% else %}No{% endif %}</dd>
+                                    <dt>Follow-up consent</dt>
+                                    <dd>{% if consent.consent_to_follow_up %}Yes{% else %}No{% endif %}</dd>
+                                    <dt>SMS consent</dt>
+                                    <dd>{% if consent.consent_to_sms %}Yes{% else %}No{% endif %}</dd>
+                                    <dt>Facility sharing</dt>
+                                    <dd>{% if consent.share_with_facility %}Yes{% else %}No{% endif %}</dd>
+                                </dl>
+                            {% else %}
+                                <p class="text-muted mb-0">No consent details recorded.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <aside class="col-lg-3">
+            <div class="journey-sidebar card border-0 shadow-sm">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <h2 class="h6 mb-0">Journey Timeline</h2>
+                    {% if timeline %}
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-journey-expand-all>Expand</button>
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-journey-collapse-all>Collapse</button>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <div class="journey-cascade">
+                        {% for year_group in timeline_by_year %}
+                            <section class="journey-year">
+                                <button
+                                    class="journey-year-toggle"
+                                    type="button"
+                                    aria-expanded="false"
+                                    aria-controls="journey-year-{{ year_group.year }}"
+                                    data-journey-year-toggle
+                                >
+                                    <span>{{ year_group.year }}</span>
+                                    <span class="d-inline-flex align-items-center gap-2">
+                                        <span class="journey-year-count">{{ year_group.items|length }} item{{ year_group.items|length|pluralize }}</span>
+                                        <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+                                    </span>
+                                </button>
+                                <div class="journey-year-body" id="journey-year-{{ year_group.year }}" hidden>
+                                    {% for item in year_group.items %}
+                                        <article class="journey-step" id="journey-step-{{ item.index }}" tabindex="-1" data-marker-date="{{ item.date|date:'M d' }}" data-journey-step {% if item.index == 1 %}data-latest-step{% endif %}>
+                                            <div class="journey-step-header">
+                                                <span class="journey-step-type">{{ item.type }}</span>
+                                                <button
+                                                    class="journey-toggle"
+                                                    type="button"
+                                                    aria-expanded="false"
+                                                    aria-label="Expand {{ item.title }}"
+                                                    aria-controls="journey-step-body-{{ item.index }}"
+                                                    data-journey-toggle
+                                                >
+                                                    <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+                                                </button>
+                                            </div>
+                                            <div class="journey-step-body" id="journey-step-body-{{ item.index }}" hidden>
+                                                <h3 class="journey-step-title">{{ item.title }}</h3>
+                                                <div class="journey-step-status">{{ item.status }}</div>
+                                                <div class="journey-step-body-meta">{{ item.date|date:"M d, Y" }}</div>
+                                                {% if item.details %}
+                                                    <p class="journey-step-detail">{{ item.details }}</p>
+                                                {% else %}
+                                                    <p class="journey-step-detail text-muted">No additional details recorded.</p>
+                                                {% endif %}
+                                            </div>
+                                        </article>
+                                    {% endfor %}
+                                </div>
+                            </section>
+                        {% empty %}
+                            <p class="text-muted mb-0">No journey activity has been recorded yet.</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const steps = Array.from(document.querySelectorAll('[data-journey-step]'));
+    const yearToggles = Array.from(document.querySelectorAll('[data-journey-year-toggle]'));
+    const expandAllButton = document.querySelector('[data-journey-expand-all]');
+    const collapseAllButton = document.querySelector('[data-journey-collapse-all]');
+
+    function setYearExpanded(button, expanded) {
+        const body = document.getElementById(button.getAttribute('aria-controls'));
+        const icon = button.querySelector('.material-symbols-outlined');
+        if (!body) {
+            return;
+        }
+        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        body.hidden = !expanded;
+        if (icon) {
+            icon.textContent = expanded ? 'expand_less' : 'expand_more';
+        }
+    }
+
+    function setStepExpanded(step, expanded) {
+        const button = step.querySelector('[data-journey-toggle]');
+        const body = step.querySelector('.journey-step-body');
+        const icon = button ? button.querySelector('.material-symbols-outlined') : null;
+        if (!button || !body) {
+            return;
+        }
+        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+        button.setAttribute('aria-label', (expanded ? 'Collapse ' : 'Expand ') + step.querySelector('.journey-step-title').textContent.trim());
+        body.hidden = !expanded;
+        if (icon) {
+            icon.textContent = expanded ? 'expand_less' : 'expand_more';
+        }
+    }
+
+    steps.forEach(function (step) {
+        const button = step.querySelector('[data-journey-toggle]');
+        if (!button) {
+            return;
+        }
+        button.addEventListener('click', function () {
+            const expanded = button.getAttribute('aria-expanded') === 'true';
+            setStepExpanded(step, !expanded);
+        });
+    });
+
+    yearToggles.forEach(function (button) {
+        button.addEventListener('click', function () {
+            const expanded = button.getAttribute('aria-expanded') === 'true';
+            setYearExpanded(button, !expanded);
+        });
+    });
+
+    if (expandAllButton) {
+        expandAllButton.addEventListener('click', function () {
+            yearToggles.forEach(function (button) {
+                setYearExpanded(button, true);
+            });
+            steps.forEach(function (step) {
+                setStepExpanded(step, true);
+            });
+        });
+    }
+
+    if (collapseAllButton) {
+        collapseAllButton.addEventListener('click', function () {
+            steps.forEach(function (step) {
+                setStepExpanded(step, false);
+            });
+            yearToggles.forEach(function (button) {
+                setYearExpanded(button, false);
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

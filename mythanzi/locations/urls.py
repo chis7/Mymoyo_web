@@ -9,6 +9,7 @@ urlpatterns = [
     path('manage/<str:tab>/', views.location_management, name='location_management_tab'),
     path('manage/<str:tab>/<int:pk>/edit/', views.location_edit, name='location_edit'),
     path('manage/<str:tab>/<int:pk>/delete/', views.location_delete, name='location_delete'),
+    path('facilities/<int:pk>/', views.facility_detail, name='facility_detail'),
     path('map/', views.facility_map, name='facility_map'),
     path('map/results/', views.facility_map_results, name='facility_map_results'),
     path('map/road-distances/', views.facility_road_distances, name='facility_road_distances'),

@@ -117,12 +117,13 @@ LOCAL_KNOWLEDGE = [
         ),
     },
     {
-        'title': 'Medication Reminders',
-        'keywords': {'medication', 'medicine', 'reminder', 'reminders', 'dose', 'adherence'},
+        'title': 'Notifications Engine',
+        'keywords': {'notification', 'notifications', 'medication', 'medicine', 'reminder', 'reminders', 'dose', 'adherence'},
         'links': {'appointments', 'facility_map'},
         'answer': (
-            'Medication reminders are meant to support routine care and adherence. If you miss a dose, '
-            'have side effects, or are unsure what to do, contact your clinic or a qualified health worker.'
+            'The notifications engine configures reminder types for medication doses, appointments, refills, '
+            'lab collection, referral follow-up, and side-effect check-ins. If you miss a dose, have side '
+            'effects, or are unsure what to do, contact your clinic or a qualified health worker.'
         ),
     },
     {
@@ -149,7 +150,7 @@ LOCAL_KNOWLEDGE = [
 
 LOCAL_FALLBACK = (
     'I can help offline with MyThanzi navigation, appointments, clinic search, user actions, roles, '
-    'password resets, audit history, self-testing, risk screening, medication reminders, side effects, '
+    'password resets, audit history, self-testing, risk screening, notifications, side effects, '
     'and privacy. Try asking about one of those topics. '
     'For personal medical advice or emergencies, contact a qualified health worker or emergency service.'
 )

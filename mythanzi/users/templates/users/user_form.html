@@ -4,9 +4,9 @@
 
 {% block content %}
 <nav class="management-breadcrumb" aria-label="Breadcrumb">
-    <a href="/app/dashboard">Command Center</a>
+    <a href="{% url 'user_dashboard' %}">Command Center</a>
     <span class="material-symbols-outlined">chevron_right</span>
-    <a href="/app/users">Manage Users</a>
+    <a href="{% url 'user_list' %}">Manage Users</a>
     <span class="material-symbols-outlined">chevron_right</span>
     <span aria-current="page">{{ title }}</span>
 </nav>

@@ -1,0 +1,137 @@
+{% extends "users/base.html" %}
+
+{% block title %}Referral Analytics{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Referral Analytics</h1>
+            <p class="text-muted mb-0">Completion, conversion, and drop-off reporting for referral tracking.</p>
+        </div>
+        <a class="btn btn-outline-primary" href="{% url 'client_management' %}">Client Management</a>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <div class="text-muted small">Total referrals</div>
+                <div class="h3 mb-0">{{ total_referrals }}</div>
+            </div></div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <div class="text-muted small">Completion rate</div>
+                <div class="h3 mb-0">{{ completion_rate }}%</div>
+                <div class="small text-muted">{{ completed_referrals }} completed</div>
+            </div></div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <div class="text-muted small">Conversion rate</div>
+                <div class="h3 mb-0">{{ conversion_rate }}%</div>
+                <div class="small text-muted">{{ converted_referrals }} initiated or received HIVST</div>
+            </div></div>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <div class="text-muted small">Drop-off rate</div>
+                <div class="h3 mb-0">{{ drop_off_rate }}%</div>
+                <div class="small text-muted">{{ not_attended_referrals }} not attended</div>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">Drop-Off Points by Status</h2>
+                    <table class="table table-sm align-middle mb-0">
+                        <tbody>
+                            {% for row in by_status %}
+                                <tr><td>{{ row.confirmation_status|default:"Not set" }}</td><td class="text-end">{{ row.total }}</td></tr>
+                            {% empty %}
+                                <tr><td class="text-muted">No referral data yet.</td><td></td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">By District</h2>
+                    <table class="table table-sm align-middle mb-0">
+                        <tbody>
+                            {% for row in by_district %}
+                                <tr><td>{{ row.receiving_facility__district__name|default:"Not set" }}</td><td class="text-end">{{ row.total }}</td></tr>
+                            {% empty %}
+                                <tr><td class="text-muted">No referral data yet.</td><td></td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">By Zone</h2>
+                    <table class="table table-sm align-middle mb-0">
+                        <tbody>
+                            {% for row in by_zone %}
+                                <tr><td>{{ row.client__client_locator__mobiliser_zone|default:"Not set" }}</td><td class="text-end">{{ row.total }}</td></tr>
+                            {% empty %}
+                                <tr><td class="text-muted">No referral data yet.</td><td></td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">By KPP Group</h2>
+                    <table class="table table-sm align-middle mb-0">
+                        <tbody>
+                            {% for row in by_kpp %}
+                                <tr><td>{{ row.client__profile__population_group__name|default:"Not set" }}</td><td class="text-end">{{ row.total }}</td></tr>
+                            {% empty %}
+                                <tr><td class="text-muted">No referral data yet.</td><td></td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <h2 class="h6">By Mobiliser</h2>
+                    <table class="table table-sm align-middle mb-0">
+                        <tbody>
+                            {% for row in by_mobiliser %}
+                                <tr>
+                                    <td>
+                                        {% if row.assigned_mobiliser__first_name or row.assigned_mobiliser__last_name %}
+                                            {{ row.assigned_mobiliser__first_name }} {{ row.assigned_mobiliser__last_name }}
+                                        {% else %}
+                                            {{ row.assigned_mobiliser__username|default:"Not assigned" }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">{{ row.total }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr><td class="text-muted">No referral data yet.</td><td></td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

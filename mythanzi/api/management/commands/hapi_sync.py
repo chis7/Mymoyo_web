@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 
 from locations.models import District, Facility, Province
-from users.models import Appointment
+from users.models import Appointment, UserProfile
 from api.fhir import logical_id, record_fhir_version, resource_type as fhir_resource_type
 from api.hapi import (
     check_hapi_available,
@@ -55,6 +55,7 @@ class Command(BaseCommand):
         if not options['all_versions'] and not resource_type:
             self._ensure_location_dependencies()
             self._ensure_appointment_dependencies()
+            self._retire_stale_user_profile_resources()
 
         queryset = FHIRResourceVersion.objects.order_by('resource_type', 'logical_id', 'version_id')
         if resource_type:
@@ -163,3 +164,59 @@ class Command(BaseCommand):
             return
         action = FHIRResourceVersion.ACTION_UPDATE if latest else FHIRResourceVersion.ACTION_CREATE
         record_fhir_version(instance, action, sync_to_hapi=False)
+
+    def _retire_stale_user_profile_resources(self):
+        active_profile_ids = {f'user-{user_id}' for user_id in UserProfile.objects.values_list('user_id', flat=True)}
+        for profile in UserProfile.objects.select_related('user').iterator(chunk_size=500):
+            current_type = fhir_resource_type(profile)
+            stale_type = 'Practitioner' if current_type == 'Patient' else 'Patient'
+            stale_latest = (
+                FHIRResourceVersion.objects
+                .filter(resource_type=stale_type, logical_id=logical_id(profile))
+                .order_by('-version_id')
+                .first()
+            )
+            if not stale_latest or stale_latest.action == FHIRResourceVersion.ACTION_DELETE:
+                continue
+            version_id = stale_latest.version_id + 1
+            FHIRResourceVersion.objects.create(
+                resource_type=stale_type,
+                logical_id=logical_id(profile),
+                version_id=version_id,
+                action=FHIRResourceVersion.ACTION_DELETE,
+                source_app=profile._meta.app_label,
+                source_model=profile._meta.model_name,
+                source_pk=str(profile.pk),
+                resource={
+                    'resourceType': stale_type,
+                    'id': logical_id(profile),
+                    'meta': {'versionId': str(version_id)},
+                },
+            )
+
+        for resource_type in ('Patient', 'Practitioner'):
+            latest_ids = {}
+            for version in FHIRResourceVersion.objects.filter(resource_type=resource_type).order_by('logical_id', '-version_id'):
+                latest_ids.setdefault(version.logical_id, version.pk)
+            orphaned_versions = (
+                FHIRResourceVersion.objects
+                .filter(pk__in=latest_ids.values())
+                .exclude(action=FHIRResourceVersion.ACTION_DELETE)
+                .exclude(logical_id__in=active_profile_ids)
+            )
+            for latest in orphaned_versions:
+                version_id = latest.version_id + 1
+                FHIRResourceVersion.objects.create(
+                    resource_type=latest.resource_type,
+                    logical_id=latest.logical_id,
+                    version_id=version_id,
+                    action=FHIRResourceVersion.ACTION_DELETE,
+                    source_app=latest.source_app,
+                    source_model=latest.source_model,
+                    source_pk=latest.source_pk,
+                    resource={
+                        'resourceType': latest.resource_type,
+                        'id': latest.logical_id,
+                        'meta': {'versionId': str(version_id)},
+                    },
+                )

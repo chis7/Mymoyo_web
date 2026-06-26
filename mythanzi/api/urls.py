@@ -4,6 +4,7 @@ from rest_framework.routers import DefaultRouter
 from .views import (
     AppBootstrapView,
     AppointmentViewSet,
+    ClientManagementViewSet,
     CsrfTokenView,
     DashboardStatsView,
     DistrictViewSet,
@@ -16,6 +17,7 @@ from .views import (
     LoginView,
     LogoutView,
     MeView,
+    NotificationViewSet,
     ProvinceViewSet,
     ServiceViewSet,
     UserViewSet,
@@ -24,8 +26,10 @@ from .views import (
 
 router = DefaultRouter()
 router.register('appointments', AppointmentViewSet, basename='api-appointments')
+router.register('clients', ClientManagementViewSet, basename='api-clients')
 router.register('districts', DistrictViewSet, basename='api-districts')
 router.register('facilities', FacilityViewSet, basename='api-facilities')
+router.register('notifications', NotificationViewSet, basename='api-notifications')
 router.register('provinces', ProvinceViewSet, basename='api-provinces')
 router.register('services', ServiceViewSet, basename='api-services')
 router.register('users', UserViewSet, basename='api-users')

@@ -4,8 +4,19 @@ from django.contrib.auth.models import User
 from .models import (
     Appointment,
     AuditLog,
+    ClientConsent,
+    ClientExitInterview,
     ClinicFeedbackSubmission,
+    ClientJourneyEvent,
+    ClientLocator,
+    FollowUpTask,
+    GrievanceCase,
+    Notification,
+    NotificationTypeSetting,
     PersonIdentity,
+    PopulationGroup,
+    ReferralRecord,
+    SafeguardingCase,
     SelfRiskAssessmentSubmission,
     SelfTestReportSubmission,
     SideEffectReportSubmission,
@@ -41,8 +52,8 @@ class CustomUserAdmin(BaseUserAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'person_identity', 'reference_number', 'role', 'phone', 'is_active', 'is_phone_verified', 'must_change_password', 'created_at')
-    list_filter = ('role', 'is_active', 'is_phone_verified', 'must_change_password', 'created_at')
+    list_display = ('user', 'person_identity', 'reference_number', 'role', 'population_group', 'phone', 'is_active', 'is_phone_verified', 'must_change_password', 'created_at')
+    list_filter = ('role', 'population_group', 'is_active', 'is_phone_verified', 'must_change_password', 'created_at')
     search_fields = ('reference_number', 'user__username', 'user__email', 'phone')
     readonly_fields = ('reference_number', 'created_at', 'updated_at')
     fieldsets = (
@@ -50,7 +61,7 @@ class UserProfileAdmin(admin.ModelAdmin):
             'fields': ('user', 'person_identity', 'reference_number')
         }),
         ('Profile Information', {
-            'fields': ('role', 'bio', 'phone', 'date_of_birth', 'is_active', 'is_phone_verified', 'must_change_password')
+            'fields': ('role', 'population_group', 'bio', 'phone', 'date_of_birth', 'is_active', 'is_phone_verified', 'must_change_password')
         }),
         ('OTP Verification', {
             'fields': ('otp_expires_at',),
@@ -67,6 +78,14 @@ class UserProfileAdmin(admin.ModelAdmin):
 class PersonIdentityAdmin(admin.ModelAdmin):
     list_display = ('full_name', 'phone', 'date_of_birth', 'created_at')
     search_fields = ('full_name', 'phone')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(PopulationGroup)
+class PopulationGroupAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'is_active', 'created_at')
+    list_filter = ('is_active', 'created_at')
+    search_fields = ('name', 'code', 'description')
     readonly_fields = ('created_at',)
 
 
@@ -88,6 +107,86 @@ class AppointmentAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('recipient', 'notification_type', 'channel', 'status', 'title', 'created_at', 'sent_at', 'read_at')
+    list_filter = ('notification_type', 'channel', 'status', 'created_at')
+    search_fields = ('recipient__username', 'recipient__email', 'title', 'message')
+    readonly_fields = ('created_at', 'updated_at', 'sent_at', 'read_at')
+
+
+@admin.register(NotificationTypeSetting)
+class NotificationTypeSettingAdmin(admin.ModelAdmin):
+    list_display = ('name', 'key', 'channel', 'cadence', 'timing', 'enabled', 'is_system', 'updated_at')
+    list_filter = ('channel', 'cadence', 'enabled', 'is_system')
+    search_fields = ('name', 'key', 'description')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(ClientLocator)
+class ClientLocatorAdmin(admin.ModelAdmin):
+    list_display = ('client', 'service_point', 'mobiliser_zone', 'preferred_contact_method', 'updated_at')
+    list_filter = ('preferred_contact_method', 'service_point')
+    search_fields = ('client__username', 'client__profile__reference_number', 'mobiliser_zone', 'location_notes')
+    readonly_fields = ('updated_at',)
+
+
+@admin.register(ClientJourneyEvent)
+class ClientJourneyEventAdmin(admin.ModelAdmin):
+    list_display = ('client', 'stage', 'outcome', 'event_date', 'recorded_by')
+    list_filter = ('stage', 'outcome', 'event_date')
+    search_fields = ('client__username', 'client__profile__reference_number', 'notes')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(ReferralRecord)
+class ReferralRecordAdmin(admin.ModelAdmin):
+    list_display = ('referral_code', 'client', 'receiving_facility', 'assigned_mobiliser', 'confirmation_status', 'initiation_outcome', 'referred_on')
+    list_filter = ('confirmation_status', 'initiation_outcome', 'receiving_facility__district', 'referred_on')
+    search_fields = ('client__username', 'client__profile__reference_number', 'referral_code', 'receiving_hub', 'receiving_facility__name')
+    readonly_fields = ('referral_code', 'created_at', 'updated_at', 'confirmed_at', 'sent_at', 'received_at', 'attended_at', 'closed_at')
+
+
+@admin.register(FollowUpTask)
+class FollowUpTaskAdmin(admin.ModelAdmin):
+    list_display = ('client', 'reason', 'status', 'priority', 'due_date', 'assigned_to')
+    list_filter = ('reason', 'status', 'priority', 'due_date')
+    search_fields = ('client__username', 'client__profile__reference_number', 'notes', 'outcome_notes')
+    readonly_fields = ('created_at', 'updated_at')
+
+
+@admin.register(ClientConsent)
+class ClientConsentAdmin(admin.ModelAdmin):
+    list_display = ('client', 'code_based_management', 'consent_to_follow_up', 'consent_to_sms', 'share_with_facility', 'updated_at')
+    list_filter = ('code_based_management', 'consent_to_follow_up', 'consent_to_sms', 'consent_to_whatsapp', 'share_with_facility')
+    search_fields = ('client__username', 'client__profile__reference_number', 'privacy_notes')
+    readonly_fields = ('updated_at',)
+
+
+@admin.register(SafeguardingCase)
+class SafeguardingCaseAdmin(admin.ModelAdmin):
+    list_display = ('reference_number', 'incident_type', 'severity', 'status', 'focal_point', 'sla_deadline', 'submitted_at')
+    list_filter = ('incident_type', 'severity', 'status', 'confidentiality_locked', 'risk_trigger_flag', 'cab_oversight_ready')
+    search_fields = ('reference_number', 'location', 'incident_details')
+    readonly_fields = ('reference_number', 'submitted_at', 'updated_at')
+
+
+@admin.register(GrievanceCase)
+class GrievanceCaseAdmin(admin.ModelAdmin):
+    list_display = ('reference_number', 'category', 'priority', 'status', 'assigned_to', 'district', 'sla_deadline', 'submitted_at')
+    list_filter = ('category', 'priority', 'status', 'submission_channel', 'district')
+    search_fields = ('reference_number', 'complaint_details', 'resolution_notes')
+    readonly_fields = ('reference_number', 'submitted_at', 'updated_at')
+
+
+@admin.register(ClientExitInterview)
+class ClientExitInterviewAdmin(admin.ModelAdmin):
+    list_display = ('submitted_at', 'service_point_type', 'service_point', 'population_group', 'waiting_time_rating', 'staff_attitude_rating', 'net_promoter_score')
+    list_filter = ('service_point_type', 'population_group', 'privacy_respected', 'len_questions_understood')
+    search_fields = ('client_code', 'comments', 'service_point__name')
+    readonly_fields = ('submitted_at',)
 
 
 @admin.register(AuditLog)

@@ -44,7 +44,7 @@ services:
     build: .
     command: [
       "sh", "-c", 
-      "python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 mythanzi.wsgi"
+      "python manage.py migrate --noinput && python manage.py seed_initial_data && python manage.py collectstatic --noinput && gunicorn --bind 0.0.0.0:8000 mythanzi.wsgi"
     ]
     # Removed external ports here. Gunicorn is now protected behind Nginx.
     env_file:
@@ -52,12 +52,39 @@ services:
     environment:
       HAPI_FHIR_BASE_URL: http://hapi-fhir:8080/fhir
       HAPI_FHIR_SYNC_ENABLED: "true"
+      INITIAL_FACILITIES_FILE: ${INITIAL_FACILITIES_FILE:-}
+      SEED_ADMIN_USERNAME: ${SEED_ADMIN_USERNAME:-admin}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@example.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-Admin123!}
+      SEED_ADMIN_FIRST_NAME: ${SEED_ADMIN_FIRST_NAME:-System}
+      SEED_ADMIN_LAST_NAME: ${SEED_ADMIN_LAST_NAME:-Administrator}
+      SEED_ADMIN_RESET_PASSWORD: ${SEED_ADMIN_RESET_PASSWORD:-false}
     depends_on:
       - db
       - osrm-zambia
       - hapi-fhir
     volumes:
       - static_volume:/app/staticfiles
+    networks:
+      - mythanzi-network
+
+  hapi-sync:
+    profiles:
+      - sync
+    build: .
+    command: [
+      "sh", "-c",
+      "python manage.py migrate --noinput && python manage.py hapi_sync_worker --interval ${HAPI_SYNC_INTERVAL_SECONDS:-900}"
+    ]
+    env_file:
+      - .env
+    environment:
+      HAPI_FHIR_BASE_URL: http://hapi-fhir:8080/fhir
+      HAPI_FHIR_SYNC_ENABLED: "true"
+    depends_on:
+      - db
+      - hapi-fhir
+    restart: unless-stopped
     networks:
       - mythanzi-network
 
@@ -114,13 +141,44 @@ services:
     networks:
       - mythanzi-network
 
+  osrm-download:
+    image: curlimages/curl:8.11.1
+    entrypoint: ["/bin/sh", "/usr/local/bin/download-osrm"]
+    environment:
+      OSRM_PBF_URL: ${OSRM_PBF_URL:-https://download.geofabrik.de/africa/zambia-latest.osm.pbf}
+      OSRM_BASE_NAME: ${OSRM_BASE_NAME:-zambia-latest}
+      OSRM_MIN_PBF_BYTES: ${OSRM_MIN_PBF_BYTES:-200000000}
+    volumes:
+      - ./osrm-data:/data
+      - ./docker/osrm/download-osrm.sh:/usr/local/bin/download-osrm:ro
+    networks:
+      - mythanzi-network
+
+  osrm-prepare:
+    image: osrm/osrm-backend:latest
+    entrypoint: ["/bin/sh", "/usr/local/bin/prepare-osrm"]
+    environment:
+      OSRM_BASE_NAME: ${OSRM_BASE_NAME:-zambia-latest}
+      OSRM_PROFILE: ${OSRM_PROFILE:-/opt/car.lua}
+    volumes:
+      - ./osrm-data:/data
+      - ./docker/osrm/prepare-osrm.sh:/usr/local/bin/prepare-osrm:ro
+    depends_on:
+      osrm-download:
+        condition: service_completed_successfully
+    networks:
+      - mythanzi-network
+
   osrm-zambia:
     image: osrm/osrm-backend:latest
-    command: ["osrm-routed", "--algorithm", "mld", "/data/zambia-latest.osrm"]
+    command: ["osrm-routed", "--algorithm", "mld", "/data/${OSRM_BASE_NAME:-zambia-latest}.osrm"]
     ports:
       - "5000:5000"
     volumes:
       - ./osrm-data:/data
+    depends_on:
+      osrm-prepare:
+        condition: service_completed_successfully
     networks:
       - mythanzi-network
 

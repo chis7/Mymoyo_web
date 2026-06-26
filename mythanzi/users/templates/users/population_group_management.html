@@ -1,0 +1,292 @@
+{% extends 'users/base.html' %}
+
+{% block title %}Manage Population Groups{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <nav class="management-breadcrumb mb-2" aria-label="Breadcrumb">
+                <a href="{% url 'user_dashboard' %}">Command Center</a>
+                <span class="material-symbols-outlined">chevron_right</span>
+                <span aria-current="page">Population Groups</span>
+            </nav>
+            <h1 class="h3 mb-1">Population Groups</h1>
+            <p class="text-muted mb-0">Manage the dropdown options used when creating client users.</p>
+        </div>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#populationGroupModal" data-mode="create">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            New Group
+        </button>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
+            <h2 class="h5 mb-0">Groups</h2>
+            <form method="get" class="d-flex gap-2">
+                <input class="form-control" type="search" name="q" value="{{ search_term }}" placeholder="Search groups">
+                <button class="btn btn-outline-primary" type="submit">Search</button>
+            </form>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Code</th>
+                        <th>Applies To</th>
+                        <th>Status</th>
+                        <th>Clients</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for group in groups %}
+                        <tr>
+                            <td>
+                                <strong>{{ group.name }}</strong>
+                                {% if group.description %}
+                                    <small class="d-block text-muted">{{ group.description }}</small>
+                                {% endif %}
+                            </td>
+                            <td><code>{{ group.code }}</code></td>
+                            <td>{{ group.get_sex_eligibility_display }}</td>
+                            <td>
+                                <span class="badge rounded-pill {% if group.is_active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                                    {% if group.is_active %}Active{% else %}Inactive{% endif %}
+                                </span>
+                            </td>
+                            <td>{{ group.client_count }}</td>
+                            <td class="text-end">
+                                <div class="btn-group btn-group-sm" role="group" aria-label="Population group actions">
+                                    <button class="btn btn-outline-secondary" type="button" title="History" onclick="openPopulationGroupHistory({{ group.pk }}, '{{ group.name|escapejs }}')">
+                                        <span class="material-symbols-outlined">history</span>
+                                    </button>
+                                    <button
+                                        class="btn btn-outline-primary"
+                                        type="button"
+                                        title="Edit"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#populationGroupModal"
+                                        data-mode="edit"
+                                        data-edit-url="{% url 'population_group_edit' group.pk %}"
+                                        data-name="{{ group.name|escapejs }}"
+                                        data-code="{{ group.code|escapejs }}"
+                                        data-description="{{ group.description|escapejs }}"
+                                        data-sex-eligibility="{{ group.sex_eligibility }}"
+                                        data-is-active="{{ group.is_active|yesno:'true,false' }}"
+                                    >
+                                        <span class="material-symbols-outlined">edit</span>
+                                    </button>
+                                    <form class="d-inline js-confirm-form" method="post" action="{% url 'population_group_delete' group.pk %}" data-confirm-title="Delete this population group?" data-confirm-button="Delete">
+                                        {% csrf_token %}
+                                        <button class="btn btn-outline-danger" type="submit" title="Delete">
+                                            <span class="material-symbols-outlined">delete</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-5">No population groups found.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="populationGroupModal" tabindex="-1" aria-labelledby="populationGroupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" id="populationGroupForm" action="{% url 'population_group_management' %}" novalidate>
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="populationGroupModalLabel">New Population Group</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="populationGroupErrors" class="alert alert-danger d-none"></div>
+                    <div class="row g-3">
+                        {% for field in form %}
+                            <div class="{% if field.name == 'description' %}col-12{% else %}col-md-6{% endif %}">
+                                {% if field.field.widget.input_type == 'checkbox' %}
+                                    <div class="form-check mt-4">
+                                        {{ field }}
+                                        <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                    </div>
+                                {% else %}
+                                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                    {{ field }}
+                                {% endif %}
+                                {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save Group</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="populationGroupHistoryModal" tabindex="-1" aria-labelledby="populationGroupHistoryTitle" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="populationGroupHistoryTitle">Population Group History</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="populationGroupHistoryContent" class="text-muted text-center py-4">Loading history...</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('populationGroupModal');
+        const form = document.getElementById('populationGroupForm');
+        const title = document.getElementById('populationGroupModalLabel');
+        const errors = document.getElementById('populationGroupErrors');
+        const createUrl = "{% url 'population_group_management' %}";
+        const fields = {
+            name: document.getElementById('id_name'),
+            code: document.getElementById('id_code'),
+            description: document.getElementById('id_description'),
+            sexEligibility: document.getElementById('id_sex_eligibility'),
+            isActive: document.getElementById('id_is_active'),
+        };
+
+        modal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            form.reset();
+            errors.classList.add('d-none');
+            errors.textContent = '';
+            form.action = createUrl;
+            title.textContent = 'New Population Group';
+            if (fields.sexEligibility) fields.sexEligibility.value = 'all';
+            if (fields.isActive) fields.isActive.checked = true;
+
+            if (!button || button.dataset.mode !== 'edit') return;
+
+            title.textContent = 'Edit Population Group';
+            form.action = button.dataset.editUrl;
+            fields.name.value = button.dataset.name || '';
+            fields.code.value = button.dataset.code || '';
+            fields.description.value = button.dataset.description || '';
+            fields.sexEligibility.value = button.dataset.sexEligibility || 'all';
+            fields.isActive.checked = button.dataset.isActive === 'true';
+        });
+
+        form.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            errors.classList.add('d-none');
+            errors.textContent = '';
+
+            try {
+                const response = await fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: {'X-Requested-With': 'XMLHttpRequest'},
+                });
+                const data = await response.json();
+                if (response.ok && data.success) {
+                    window.location.reload();
+                    return;
+                }
+                const messages = Object.values(data.errors || {}).flat();
+                errors.textContent = messages.join(' ') || 'Please check the population group details.';
+                errors.classList.remove('d-none');
+            } catch (error) {
+                errors.textContent = 'Could not save the population group. Please try again.';
+                errors.classList.remove('d-none');
+            }
+        });
+    });
+
+    async function openPopulationGroupHistory(groupId, groupName) {
+        const modalElement = document.getElementById('populationGroupHistoryModal');
+        const title = document.getElementById('populationGroupHistoryTitle');
+        const content = document.getElementById('populationGroupHistoryContent');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+
+        title.textContent = `${groupName} History`;
+        content.className = 'text-muted text-center py-4';
+        content.textContent = 'Loading history...';
+        modal.show();
+
+        try {
+            const historyUrl = "{% url 'object_history_events' 'users' 'populationgroup' 0 %}".replace('/0/', `/${groupId}/`);
+            const response = await fetch(historyUrl, {
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error('Unable to load history.');
+            if (!data.events.length) {
+                content.textContent = 'No history has been recorded for this population group yet.';
+                return;
+            }
+            content.className = 'table-responsive';
+            content.innerHTML = `
+                <table class="table table-sm align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Actor</th>
+                            <th>Date</th>
+                            <th>Changes</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.events.map((event) => `
+                            <tr>
+                                <td>${event.action_label}</td>
+                                <td>${event.actor}</td>
+                                <td>${event.created_at}</td>
+                                <td>${renderPopulationGroupChanges(event.changes)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        } catch (error) {
+            content.className = 'text-danger text-center py-4';
+            content.textContent = 'Could not load history. Please try again.';
+        }
+    }
+
+    function renderPopulationGroupChanges(changes) {
+        if (!changes.length) return '<span class="text-muted">-</span>';
+        return `<ul class="mb-0 ps-3">${changes.map((change) => `
+            <li><strong>${escapePopulationGroupHtml(change.field)}</strong>: ${escapePopulationGroupHtml(change.old || '-')} &rarr; ${escapePopulationGroupHtml(change.new || '-')}</li>
+        `).join('')}</ul>`;
+    }
+
+    function escapePopulationGroupHtml(value) {
+        return String(value ?? '').replace(/[&<>"']/g, function (character) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;',
+            }[character];
+        });
+    }
+</script>
+{% endblock %}

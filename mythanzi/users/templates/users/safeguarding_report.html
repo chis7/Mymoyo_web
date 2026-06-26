@@ -1,0 +1,169 @@
+{% extends "users/base.html" %}
+
+{% block title %}Safeguarding Cases{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <nav class="management-breadcrumb mb-2" aria-label="Breadcrumb">
+                <a href="{% url 'user_dashboard' %}">Home</a>
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                <span aria-current="page">Safeguarding</span>
+            </nav>
+            <h1 class="h3 mb-1">Safeguarding Cases</h1>
+            <p class="text-muted mb-0">Create a draft, review the details, then submit when you are ready.</p>
+        </div>
+        <button class="btn btn-primary d-inline-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#safeguardingCaseModal" data-new-case="true">
+            <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            New Case
+        </button>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Reference</th>
+                            <th>Incident</th>
+                            <th>Severity</th>
+                            <th>Status</th>
+                            <th>Incident Date</th>
+                            <th>Updated</th>
+                            <th class="text-end">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for case in cases %}
+                            <tr>
+                                <td>
+                                    <strong>{{ case.reference_number|default:"Draft" }}</strong>
+                                </td>
+                                <td>
+                                    {{ case.get_incident_type_display|default:"Not selected" }}
+                                    {% if case.location_facility %}
+                                        <small class="d-block text-muted">{{ case.location_facility.name }} - {{ case.location_facility.district.name }}</small>
+                                    {% elif case.location %}
+                                        <small class="d-block text-muted">{{ case.location }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ case.get_severity_display }}</td>
+                                <td>
+                                    <span class="badge rounded-pill {% if case.status == 'draft' %}text-bg-secondary{% elif case.status == 'received' %}text-bg-primary{% elif case.status == 'resolved' or case.status == 'closed' %}text-bg-success{% else %}text-bg-warning{% endif %}">
+                                        {{ case.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>{{ case.incident_date|default:"-" }}</td>
+                                <td>{{ case.updated_at|date:"M d, Y H:i" }}</td>
+                                <td class="text-end">
+                                    {% if case.status == 'draft' %}
+                                        <button
+                                            class="btn btn-sm btn-outline-primary"
+                                            type="button"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#safeguardingCaseModal"
+                                            data-case-id="{{ case.pk }}"
+                                            data-incident-type="{{ case.incident_type|escapejs }}"
+                                            data-incident-date="{{ case.incident_date|date:'Y-m-d' }}"
+                                            data-location-facility="{{ case.location_facility_id|default:'' }}"
+                                            data-severity="{{ case.severity|escapejs }}"
+                                            data-involved-parties="{{ case.involved_parties|escapejs }}"
+                                            data-incident-details="{{ case.incident_details|escapejs }}"
+                                        >
+                                            Continue Draft
+                                        </button>
+                                    {% else %}
+                                        <span class="text-muted small">Submitted</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td class="text-center text-muted py-5" colspan="7">No safeguarding cases yet.</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="safeguardingCaseModal" tabindex="-1" aria-labelledby="safeguardingCaseModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" id="safeguardingCaseForm" novalidate>
+                {% csrf_token %}
+                <input type="hidden" name="case_id" id="id_case_id">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="safeguardingCaseModalLabel">New Safeguarding Case</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        {% for field in form %}
+                            <div class="{% if field.name == 'incident_details' or field.name == 'involved_parties' %}col-12{% else %}col-md-6{% endif %}">
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                                {% for error in field.errors %}
+                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-secondary" type="submit" name="action" value="draft">Save As Draft</button>
+                    <button class="btn btn-primary" type="submit" name="action" value="submit">Submit Case</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const modal = document.getElementById('safeguardingCaseModal');
+        const form = document.getElementById('safeguardingCaseForm');
+        const title = document.getElementById('safeguardingCaseModalLabel');
+        const fields = {
+            caseId: document.getElementById('id_case_id'),
+            incidentType: document.getElementById('id_incident_type'),
+            incidentDate: document.getElementById('id_incident_date'),
+            locationFacility: document.getElementById('id_location_facility'),
+            severity: document.getElementById('id_severity'),
+            involvedParties: document.getElementById('id_involved_parties'),
+            incidentDetails: document.getElementById('id_incident_details'),
+        };
+
+        modal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            form.reset();
+            Object.values(fields).forEach((field) => {
+                if (field) field.value = '';
+            });
+            if (!button || button.dataset.newCase === 'true') {
+                title.textContent = 'New Safeguarding Case';
+                if (fields.severity) fields.severity.value = 'medium';
+                return;
+            }
+
+            title.textContent = 'Continue Safeguarding Draft';
+            fields.caseId.value = button.dataset.caseId || '';
+            fields.incidentType.value = button.dataset.incidentType || '';
+            fields.incidentDate.value = button.dataset.incidentDate || '';
+            fields.locationFacility.value = button.dataset.locationFacility || '';
+            fields.severity.value = button.dataset.severity || 'medium';
+            fields.involvedParties.value = button.dataset.involvedParties || '';
+            fields.incidentDetails.value = button.dataset.incidentDetails || '';
+        });
+    });
+</script>
+{% endblock %}

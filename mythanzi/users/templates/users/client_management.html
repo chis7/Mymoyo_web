@@ -1,0 +1,70 @@
+{% extends "users/base.html" %}
+
+{% block title %}Client Management{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Client Management</h1>
+            <p class="text-muted mb-0">Track locator details, journey progress, referrals, appointments, follow-up tasks, and consent controls.</p>
+        </div>
+        <form class="d-flex gap-2" method="get">
+            <input class="form-control" type="search" name="q" value="{{ search_term }}" placeholder="Search clients">
+            <button class="btn btn-primary" type="submit">Search</button>
+        </form>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Reference</th>
+                        <th>Facility / Zone</th>
+                        <th>Journey</th>
+                        <th>Referrals</th>
+                        <th>Open Tasks</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in client_rows %}
+                        <tr>
+                            <td>
+                                <strong>{{ row.client.get_full_name|default:row.client.username }}</strong>
+                                <div class="text-muted small">{{ row.client.email|default:"No email" }}</div>
+                            </td>
+                            <td>{{ row.client.profile.reference_number }}</td>
+                            <td>
+                                {{ row.client.profile.facility.name|default:"Not assigned" }}
+                                {% if row.client.client_locator.mobiliser_zone %}
+                                    <div class="text-muted small">{{ row.client.client_locator.mobiliser_zone }}</div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if row.latest_journey %}
+                                    {{ row.latest_journey.get_stage_display }}
+                                    <div class="text-muted small">{{ row.latest_journey.get_outcome_display }} on {{ row.latest_journey.event_date }}</div>
+                                {% else %}
+                                    <span class="text-muted">No journey events</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ row.referrals }}</td>
+                            <td>{{ row.open_tasks }}</td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-primary" href="{% url 'client_record' pk=row.client.pk %}">Open</a>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-5">No clients match your current access or search.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

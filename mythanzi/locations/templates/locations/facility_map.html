@@ -652,7 +652,7 @@
 {% block content %}
 <div class="facilities-management-page">
     <nav class="management-breadcrumb" aria-label="Breadcrumb">
-        <a href="/app/">Home</a>
+        <a href="{% url 'user_dashboard' %}">Home</a>
         <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
         <span aria-current="page">Find a Clinic</span>
     </nav>
@@ -904,7 +904,7 @@
 
         function getFacilityTooltipMarkup(facility) {
             const details = [
-                facility.level || 'Facility',
+                facility.facility_type_label || facility.level || 'Facility',
                 facility.code ? `MFL ${facility.code}` : '',
             ].filter(Boolean).join(' | ');
             const distanceLabel = getRoadDistanceLabel(facility);
@@ -944,7 +944,7 @@
                 marker.bindPopup(
                     `<strong>${escapeHtml(facility.name)}</strong><br>` +
                     `${escapeHtml(facility.district)}, ${escapeHtml(facility.province)}<br>` +
-                    `${escapeHtml(facility.level)}` +
+                    `${escapeHtml(facility.facility_type_label || facility.level || 'Facility')}` +
                     `${facility.code ? `<br>MFL ${escapeHtml(facility.code)}` : ''}` +
                     distanceText +
                     '<br>' +
@@ -1000,7 +1000,7 @@
         }
 
         function getFacilityCardMarkup(facility, extraClass = '', rankIndex = null, showDistance = true) {
-            const details = [facility.level, facility.code ? `MFL ${facility.code}` : ''].filter(Boolean);
+            const details = [facility.facility_type_label, facility.hub ? `Hub ${facility.hub}` : '', facility.level, facility.code ? `MFL ${facility.code}` : ''].filter(Boolean);
             const detailSup = details.length ? `<sup>${escapeHtml(details.join(' | '))}</sup>` : '';
             const isNearest = getFacilityKey(facility) === nearestFacilityKey;
             const isSelected = getFacilityKey(facility) === selectedFacilityKey;
@@ -1154,7 +1154,7 @@
 
             nearestFacilityKey = getFacilityKey(facility);
             const facilityKey = escapeHtml(nearestFacilityKey);
-            const details = [facility.level, facility.code ? `MFL ${facility.code}` : ''].filter(Boolean);
+            const details = [facility.facility_type_label, facility.hub ? `Hub ${facility.hub}` : '', facility.level, facility.code ? `MFL ${facility.code}` : ''].filter(Boolean);
             const detailSup = details.length ? `<sup>${escapeHtml(details.join(' | '))}</sup>` : '';
             nearestPanel.hidden = false;
             nearestPanel.innerHTML =

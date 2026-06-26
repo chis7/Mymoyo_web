@@ -1,0 +1,126 @@
+{% extends "users/base.html" %}
+
+{% block title %}Referral Slip{% endblock %}
+
+{% block content %}
+<style>
+    .thermal-print-only {
+        display: none;
+    }
+
+    @media print {
+        @page {
+            size: 58mm auto;
+            margin: 0;
+        }
+
+        body * {
+            visibility: hidden !important;
+        }
+
+        .thermal-print-only,
+        .thermal-print-only * {
+            visibility: visible !important;
+        }
+
+        .thermal-print-only {
+            align-items: center;
+            background: #fff;
+            display: flex !important;
+            inset: 0;
+            justify-content: center;
+            margin: 0;
+            min-height: 58mm;
+            padding: 3mm;
+            position: fixed;
+            width: 58mm;
+        }
+
+        .thermal-print-only img {
+            display: block;
+            height: 48mm;
+            image-rendering: pixelated;
+            max-height: 48mm;
+            max-width: 48mm;
+            width: 48mm;
+        }
+
+        .thermal-print-fallback {
+            color: #000;
+            font-family: Arial, sans-serif;
+            font-size: 8pt;
+            overflow-wrap: anywhere;
+            text-align: center;
+            width: 52mm;
+        }
+    }
+</style>
+<div class="thermal-print-only" aria-hidden="true">
+    {% if qr_data_uri %}
+        <img src="{{ qr_data_uri }}" alt="">
+    {% else %}
+        <div class="thermal-print-fallback">{{ record_url }}</div>
+    {% endif %}
+</div>
+
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <a class="text-decoration-none small" href="{% url 'client_record' pk=referral.client.pk %}">&larr; Client Record</a>
+            <h1 class="h3 mt-2 mb-1">Digital Referral Slip</h1>
+            <p class="text-muted mb-0">Use this coded slip at the receiving service point.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary" href="{% url 'referral_detail' referral_code=referral.referral_code %}">Open Record</a>
+            <a class="btn btn-outline-primary" href="{% url 'referral_confirm' referral_code=referral.referral_code %}">Confirm Referral</a>
+            <button class="btn btn-primary" type="button" onclick="window.print()">Print</button>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <div class="text-uppercase text-muted small mb-2">Referral Code</div>
+                    <div class="display-6 fw-semibold mb-4">{{ referral.referral_code }}</div>
+
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Receiving point</dt>
+                        <dd class="col-sm-8">{{ referral.receiving_point_name|default:"Not assigned" }}</dd>
+
+                        <dt class="col-sm-4">Facility type</dt>
+                        <dd class="col-sm-8">{{ referral.receiving_facility.get_facility_type_display|default:"N/A" }}</dd>
+
+                        <dt class="col-sm-4">District</dt>
+                        <dd class="col-sm-8">{{ referral.receiving_facility.district.name|default:"Not set" }}</dd>
+
+                        <dt class="col-sm-4">Status</dt>
+                        <dd class="col-sm-8">{{ referral.get_confirmation_status_display }}</dd>
+
+                        <dt class="col-sm-4">Outcome</dt>
+                        <dd class="col-sm-8">{{ referral.get_initiation_outcome_display }}</dd>
+
+                        <dt class="col-sm-4">Referred on</dt>
+                        <dd class="col-sm-8">{{ referral.referred_on }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4 text-center">
+                    {% if qr_data_uri %}
+                        <img class="img-fluid mb-3" style="max-width: 260px;" src="{{ qr_data_uri }}" alt="Referral record QR code">
+                    {% else %}
+                        <div class="border rounded py-5 px-3 mb-3">
+                            <div class="h4 mb-2">{{ referral.referral_code }}</div>
+                            <div class="text-muted small">{{ record_url }}</div>
+                        </div>
+                    {% endif %}
+                    <p class="text-muted mb-0">Scanning opens the referral record only for staff attached to the receiving facility.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

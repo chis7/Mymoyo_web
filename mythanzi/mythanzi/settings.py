@@ -104,6 +104,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'users.context_processors.portal_notifications',
             ],
         },
     },
@@ -208,7 +209,7 @@ REST_FRAMEWORK = {
 }
 
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = '/app/'
+LOGIN_REDIRECT_URL = '/users/dashboard/'
 
 # Use the standard Django SMTP backend for production
 EMAIL_BACKEND = os.environ.get(

@@ -1,0 +1,101 @@
+{% extends "users/base.html" %}
+
+{% block title %}Referral Record{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <a class="text-decoration-none small" href="{% url 'referral_slip' referral_code=referral.referral_code %}">&larr; Referral Slip</a>
+            <h1 class="h3 mt-2 mb-1">Referral Record</h1>
+            <p class="text-muted mb-0">{{ referral.referral_code }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a class="btn btn-outline-primary" href="{% url 'client_record' pk=referral.client.pk %}">Client Record</a>
+            <a class="btn btn-primary" href="{% url 'referral_confirm' referral_code=referral.referral_code %}">Confirm / Update</a>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-7">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <h2 class="h5">Referral Data</h2>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Referral code</dt>
+                        <dd class="col-sm-8">{{ referral.referral_code }}</dd>
+
+                        <dt class="col-sm-4">Client reference</dt>
+                        <dd class="col-sm-8">{{ referral.client.profile.reference_number|default:referral.client.username }}</dd>
+
+                        <dt class="col-sm-4">Receiving point</dt>
+                        <dd class="col-sm-8">{{ referral.receiving_point_name|default:"Not assigned" }}</dd>
+
+                        <dt class="col-sm-4">Facility type</dt>
+                        <dd class="col-sm-8">{{ referral.receiving_facility.get_facility_type_display|default:"N/A" }}</dd>
+
+                        <dt class="col-sm-4">District</dt>
+                        <dd class="col-sm-8">{{ referral.receiving_facility.district.name|default:"Not set" }}</dd>
+
+                        <dt class="col-sm-4">Assigned mobiliser</dt>
+                        <dd class="col-sm-8">{{ referral.assigned_mobiliser.get_full_name|default:referral.assigned_mobiliser.username|default:"Not assigned" }}</dd>
+
+                        <dt class="col-sm-4">Status</dt>
+                        <dd class="col-sm-8">{{ referral.get_confirmation_status_display }}</dd>
+
+                        <dt class="col-sm-4">Initiation outcome</dt>
+                        <dd class="col-sm-8">{{ referral.get_initiation_outcome_display }}</dd>
+
+                        <dt class="col-sm-4">Referred on</dt>
+                        <dd class="col-sm-8">{{ referral.referred_on }}</dd>
+
+                        <dt class="col-sm-4">Recorded by</dt>
+                        <dd class="col-sm-8">{{ referral.recorded_by.get_full_name|default:referral.recorded_by.username|default:"Not set" }}</dd>
+
+                        <dt class="col-sm-4">Confirmed by</dt>
+                        <dd class="col-sm-8">{{ referral.confirmed_by.get_full_name|default:referral.confirmed_by.username|default:"Not confirmed" }}</dd>
+
+                        <dt class="col-sm-4">Confirmed at</dt>
+                        <dd class="col-sm-8">{{ referral.confirmed_at|default:"Not confirmed" }}</dd>
+
+                        <dt class="col-sm-4">Notes</dt>
+                        <dd class="col-sm-8">{{ referral.notes|linebreaksbr|default:"No notes" }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-5">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body p-4">
+                    <h2 class="h5">Status Timeline</h2>
+                    <dl class="row mb-4">
+                        <dt class="col-sm-5">Sent</dt>
+                        <dd class="col-sm-7">{{ referral.sent_at|default:"Not marked" }}</dd>
+
+                        <dt class="col-sm-5">Received</dt>
+                        <dd class="col-sm-7">{{ referral.received_at|default:"Not marked" }}</dd>
+
+                        <dt class="col-sm-5">Attended</dt>
+                        <dd class="col-sm-7">{{ referral.attended_at|default:"Not marked" }}</dd>
+
+                        <dt class="col-sm-5">Closed</dt>
+                        <dd class="col-sm-7">{{ referral.closed_at|default:"Not marked" }}</dd>
+                    </dl>
+
+                    <h3 class="h6">Referral Follow-Up Tasks</h3>
+                    {% for task in follow_up_tasks %}
+                        <div class="border-bottom py-2">
+                            <strong>{{ task.get_status_display }}</strong>
+                            <div class="text-muted small">{{ task.due_date }} · {{ task.get_priority_display }}</div>
+                            {% if task.assigned_to %}<div class="small">Assigned to {{ task.assigned_to.get_full_name|default:task.assigned_to.username }}</div>{% endif %}
+                        </div>
+                    {% empty %}
+                        <p class="text-muted mb-0">No referral follow-up task has been created for this code.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

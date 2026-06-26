@@ -1,383 +1,417 @@
 {% extends "users/base.html" %}
 
-{% block title %}Medication Reminders{% endblock %}
-
-{% block extra_head %}
-<style>
-    .app-shell > .content-wrapper {
-        min-height: 0;
-        overflow: hidden;
-    }
-    .users-management-page {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        min-height: 0;
-        overflow: hidden;
-    }
-    .management-breadcrumb {
-        display: flex;
-        align-items: center;
-        gap: 0.45rem;
-        flex: 0 0 auto;
-        margin-bottom: 1.5rem;
-        color: var(--theme-text-muted);
-        font-size: 0.92rem;
-        font-weight: 700;
-    }
-    .management-breadcrumb a {
-        color: var(--theme-primary);
-        text-decoration: none;
-    }
-    .management-breadcrumb a:hover {
-        text-decoration: underline;
-    }
-    .management-breadcrumb .material-symbols-outlined {
-        color: var(--theme-text-muted);
-        font-size: 1rem;
-    }
-    .management-breadcrumb [aria-current="page"] {
-        color: var(--theme-text-strong);
-    }
-    .management-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 1rem;
-        gap: 1rem;
-    }
-    .search-bar {
-        flex: 1 1 auto;
-        max-width: 520px;
-        min-width: min(100%, 280px);
-    }
-    .reminder-title {
-        margin: 0;
-        color: var(--theme-text-strong);
-        font-size: 1.35rem;
-        font-weight: 800;
-    }
-    .reminder-subtitle {
-        margin: 0.35rem 0 0;
-        color: var(--theme-text-muted);
-        font-size: 0.95rem;
-        font-weight: 600;
-    }
-    .create-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        padding: 0.75rem 1.25rem;
-        border: none;
-        border-radius: 8px;
-        background: var(--theme-primary);
-        color: white;
-        font-weight: 700;
-        text-decoration: none;
-        transition: all 0.2s ease;
-        white-space: nowrap;
-    }
-    .create-btn:hover {
-        background: var(--theme-primary-hover);
-        color: white;
-    }
-    .users-table-wrapper {
-        flex: 1 1 auto;
-        min-height: 0;
-        background: var(--theme-surface);
-        border-radius: 12px;
-        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.08);
-        overflow-x: auto;
-        overflow-y: hidden;
-    }
-    .users-table {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        width: 100%;
-        min-width: 900px;
-        border-collapse: collapse;
-    }
-    .users-table thead {
-        display: block;
-        flex: 0 0 auto;
-        background: var(--theme-soft);
-        border-bottom: 2px solid rgba(var(--theme-primary-rgb), 0.16);
-    }
-    .users-table tbody {
-        display: block;
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow-y: auto;
-    }
-    .users-table thead tr,
-    .users-table tbody tr {
-        display: table;
-        width: 100%;
-        table-layout: fixed;
-    }
-    .users-table th {
-        padding: 1rem;
-        text-align: left;
-        font-weight: 600;
-        color: var(--theme-surface-text);
-        font-size: 0.9rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    .users-table td {
-        padding: 1rem;
-        border-bottom: 1px solid rgba(var(--theme-primary-rgb), 0.1);
-        color: var(--theme-surface-muted);
-        font-size: 0.95rem;
-        vertical-align: middle;
-    }
-    .users-table tbody tr:hover {
-        background: rgba(var(--theme-primary-rgb), 0.04);
-    }
-    .users-table th:nth-child(1),
-    .users-table td:nth-child(1) {
-        width: 30%;
-    }
-    .users-table th:nth-child(2),
-    .users-table td:nth-child(2) {
-        width: 18%;
-    }
-    .users-table th:nth-child(3),
-    .users-table td:nth-child(3) {
-        width: 16%;
-    }
-    .users-table th:nth-child(4),
-    .users-table td:nth-child(4) {
-        width: 18%;
-    }
-    .users-table th:nth-child(5),
-    .users-table td:nth-child(5) {
-        width: 18%;
-    }
-    .reminder-method {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-        min-width: 0;
-    }
-    .reminder-icon {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 38px;
-        height: 38px;
-        flex: 0 0 auto;
-        border-radius: 8px;
-        border: 1px solid rgba(var(--theme-primary-rgb), 0.14);
-        background: rgba(var(--theme-primary-rgb), 0.08);
-        color: var(--theme-primary);
-    }
-    .reminder-icon .material-symbols-outlined {
-        font-size: 1.25rem;
-    }
-    .user-name {
-        font-weight: 600;
-        color: var(--theme-surface-text);
-    }
-    .user-role,
-    .user-status {
-        display: inline-block;
-        padding: 0.3rem 0.75rem;
-        border-radius: 999px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    .user-role {
-        border: 1px solid rgba(var(--theme-primary-rgb), 0.16);
-        background: rgba(var(--theme-primary-rgb), 0.1);
-        color: var(--theme-primary);
-    }
-    .user-status.active {
-        border: 1px solid rgba(var(--theme-life-rgb), 0.28);
-        background: rgba(var(--theme-life-rgb), 0.16);
-        color: var(--theme-text-strong);
-    }
-    .reminder-control {
-        width: 100%;
-        max-width: 180px;
-        padding: 0.65rem 0.75rem;
-        border: 1px solid rgba(var(--theme-primary-rgb), 0.18);
-        border-radius: 8px;
-        background: var(--theme-surface);
-        color: var(--theme-surface-text);
-        font: inherit;
-        font-weight: 700;
-    }
-    .reminder-control:focus {
-        outline: none;
-        border-color: var(--theme-primary);
-        box-shadow: 0 0 0 3px var(--theme-focus);
-    }
-    .reminder-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        color: var(--theme-surface-text);
-        font-weight: 700;
-    }
-    .reminder-toggle input {
-        width: 1rem;
-        height: 1rem;
-        accent-color: var(--theme-primary);
-    }
-    .table-pagination {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 1rem;
-        margin-top: 1rem;
-        padding: 0.85rem 1rem;
-        border: 1px solid rgba(var(--theme-primary-rgb), 0.1);
-        border-radius: 12px;
-        background: var(--theme-surface);
-        color: var(--theme-surface-muted);
-        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.06);
-    }
-    .table-pagination-summary {
-        font-size: 0.88rem;
-        font-weight: 700;
-    }
-    .reminder-save-status {
-        color: var(--theme-primary);
-    }
-    @media (max-width: 768px) {
-        .management-header,
-        .table-pagination {
-            align-items: stretch;
-            flex-direction: column;
-        }
-        .create-btn {
-            justify-content: center;
-            width: 100%;
-        }
-    }
-</style>
-{% endblock %}
+{% block title %}Notifications Engine{% endblock %}
 
 {% block content %}
-<div class="users-management-page">
-    <nav class="management-breadcrumb" aria-label="Breadcrumb">
-        <a href="/app/">Home</a>
-        <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
-        <span aria-current="page">Medication Reminders</span>
-    </nav>
-
-    <div class="management-header">
-        <div class="search-bar">
-            <h1 class="reminder-title">Medication Reminders</h1>
-            <p class="reminder-subtitle">Configure reminder timing for each supported HIV prevention method.</p>
+<div class="container-fluid">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-4">
+        <div>
+            <nav class="management-breadcrumb mb-2" aria-label="Breadcrumb">
+                <a href="{% url 'user_dashboard' %}">Home</a>
+                <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+                <span aria-current="page">Notifications</span>
+            </nav>
+            <h1 class="h3 mb-1">Notifications Engine</h1>
+            <p class="text-muted mb-0">Configure reminder types, delivery channels, and timing rules.</p>
         </div>
-        <button class="create-btn" id="saveReminderSettings" type="button">
-            <span class="material-symbols-outlined" style="font-size: 1.2rem;">save</span>
-            Save Settings
-        </button>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-primary d-inline-flex align-items-center gap-2" type="button" data-bs-toggle="modal" data-bs-target="#notificationTypeModal" data-mode="create">
+                <span class="material-symbols-outlined" aria-hidden="true">add</span>
+                New Type
+            </button>
+            <button class="btn btn-primary d-inline-flex align-items-center gap-2" id="saveNotificationSettings" type="button">
+                <span class="material-symbols-outlined" aria-hidden="true">save</span>
+                Save Settings
+            </button>
+        </div>
     </div>
 
-    <div class="users-table-wrapper">
-        <table class="users-table">
-            <thead>
-                <tr>
-                    <th>Prevention Method</th>
-                    <th>Schedule</th>
-                    <th>Status</th>
-                    <th>Reminder Time</th>
-                    <th>Daily Reminder</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for method in prevention_methods %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-transparent d-flex flex-column flex-md-row justify-content-between gap-2">
+            <div>
+                <h2 class="h5 mb-1">Reminder Types</h2>
+                <p class="text-muted small mb-0">Each type can be enabled independently and tuned for how far before or after an event it should fire.</p>
+            </div>
+            <span class="badge rounded-pill text-bg-light border align-self-md-center" id="notificationTypeCount">{{ notification_types|length }} configured types</span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
                     <tr>
-                        <td>
-                            <div class="reminder-method">
-                                <span class="reminder-icon" aria-hidden="true">
-                                    <span class="material-symbols-outlined">{{ method.icon }}</span>
-                                </span>
-                                <span class="user-name">{{ method.name }}</span>
-                            </div>
-                        </td>
-                        <td><span class="user-role">{{ method.schedule }}</span></td>
-                        <td><span class="user-status active">{{ method.status }}</span></td>
-                        <td>
-                            <input class="reminder-control" data-reminder-time="{{ forloop.counter0 }}" type="time" value="08:00" aria-label="{{ method.name }} reminder time">
-                        </td>
-                        <td>
-                            <label class="reminder-toggle">
-                                <input data-reminder-enabled="{{ forloop.counter0 }}" type="checkbox" aria-label="Enable reminders for {{ method.name }}">
-                                Enabled
-                            </label>
-                        </td>
+                        <th>Notification Type</th>
+                        <th>Cadence</th>
+                        <th>Channel</th>
+                        <th>Timing</th>
+                        <th>Status</th>
+                        <th class="text-end">Actions</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-    <div class="table-pagination">
-        <div class="table-pagination-summary" aria-live="polite">{{ prevention_methods|length }} reminder options</div>
-        <div class="table-pagination-summary reminder-save-status" id="reminderSaveStatus" aria-live="polite">Default reminder time: 08:00</div>
+                </thead>
+                <tbody id="notificationRows">
+                    <tr>
+                        <td class="text-center text-muted py-4" colspan="6">Loading notification types...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-transparent d-flex flex-column flex-md-row justify-content-between gap-2">
+            <span class="text-muted small">Timing examples: <code>08:00</code>, <code>24h</code>, <code>72h</code>, <code>7d</code>.</span>
+            <span class="small fw-semibold text-primary" id="notificationSaveStatus" aria-live="polite">Default configuration loaded</span>
+        </div>
     </div>
 </div>
+
+<div class="modal fade" id="notificationTypeModal" tabindex="-1" aria-labelledby="notificationTypeModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form id="notificationTypeForm" data-skip-processing-alert="true" novalidate>
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="notificationTypeModalLabel">New Notification Type</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="notification_type_original_key">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="notification_type_name">Name</label>
+                            <input class="form-control" id="notification_type_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="notification_type_key">Code</label>
+                            <input class="form-control" id="notification_type_key" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="notification_type_channel">Default Channel</label>
+                            <select class="form-select" id="notification_type_channel">
+                                <option value="portal">Portal</option>
+                                <option value="email">Email</option>
+                                <option value="portal_email">Portal + Email</option>
+                                <option value="sms">SMS</option>
+                                <option value="whatsapp">WhatsApp</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="notification_type_cadence">Default Cadence</label>
+                            <select class="form-select" id="notification_type_cadence">
+                                <option value="daily">Daily</option>
+                                <option value="before_event">Before event</option>
+                                <option value="after_event">After event</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="notification_type_timing">Default Timing</label>
+                            <input class="form-control" id="notification_type_timing" value="08:00">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="notification_type_description">Description</label>
+                            <textarea class="form-control" id="notification_type_description" rows="3"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" id="notification_type_enabled" type="checkbox" role="switch" checked>
+                                <label class="form-check-label" for="notification_type_enabled">Enabled by default</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="alert alert-danger d-none mt-3" id="notificationTypeErrors"></div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save Type</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+{{ notification_types|json_script:"default-notification-types" }}
 <script>
     (function () {
-        const storageKey = 'mythanziMedicationReminders';
-        const saveButton = document.getElementById('saveReminderSettings');
-        const status = document.getElementById('reminderSaveStatus');
-        const timeInputs = Array.from(document.querySelectorAll('[data-reminder-time]'));
-        const enabledInputs = Array.from(document.querySelectorAll('[data-reminder-enabled]'));
+        const defaultTypes = JSON.parse(document.getElementById('default-notification-types').textContent);
+        const saveButton = document.getElementById('saveNotificationSettings');
+        const status = document.getElementById('notificationSaveStatus');
+        const tbody = document.getElementById('notificationRows');
+        const count = document.getElementById('notificationTypeCount');
+        const typeModal = document.getElementById('notificationTypeModal');
+        const typeForm = document.getElementById('notificationTypeForm');
+        const typeErrors = document.getElementById('notificationTypeErrors');
+        const modalTitle = document.getElementById('notificationTypeModalLabel');
+        const defaultNotificationIcon = 'notifications';
+        const modalFields = {
+            originalKey: document.getElementById('notification_type_original_key'),
+            key: document.getElementById('notification_type_key'),
+            name: document.getElementById('notification_type_name'),
+            description: document.getElementById('notification_type_description'),
+            cadence: document.getElementById('notification_type_cadence'),
+            channel: document.getElementById('notification_type_channel'),
+            timing: document.getElementById('notification_type_timing'),
+            enabled: document.getElementById('notification_type_enabled'),
+        };
+        let notificationTypes = defaultTypes.map((type) => ({
+            key: type.key,
+            name: type.name,
+            description: type.description,
+            icon: defaultNotificationIcon,
+            cadence: type.cadence || 'daily',
+            channel: type.channel || 'portal',
+            timing: type.timing || '08:00',
+            enabled: Boolean(type.enabled),
+        }));
 
         function setStatus(message) {
             status.textContent = message;
         }
 
+        async function persistSettings(message) {
+            notificationTypes = readSettings();
+            setStatus('Saving notification settings...');
+            const response = await fetch(window.location.href, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                body: JSON.stringify({ notification_types: notificationTypes }),
+            });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Notification settings could not be saved.');
+            }
+            setStatus(message || 'Notification settings saved');
+        }
+
+        function normalizeKey(value) {
+            return String(value || '')
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '');
+        }
+
         function readSettings() {
-            return timeInputs.map((input) => {
-                const index = input.dataset.reminderTime;
-                const enabled = document.querySelector(`[data-reminder-enabled="${index}"]`);
+            return notificationTypes.map((type) => {
+                const key = type.key;
                 return {
-                    time: input.value,
-                    enabled: Boolean(enabled && enabled.checked),
+                    ...type,
+                    cadence: document.querySelector(`[data-notification-cadence="${key}"]`)?.value || type.cadence,
+                    channel: document.querySelector(`[data-notification-channel="${key}"]`)?.value || type.channel,
+                    timing: document.querySelector(`[data-notification-timing="${key}"]`)?.value || type.timing,
+                    enabled: Boolean(document.querySelector(`[data-notification-enabled="${key}"]`)?.checked),
                 };
             });
         }
 
         function applySettings(settings) {
-            if (!Array.isArray(settings)) {
+            if (!Array.isArray(settings)) return false;
+            const defaultsByKey = new Map(notificationTypes.map((type) => [type.key, type]));
+            notificationTypes = settings
+                .filter((setting) => setting.key)
+                .map((setting) => ({
+                    ...(defaultsByKey.get(setting.key) || {}),
+                    key: setting.key,
+                    name: setting.name || setting.key,
+                    description: setting.description || '',
+                    icon: defaultNotificationIcon,
+                    cadence: setting.cadence || 'daily',
+                    channel: setting.channel || 'portal',
+                    timing: setting.timing || '08:00',
+                    enabled: Boolean(setting.enabled),
+                }));
+            if (!notificationTypes.length) {
+                notificationTypes = defaultTypes.map((type) => ({
+                    key: type.key,
+                    name: type.name,
+                    description: type.description,
+                    icon: defaultNotificationIcon,
+                    cadence: type.cadence || 'daily',
+                    channel: type.channel || 'portal',
+                    timing: type.timing || '08:00',
+                    enabled: Boolean(type.enabled),
+                }));
+            }
+            renderRows();
+            return true;
+        }
+
+        function renderRows() {
+            if (!notificationTypes.length) {
+                tbody.innerHTML = '<tr><td class="text-center text-muted py-4" colspan="6">No notification types configured.</td></tr>';
+                count.textContent = '0 configured types';
                 return;
             }
-            settings.forEach((setting, index) => {
-                const timeInput = document.querySelector(`[data-reminder-time="${index}"]`);
-                const enabledInput = document.querySelector(`[data-reminder-enabled="${index}"]`);
-                if (timeInput && setting.time) {
-                    timeInput.value = setting.time;
-                }
-                if (enabledInput) {
-                    enabledInput.checked = Boolean(setting.enabled);
-                }
-            });
-            setStatus('Saved settings restored');
+            tbody.innerHTML = notificationTypes.map((type) => `
+                <tr data-notification-row="${escapeHtml(type.key)}">
+                    <td>
+                        <div class="d-flex align-items-start gap-3">
+                            <span class="d-inline-flex align-items-center justify-content-center rounded border text-primary bg-light" style="width: 2.5rem; height: 2.5rem;">
+                                <span class="material-symbols-outlined">${defaultNotificationIcon}</span>
+                            </span>
+                            <div>
+                                <strong>${escapeHtml(type.name)}</strong>
+                                <small class="d-block text-muted">${escapeHtml(type.description || '')}</small>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${renderSelect('cadence', type.key, type.cadence, [
+                        ['daily', 'Daily'],
+                        ['before_event', 'Before event'],
+                        ['after_event', 'After event'],
+                        ['weekly', 'Weekly'],
+                        ['monthly', 'Monthly'],
+                    ])}</td>
+                    <td>${renderSelect('channel', type.key, type.channel, [
+                        ['portal', 'Portal'],
+                        ['email', 'Email'],
+                        ['portal_email', 'Portal + Email'],
+                        ['sms', 'SMS'],
+                        ['whatsapp', 'WhatsApp'],
+                    ])}</td>
+                    <td>
+                        <input class="form-control form-control-sm" data-notification-timing="${escapeHtml(type.key)}" type="text" value="${escapeHtml(type.timing)}" aria-label="${escapeHtml(type.name)} timing">
+                    </td>
+                    <td>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" data-notification-enabled="${escapeHtml(type.key)}" type="checkbox" role="switch" id="notification_${escapeHtml(type.key)}" ${type.enabled ? 'checked' : ''}>
+                            <label class="form-check-label" for="notification_${escapeHtml(type.key)}">Enabled</label>
+                        </div>
+                    </td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm" role="group">
+                            <button class="btn btn-outline-primary" type="button" data-edit-notification="${escapeHtml(type.key)}" data-bs-toggle="modal" data-bs-target="#notificationTypeModal" title="Edit">
+                                <span class="material-symbols-outlined">edit</span>
+                            </button>
+                            <button class="btn btn-outline-danger" type="button" data-delete-notification="${escapeHtml(type.key)}" title="Delete">
+                                <span class="material-symbols-outlined">delete</span>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            count.textContent = `${notificationTypes.length} configured type${notificationTypes.length === 1 ? '' : 's'}`;
+            bindRowEvents();
         }
 
-        try {
-            applySettings(JSON.parse(localStorage.getItem(storageKey)));
-        } catch (error) {
-            localStorage.removeItem(storageKey);
+        function renderSelect(field, key, value, options) {
+            return `
+                <select class="form-select form-select-sm" data-notification-${field}="${escapeHtml(key)}">
+                    ${options.map(([optionValue, label]) => `<option value="${optionValue}" ${optionValue === value ? 'selected' : ''}>${label}</option>`).join('')}
+                </select>
+            `;
         }
+
+        function bindRowEvents() {
+            document.querySelectorAll('[data-notification-cadence], [data-notification-channel], [data-notification-timing], [data-notification-enabled]').forEach((input) => {
+                input.addEventListener('change', function () {
+                    notificationTypes = readSettings();
+                    setStatus('Unsaved changes');
+                });
+            });
+            document.querySelectorAll('[data-delete-notification]').forEach((button) => {
+                button.addEventListener('click', function () {
+                    const key = button.dataset.deleteNotification;
+                    notificationTypes = readSettings().filter((type) => type.key !== key);
+                    renderRows();
+                    persistSettings('Notification type deleted').catch((error) => setStatus(error.message));
+                });
+            });
+        }
+
+        applySettings(defaultTypes);
+        setStatus('Server configuration loaded');
+        renderRows();
+
+        typeModal.addEventListener('show.bs.modal', function (event) {
+            const button = event.relatedTarget;
+            const editKey = button?.dataset.editNotification || '';
+            const type = notificationTypes.find((item) => item.key === editKey);
+            typeForm.reset();
+            typeErrors.classList.add('d-none');
+            typeErrors.textContent = '';
+            modalTitle.textContent = type ? 'Edit Notification Type' : 'New Notification Type';
+            modalFields.originalKey.value = editKey;
+            modalFields.key.value = type?.key || '';
+            modalFields.name.value = type?.name || '';
+            modalFields.description.value = type?.description || '';
+            modalFields.cadence.value = type?.cadence || 'daily';
+            modalFields.channel.value = type?.channel || 'portal';
+            modalFields.timing.value = type?.timing || '08:00';
+            modalFields.enabled.checked = type ? type.enabled : true;
+        });
+
+        modalFields.name.addEventListener('input', function () {
+            if (!modalFields.originalKey.value) {
+                modalFields.key.value = normalizeKey(modalFields.name.value);
+            }
+        });
+
+        typeForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            const originalKey = modalFields.originalKey.value;
+            const key = normalizeKey(modalFields.key.value || modalFields.name.value);
+            if (!key || !modalFields.name.value.trim()) {
+                typeErrors.textContent = 'Name and code are required.';
+                typeErrors.classList.remove('d-none');
+                return;
+            }
+            if (notificationTypes.some((type) => type.key === key && type.key !== originalKey)) {
+                typeErrors.textContent = 'Use a unique code for this notification type.';
+                typeErrors.classList.remove('d-none');
+                return;
+            }
+            const nextType = {
+                key,
+                name: modalFields.name.value.trim(),
+                description: modalFields.description.value.trim(),
+                icon: defaultNotificationIcon,
+                cadence: modalFields.cadence.value,
+                channel: modalFields.channel.value,
+                timing: modalFields.timing.value.trim() || '08:00',
+                enabled: modalFields.enabled.checked,
+            };
+            notificationTypes = readSettings().filter((type) => type.key !== originalKey);
+            notificationTypes.push(nextType);
+            notificationTypes.sort((a, b) => a.name.localeCompare(b.name));
+            renderRows();
+            try {
+                await persistSettings(originalKey ? 'Notification type updated' : 'Notification type created');
+                const modalInstance = bootstrap.Modal.getInstance(typeModal) || bootstrap.Modal.getOrCreateInstance(typeModal);
+                modalInstance.hide();
+            } catch (error) {
+                typeErrors.textContent = error.message;
+                typeErrors.classList.remove('d-none');
+            }
+        });
 
         saveButton.addEventListener('click', function () {
-            localStorage.setItem(storageKey, JSON.stringify(readSettings()));
-            setStatus('Settings saved');
+            persistSettings('Notification settings saved').catch((error) => setStatus(error.message));
         });
 
-        timeInputs.concat(enabledInputs).forEach((input) => {
-            input.addEventListener('change', function () {
-                setStatus('Unsaved changes');
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, function (character) {
+                return {
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#039;',
+                }[character];
             });
-        });
+        }
+
+        function getCookie(name) {
+            const cookieValue = document.cookie
+                .split('; ')
+                .find((row) => row.startsWith(`${name}=`));
+            return cookieValue ? decodeURIComponent(cookieValue.split('=').slice(1).join('=')) : '';
+        }
     })();
 </script>
 {% endblock %}

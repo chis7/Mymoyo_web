@@ -1,0 +1,567 @@
+{% extends "users/base.html" %}
+
+{% block title %}Client Record{% endblock %}
+
+{% block extra_head %}
+<style>
+    .switchboard-shell {
+        display: grid;
+        gap: 1rem;
+    }
+    .client-switchboard-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1.25rem;
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 8px;
+        background: var(--theme-surface);
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.06);
+    }
+    .client-switchboard-title {
+        margin: 0;
+        color: var(--theme-text-strong);
+        font-size: 1.35rem;
+        font-weight: 800;
+    }
+    .client-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.45rem;
+    }
+    .client-meta span {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.32rem 0.55rem;
+        border: 1px solid rgba(var(--theme-primary-rgb), 0.14);
+        border-radius: 999px;
+        background: rgba(var(--theme-primary-rgb), 0.06);
+        color: var(--theme-text-muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+    }
+    .switchboard-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 0.5rem;
+    }
+    .switchboard-panel {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        border-radius: 8px;
+        background: var(--theme-surface);
+        box-shadow: 0 2px 8px rgba(16, 32, 48, 0.06);
+        overflow: hidden;
+    }
+    .switchboard-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        padding: 0.75rem;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+        background: rgba(var(--theme-primary-rgb), 0.04);
+    }
+    .switchboard-tabs .nav-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        color: var(--theme-text-muted);
+        font-weight: 800;
+    }
+    .switchboard-tabs .nav-link.active {
+        border-color: rgba(var(--theme-primary-rgb), 0.22);
+        background: var(--theme-surface);
+        color: var(--theme-primary);
+    }
+    .switchboard-tabs .badge {
+        font-size: 0.68rem;
+    }
+    .switchboard-tab-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1rem 1rem 0.5rem;
+    }
+    .switchboard-tab-toolbar h2 {
+        margin: 0;
+        color: var(--theme-text-strong);
+        font-size: 1rem;
+        font-weight: 800;
+    }
+    .switchboard-table {
+        margin: 0;
+        min-width: 760px;
+    }
+    .switchboard-table th {
+        color: var(--theme-text-muted);
+        font-size: 0.72rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+    .switchboard-empty {
+        padding: 2rem;
+        color: var(--theme-text-muted);
+        text-align: center;
+    }
+    .modal-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1rem;
+    }
+    .modal-form-grid .full-width,
+    .modal-form-grid fieldset {
+        grid-column: 1 / -1;
+    }
+    .modal-form-grid fieldset {
+        padding: 0.85rem;
+        border: 1px solid rgba(15, 23, 42, 0.1);
+        border-radius: 8px;
+    }
+    .modal-form-grid legend {
+        float: none;
+        width: auto;
+        margin: 0 0 0.65rem;
+        color: var(--theme-text-muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+    @media (max-width: 768px) {
+        .client-switchboard-header,
+        .switchboard-tab-toolbar {
+            align-items: stretch;
+            flex-direction: column;
+        }
+        .switchboard-actions {
+            justify-content: flex-start;
+        }
+        .modal-form-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid switchboard-shell">
+    <div>
+        <a class="text-decoration-none small fw-semibold" href="{% url 'client_management' %}">&larr; Client Management</a>
+    </div>
+
+    <section class="client-switchboard-header" aria-label="Client summary">
+        <div>
+            <h1 class="client-switchboard-title">{{ client.profile.reference_number }}</h1>
+            <div class="client-meta">
+                <span><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1rem;">person</span>{{ client.get_full_name|default:client.username }}</span>
+                {% if client.profile.phone %}
+                    <span><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1rem;">call</span>{{ client.profile.phone }}</span>
+                {% endif %}
+                {% if client.profile.population_group %}
+                    <span><span class="material-symbols-outlined" aria-hidden="true" style="font-size:1rem;">groups</span>{{ client.profile.population_group.name }}</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="switchboard-actions">
+            <button class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="modal" data-bs-target="#locatorModal">
+                <span class="material-symbols-outlined" aria-hidden="true">pin_drop</span>
+                Locator
+            </button>
+            <button class="btn btn-outline-primary btn-sm d-inline-flex align-items-center gap-1" type="button" data-bs-toggle="modal" data-bs-target="#consentModal">
+                <span class="material-symbols-outlined" aria-hidden="true">lock</span>
+                Consent
+            </button>
+            <a class="btn btn-outline-secondary btn-sm" href="{% url 'appointment_list' %}?q={{ client.profile.reference_number }}">Calendar View</a>
+        </div>
+    </section>
+
+    <section class="switchboard-panel" aria-label="Client interactions switchboard">
+        <ul class="nav switchboard-tabs" id="clientSwitchboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="journey-tab" data-bs-toggle="tab" data-bs-target="#journey-pane" type="button" role="tab" aria-controls="journey-pane" aria-selected="true">
+                    <span class="material-symbols-outlined" aria-hidden="true">timeline</span>
+                    Journey Events
+                    <span class="badge text-bg-light border">{{ journey_events|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="referrals-tab" data-bs-toggle="tab" data-bs-target="#referrals-pane" type="button" role="tab" aria-controls="referrals-pane" aria-selected="false">
+                    <span class="material-symbols-outlined" aria-hidden="true">call_split</span>
+                    Referral
+                    <span class="badge text-bg-light border">{{ referrals|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="followup-tab" data-bs-toggle="tab" data-bs-target="#followup-pane" type="button" role="tab" aria-controls="followup-pane" aria-selected="false">
+                    <span class="material-symbols-outlined" aria-hidden="true">task_alt</span>
+                    Follow-Up Task
+                    <span class="badge text-bg-light border">{{ follow_up_tasks|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="appointments-tab" data-bs-toggle="tab" data-bs-target="#appointments-pane" type="button" role="tab" aria-controls="appointments-pane" aria-selected="false">
+                    <span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>
+                    Appointment
+                    <span class="badge text-bg-light border">{{ appointments|length }}</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="clientSwitchboardContent">
+            <div class="tab-pane fade show active" id="journey-pane" role="tabpanel" aria-labelledby="journey-tab" tabindex="0">
+                <div class="switchboard-tab-toolbar">
+                    <div>
+                        <h2>Journey Events</h2>
+                        <div class="text-muted small">Client journey milestones and outcomes.</div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-outline-secondary btn-sm" href="{% url 'client_bulk_upload' client.pk 'journey-events' %}">Bulk Upload</a>
+                        <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#journeyModal">Add New</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle switchboard-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Stage</th>
+                                <th>Outcome</th>
+                                <th>Notes</th>
+                                <th>Recorded By</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for event in journey_events %}
+                                <tr>
+                                    <td>{{ event.event_date|date:"d M Y" }}</td>
+                                    <td>{{ event.get_stage_display }}</td>
+                                    <td><span class="badge text-bg-light border">{{ event.get_outcome_display }}</span></td>
+                                    <td>{{ event.notes|default:"-" }}</td>
+                                    <td>{{ event.recorded_by.get_full_name|default:event.recorded_by.username|default:"-" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr><td class="switchboard-empty" colspan="5">No journey events yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="referrals-pane" role="tabpanel" aria-labelledby="referrals-tab" tabindex="0">
+                <div class="switchboard-tab-toolbar">
+                    <div>
+                        <h2>Referral</h2>
+                        <div class="text-muted small">Generated referrals, confirmation status, and outcomes.</div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-outline-secondary btn-sm" href="{% url 'client_bulk_upload' client.pk 'referrals' %}">Bulk Upload</a>
+                        <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#referralModal">Add New</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle switchboard-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Referral Code</th>
+                                <th>Receiving Point</th>
+                                <th>Referred On</th>
+                                <th>Status</th>
+                                <th>Outcome</th>
+                                <th>Slip</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for referral in referrals %}
+                                <tr>
+                                    <td class="fw-semibold">{{ referral.referral_code }}</td>
+                                    <td>{{ referral.receiving_point_name|default:"-" }}</td>
+                                    <td>{{ referral.referred_on|date:"d M Y" }}</td>
+                                    <td><span class="badge text-bg-light border">{{ referral.get_confirmation_status_display }}</span></td>
+                                    <td>{{ referral.get_initiation_outcome_display }}</td>
+                                    <td>
+                                        <a class="btn btn-sm btn-outline-primary" href="{% url 'referral_slip' referral_code=referral.referral_code %}">Open</a>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td class="switchboard-empty" colspan="6">No referrals yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="followup-pane" role="tabpanel" aria-labelledby="followup-tab" tabindex="0">
+                <div class="switchboard-tab-toolbar">
+                    <div>
+                        <h2>Follow-Up Task</h2>
+                        <div class="text-muted small">Open and completed follow-up work for this client.</div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-outline-secondary btn-sm" href="{% url 'client_bulk_upload' client.pk 'follow-ups' %}">Bulk Upload</a>
+                        <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#followupModal">Add New</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle switchboard-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Due Date</th>
+                                <th>Reason</th>
+                                <th>Status</th>
+                                <th>Priority</th>
+                                <th>Assigned To</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in follow_up_tasks %}
+                                <tr>
+                                    <td>{{ task.due_date|date:"d M Y" }}</td>
+                                    <td>{{ task.get_reason_display }}</td>
+                                    <td><span class="badge text-bg-light border">{{ task.get_status_display }}</span></td>
+                                    <td>{{ task.get_priority_display }}</td>
+                                    <td>{{ task.assigned_to.get_full_name|default:task.assigned_to.username|default:"-" }}</td>
+                                    <td>{{ task.notes|default:"-" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr><td class="switchboard-empty" colspan="6">No follow-up tasks yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="tab-pane fade" id="appointments-pane" role="tabpanel" aria-labelledby="appointments-tab" tabindex="0">
+                <div class="switchboard-tab-toolbar">
+                    <div>
+                        <h2>Appointment</h2>
+                        <div class="text-muted small">Appointment schedule and visit status.</div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-outline-secondary btn-sm" href="{% url 'client_bulk_upload' client.pk 'appointments' %}">Bulk Upload</a>
+                        <button class="btn btn-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#appointmentModal">Add New</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle switchboard-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Purpose</th>
+                                <th>Facility</th>
+                                <th>Status</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appointment in appointments %}
+                                <tr>
+                                    <td>{{ appointment.appointment_date|date:"d M Y" }}</td>
+                                    <td>{{ appointment.appointment_time|time:"H:i" }}</td>
+                                    <td>{{ appointment.get_visit_purpose_display }}</td>
+                                    <td>{{ appointment.facility.name }}</td>
+                                    <td><span class="badge text-bg-light border">{{ appointment.get_status_display }}</span></td>
+                                    <td>{{ appointment.notes|default:"-" }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr><td class="switchboard-empty" colspan="6">No visible appointments yet.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<div class="modal fade" id="locatorModal" tabindex="-1" aria-labelledby="locatorModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="locator">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="locatorModalLabel">Client Locator</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-form-grid">
+                    {% for field in locator_form %}
+                        <div{% if field.field.widget.input_type == "textarea" %} class="full-width"{% endif %}>
+                            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save Locator</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="consentModal" tabindex="-1" aria-labelledby="consentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="consent">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="consentModalLabel">Consent And Privacy</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-form-grid">
+                    {% for field in consent_form %}
+                        {% if field.field.widget.input_type == "checkbox" %}
+                            <div class="form-check full-width">
+                                {{ field }}
+                                <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% else %}
+                            <div{% if field.field.widget.input_type == "textarea" %} class="full-width"{% endif %}>
+                                <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                {{ field }}
+                                {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save Consent</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="journeyModal" tabindex="-1" aria-labelledby="journeyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" autocomplete="off">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="journey">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="journeyModalLabel">Add Journey Events</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-form-grid">
+                    {{ journey_formset.management_form }}
+                    {% for form in journey_formset %}
+                        <fieldset>
+                            <legend>Event {{ forloop.counter }}</legend>
+                            <div class="modal-form-grid">
+                                {% for field in form %}
+                                    <div{% if field.field.widget.input_type == "textarea" %} class="full-width"{% endif %}>
+                                        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                                        {{ field }}
+                                        {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </fieldset>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Record Events</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="referralModal" tabindex="-1" aria-labelledby="referralModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" autocomplete="off">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="referral">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="referralModalLabel">Add Referral</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-form-grid">
+                    {% for field in referral_form %}
+                        <div{% if field.field.widget.input_type == "textarea" %} class="full-width"{% endif %}>
+                            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save Referral</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="followupModal" tabindex="-1" aria-labelledby="followupModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" autocomplete="off">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="followup">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="followupModalLabel">Add Follow-Up Task</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-form-grid">
+                    {% for field in follow_up_form %}
+                        <div{% if field.field.widget.input_type == "textarea" %} class="full-width"{% endif %}>
+                            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="appointmentModal" tabindex="-1" aria-labelledby="appointmentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <form method="post" autocomplete="off">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="appointment">
+                <div class="modal-header">
+                    <h2 class="modal-title h5" id="appointmentModalLabel">Create Appointment</h2>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body modal-form-grid">
+                    {% for field in appointment_form %}
+                        <div{% if field.field.widget.input_type == "textarea" %} class="full-width"{% endif %}>
+                            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancel</button>
+                    <button class="btn btn-primary" type="submit">Book Appointment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
