@@ -92,6 +92,21 @@ export function createAppointment(payload) {
   })
 }
 
+export function updateAppointment(id, payload) {
+  return apiFetch(`/appointments/${id}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function deleteAppointment(id) {
+  return apiFetch(`/appointments/${id}/`, {
+    method: 'DELETE',
+    timeoutMs: 5000
+  })
+}
+
 export function listClients(params = {}) {
   const query = new URLSearchParams(params)
   return apiFetch(`/clients/${query.toString() ? `?${query}` : ''}`)
@@ -125,6 +140,21 @@ export function createClientJourneyEvent(clientId, payload) {
   })
 }
 
+export function updateClientJourneyEvent(clientId, eventId, payload) {
+  return apiFetch(`/clients/${clientId}/journey-events/${eventId}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function deleteClientJourneyEvent(clientId, eventId) {
+  return apiFetch(`/clients/${clientId}/journey-events/${eventId}/`, {
+    method: 'DELETE',
+    timeoutMs: 5000
+  })
+}
+
 export function createClientReferral(clientId, payload) {
   return apiFetch(`/clients/${clientId}/referrals/`, {
     method: 'POST',
@@ -133,10 +163,40 @@ export function createClientReferral(clientId, payload) {
   })
 }
 
+export function updateClientReferral(clientId, referralId, payload) {
+  return apiFetch(`/clients/${clientId}/referrals/${referralId}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function deleteClientReferral(clientId, referralId) {
+  return apiFetch(`/clients/${clientId}/referrals/${referralId}/`, {
+    method: 'DELETE',
+    timeoutMs: 5000
+  })
+}
+
 export function createClientFollowUpTask(clientId, payload) {
   return apiFetch(`/clients/${clientId}/follow-up-tasks/`, {
     method: 'POST',
     body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function updateClientFollowUpTask(clientId, taskId, payload) {
+  return apiFetch(`/clients/${clientId}/follow-up-tasks/${taskId}/`, {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+    timeoutMs: 5000
+  })
+}
+
+export function deleteClientFollowUpTask(clientId, taskId) {
+  return apiFetch(`/clients/${clientId}/follow-up-tasks/${taskId}/`, {
+    method: 'DELETE',
     timeoutMs: 5000
   })
 }

@@ -1,6 +1,7 @@
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -24,7 +25,20 @@ from users.models import (
     ReferralRecord,
     UserProfile,
 )
-from users.notifications import notify_appointment_created
+from users.notifications import (
+    notify_appointment_created,
+    notify_appointment_deleted,
+    notify_appointment_updated,
+    notify_follow_up_task_created,
+    notify_follow_up_task_deleted,
+    notify_follow_up_task_updated,
+    notify_journey_event_created,
+    notify_journey_event_deleted,
+    notify_journey_event_updated,
+    notify_referral_created,
+    notify_referral_deleted,
+    notify_referral_updated,
+)
 
 from .fhir import latest_resources
 from .models import FHIRResourceVersion
@@ -487,9 +501,14 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         if not self.request.user.is_superuser and get_user_role(self.request.user) not in APPOINTMENT_ROLES:
-            serializer.save(beneficiary=self.request.user)
+            appointment = serializer.save(beneficiary=self.request.user)
         else:
-            serializer.save()
+            appointment = serializer.save()
+        notify_appointment_updated(appointment, actor=self.request.user)
+
+    def perform_destroy(self, instance):
+        notify_appointment_deleted(instance, actor=self.request.user)
+        instance.delete()
 
 
 class ClientManagementViewSet(viewsets.ReadOnlyModelViewSet):
@@ -531,6 +550,9 @@ class ClientManagementViewSet(viewsets.ReadOnlyModelViewSet):
     def _client(self):
         return self.get_object()
 
+    def _client_object(self, related_name, object_id):
+        return get_object_or_404(getattr(self._client(), related_name), pk=object_id)
+
     @action(detail=True, methods=['post'], url_path='locator')
     def locator(self, request, pk=None):
         client = self._client()
@@ -554,24 +576,69 @@ class ClientManagementViewSet(viewsets.ReadOnlyModelViewSet):
         client = self._client()
         serializer = ClientJourneyEventSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(client=client, recorded_by=request.user)
+        event = serializer.save(client=client, recorded_by=request.user)
+        notify_journey_event_created(event, actor=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch', 'delete'], url_path=r'journey-events/(?P<event_id>\d+)')
+    def journey_event_detail(self, request, pk=None, event_id=None):
+        event = self._client_object('journey_events', event_id)
+        if request.method == 'DELETE':
+            notify_journey_event_deleted(event, actor=request.user)
+            event.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        serializer = ClientJourneyEventSerializer(event, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        event = serializer.save()
+        notify_journey_event_updated(event, actor=request.user)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='referrals')
     def referrals(self, request, pk=None):
         client = self._client()
         serializer = ReferralRecordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(client=client, recorded_by=request.user)
+        referral = serializer.save(client=client, recorded_by=request.user)
+        notify_referral_created(referral, actor=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch', 'delete'], url_path=r'referrals/(?P<referral_id>\d+)')
+    def referral_detail(self, request, pk=None, referral_id=None):
+        referral = self._client_object('referral_records', referral_id)
+        if request.method == 'DELETE':
+            notify_referral_deleted(referral, actor=request.user)
+            referral.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        serializer = ReferralRecordSerializer(referral, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        referral = serializer.save(confirmed_by=request.user)
+        notify_referral_updated(referral, actor=request.user)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='follow-up-tasks')
     def follow_up_tasks(self, request, pk=None):
         client = self._client()
         serializer = FollowUpTaskSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save(client=client, created_by=request.user)
+        task = serializer.save(client=client, created_by=request.user)
+        notify_follow_up_task_created(task, actor=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['patch', 'delete'], url_path=r'follow-up-tasks/(?P<task_id>\d+)')
+    def follow_up_task_detail(self, request, pk=None, task_id=None):
+        task = self._client_object('follow_up_tasks', task_id)
+        if request.method == 'DELETE':
+            notify_follow_up_task_deleted(task, actor=request.user)
+            task.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        serializer = FollowUpTaskSerializer(task, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        task = serializer.save()
+        notify_follow_up_task_updated(task, actor=request.user)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['post'], url_path='appointments')
     def appointments(self, request, pk=None):
